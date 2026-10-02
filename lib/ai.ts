@@ -8,7 +8,7 @@ const AI_TIMEOUT_MS = 15_000;
 const MAX_DIFF_CHARS = 12_000; // 토큰 절약: diff가 너무 길면 잘라서 보낸다
 
 // AI 응답은 믿지 않고 zod로 검증한 뒤에만 저장한다
-const aiReportSchema = z.object({
+export const aiReportSchema = z.object({
   summary: z.array(z.string().trim().min(1).max(200)).length(3),
   warning: z.string().trim().max(500),
   concept: z.string().trim().max(300),
@@ -54,17 +54,26 @@ function logAiError(error: unknown) {
   console.error(`[AI] 분석 실패 (status: ${status}): ${message.slice(0, 300)}`);
 }
 
+// 전체 코드가 아니라 바뀐 부분(unified diff)만 AI에 보낸다. 캐시 키도 이 diff로 만든다
+export function buildDiff(beforeCode: string, afterCode: string): string {
+  return createPatch("code", beforeCode, afterCode, undefined, undefined, { context: 3 }).slice(0, MAX_DIFF_CHARS);
+}
+
+// 요청 한도 초과로 AI 분석을 건너뛴 제출에 저장하는 리포트
+export const RATE_LIMIT_MESSAGE = "요청이 많아 잠시 후 다시 시도해주세요.";
+export const RATE_LIMITED_REPORT: AIReport = {
+  summary: [RATE_LIMIT_MESSAGE, "이번 제출은 AI 분석 없이 저장됐어요.", "Diff를 보고 직접 확인해주세요."],
+  warning: "",
+  concept: "",
+};
+
 export async function analyzeSubmission(beforeCode: string, afterCode: string): Promise<AIReport> {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     const model = process.env.GEMINI_MODEL;
     if (!apiKey || !model) throw new Error("GEMINI_API_KEY 또는 GEMINI_MODEL이 설정되지 않았습니다.");
 
-    // 전체 코드가 아니라 바뀐 부분(unified diff)만 보낸다
-    const diff = createPatch("code", beforeCode, afterCode, undefined, undefined, { context: 3 }).slice(
-      0,
-      MAX_DIFF_CHARS
-    );
+    const diff = buildDiff(beforeCode, afterCode);
 
     const ai = new GoogleGenAI({ apiKey });
     // 재시도 시간까지 포함해 전체 15초 안에 끝나도록 하나의 타임아웃 신호를 공유한다

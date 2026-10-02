@@ -2,7 +2,8 @@
 
 import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
-import { analyzeSubmission } from "@/lib/ai";
+import { analyzeSubmission, buildDiff, FALLBACK_REPORT, RATE_LIMIT_MESSAGE, RATE_LIMITED_REPORT } from "@/lib/ai";
+import { allowAiCall, cacheKeyForDiff, getCachedReport, setCachedReport } from "@/lib/redis";
 import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
@@ -43,10 +44,23 @@ export async function createSubmission(
   });
 
   // 제출은 이미 저장됐으므로, AI가 실패해도(fallback 반환) 흐름은 계속된다
-  const aiReport = await analyzeSubmission(project.mainCode, parsed.data.afterCode);
+  let notice: string | undefined;
+  const cacheKey = cacheKeyForDiff(buildDiff(project.mainCode, parsed.data.afterCode));
+  let aiReport = await getCachedReport(cacheKey); // 같은 diff는 24시간 동안 캐시 결과를 재사용
+  if (!aiReport) {
+    if (await allowAiCall(String(project._id), me.nickname)) {
+      aiReport = await analyzeSubmission(project.mainCode, parsed.data.afterCode);
+      // 성공한 결과만 캐싱한다. 실패(fallback)를 캐싱하면 같은 코드가 계속 분석 없이 저장되기 때문
+      if (aiReport !== FALLBACK_REPORT) await setCachedReport(cacheKey, aiReport);
+    } else {
+      aiReport = RATE_LIMITED_REPORT; // 한도 초과: 제출은 만들되 AI 분석은 생략
+      notice = RATE_LIMIT_MESSAGE;
+    }
+  }
   await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
 
   return {
+    notice,
     submission: {
       id: String(submission._id),
       title: submission.title,

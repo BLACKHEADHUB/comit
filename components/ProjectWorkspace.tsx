@@ -54,6 +54,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState("");
 
   function handleCodeChange(value: string) {
     setCode(value);
@@ -84,6 +85,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
     setSubmissions((prev) => [result.submission!, ...prev]);
     setTab("PENDING");
     setTitle("");
+    setNotice(result.notice ?? "");
     setModalOpen(false);
   }
 
@@ -138,7 +140,8 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
             options={{ minimap: { enabled: false }, fontSize: 14 }}
           />
         </div>
-        <div className="flex justify-end border-t border-zinc-300 p-3 dark:border-zinc-700">
+        <div className="flex items-center justify-end gap-3 border-t border-zinc-300 p-3 dark:border-zinc-700">
+          {notice && <p role="status" className="flex-1 text-sm text-amber-700 dark:text-amber-400">{notice}</p>}
           <button
             type="button"
             onClick={() => setModalOpen(true)}

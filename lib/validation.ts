@@ -37,7 +37,7 @@ export type SubmissionItem = {
   createdAt: string; // ISO 문자열 (서버→클라이언트 전달용)
 };
 
-export type SubmissionResult = { error?: string; submission?: SubmissionItem };
+export type SubmissionResult = { error?: string; notice?: string; submission?: SubmissionItem };
 
 // 댓글 입력 검증: 태그는 필수, 내용은 선택(길이 제한)
 export const createCommentSchema = z.object({
