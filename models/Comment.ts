@@ -5,7 +5,7 @@ const commentSchema = new Schema({
   author: { type: String, required: true, trim: true, maxlength: 20 },
   lineNumber: { type: Number, required: true, min: 1 },
   tag: { type: String, enum: ["LIKE", "QUESTION", "BUG"], required: true },
-  content: { type: String, required: true, trim: true, maxlength: 300 },
+  content: { type: String, default: "", trim: true, maxlength: 300 }, // 내용은 선택 (태그만 남겨도 됨),
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -38,3 +38,23 @@ export type SubmissionItem = {
 };
 
 export type SubmissionResult = { error?: string; submission?: SubmissionItem };
+
+// 댓글 입력 검증: 태그는 필수, 내용은 선택(길이 제한)
+export const createCommentSchema = z.object({
+  lineNumber: z.number().int().min(1),
+  tag: z.enum(["LIKE", "QUESTION", "BUG"]),
+  content: z.string().trim().max(300, "댓글은 300자 이하로 입력해주세요."),
+});
+
+export type CommentTag = "LIKE" | "QUESTION" | "BUG";
+
+export type CommentItem = {
+  id: string;
+  author: string;
+  lineNumber: number;
+  tag: CommentTag;
+  content: string;
+  createdAt: string;
+};
+
+export type CommentResult = { error?: string; comment?: CommentItem };

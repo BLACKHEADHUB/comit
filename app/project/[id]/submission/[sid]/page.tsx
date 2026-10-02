@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
+import SubmissionDiff from "@/components/SubmissionDiff";
+import type { CommentItem } from "@/lib/validation";
+import { Comment } from "@/models/Comment";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
 
@@ -27,10 +30,21 @@ export default async function SubmissionPage({
   const submission = await Submission.findOne({ _id: sid, projectId: id }).lean();
   if (!submission) notFound();
 
+  // 위에서 projectId로 검증한 제출의 댓글만 조회한다
+  const commentDocs = await Comment.find({ submissionId: submission._id }).sort({ createdAt: 1 }).lean();
+  const comments: CommentItem[] = commentDocs.map((c) => ({
+    id: String(c._id),
+    author: c.author,
+    lineNumber: c.lineNumber,
+    tag: c.tag,
+    content: c.content,
+    createdAt: c.createdAt.toISOString(),
+  }));
+
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-6">
       <Link href={`/project/${id}`} className="text-sm text-zinc-500 hover:underline">
         ← 프로젝트로 돌아가기
       </Link>
@@ -69,20 +83,14 @@ export default async function SubmissionPage({
         )}
       </section>
 
-      {/* 코드는 실행하지 않고 텍스트로만 표시 (diff viewer는 다음 단계) */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {[
-          { label: "변경 전 (beforeCode)", code: submission.beforeCode },
-          { label: "변경 후 (afterCode)", code: submission.afterCode },
-        ].map((c) => (
-          <section key={c.label}>
-            <h2 className="mb-1 text-sm font-medium">{c.label}</h2>
-            <pre className="max-h-96 overflow-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-900">
-              <code>{c.code || "(비어 있음)"}</code>
-            </pre>
-          </section>
-        ))}
-      </div>
+      {/* 코드는 실행하지 않고 텍스트로만 비교한다 */}
+      <SubmissionDiff
+        projectId={id}
+        submissionId={sid}
+        beforeCode={submission.beforeCode}
+        afterCode={submission.afterCode}
+        initialComments={comments}
+      />
     </main>
   );
 }
