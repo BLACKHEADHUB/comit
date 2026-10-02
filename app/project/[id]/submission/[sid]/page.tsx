@@ -1,0 +1,88 @@
+import { isValidObjectId } from "mongoose";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { connectDB } from "@/lib/db";
+import { getMemberId } from "@/lib/session";
+import { Project } from "@/models/Project";
+import { Submission } from "@/models/Submission";
+
+const STATUS_LABEL = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌" } as const;
+
+export default async function SubmissionPage({
+  params,
+}: PageProps<"/project/[id]/submission/[sid]">) {
+  const { id, sid } = await params;
+  if (!isValidObjectId(id) || !isValidObjectId(sid)) notFound();
+
+  await connectDB();
+
+  // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 접근 허용 (멀티테넌시 격리)
+  const memberId = await getMemberId(id);
+  const isMember = memberId
+    ? await Project.exists({ _id: id, "members._id": memberId })
+    : null;
+  if (!isMember) notFound();
+
+  // projectId까지 함께 걸어서 다른 프로젝트의 제출은 조회되지 않게 한다
+  const submission = await Submission.findOne({ _id: sid, projectId: id }).lean();
+  if (!submission) notFound();
+
+  const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
+
+  return (
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-6">
+      <Link href={`/project/${id}`} className="text-sm text-zinc-500 hover:underline">
+        ← 프로젝트로 돌아가기
+      </Link>
+      <div>
+        <h1 className="text-2xl font-bold">{submission.title}</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          {submission.author} · {STATUS_LABEL[submission.status]}
+        </p>
+      </div>
+
+      {/* AI 분석 카드 */}
+      <section className="flex flex-col gap-4 rounded-xl border border-zinc-300 p-4 dark:border-zinc-700">
+        <h2 className="font-bold">🤖 AI 분석</h2>
+        <div>
+          <h3 className="mb-1 text-sm font-medium">3줄 요약</h3>
+          {summary.length > 0 ? (
+            <ol className="list-decimal pl-5 text-sm">
+              {summary.slice(0, 3).map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-zinc-500">분석 결과가 없어요.</p>
+          )}
+        </div>
+        {warning && (
+          <div role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+            <b>⚠️ 주의</b> {warning}
+          </div>
+        )}
+        {concept && (
+          <div>
+            <h3 className="mb-1 text-sm font-medium">핵심 개념</h3>
+            <p className="text-sm">{concept}</p>
+          </div>
+        )}
+      </section>
+
+      {/* 코드는 실행하지 않고 텍스트로만 표시 (diff viewer는 다음 단계) */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {[
+          { label: "변경 전 (beforeCode)", code: submission.beforeCode },
+          { label: "변경 후 (afterCode)", code: submission.afterCode },
+        ].map((c) => (
+          <section key={c.label}>
+            <h2 className="mb-1 text-sm font-medium">{c.label}</h2>
+            <pre className="max-h-96 overflow-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-900">
+              <code>{c.code || "(비어 있음)"}</code>
+            </pre>
+          </section>
+        ))}
+      </div>
+    </main>
+  );
+}

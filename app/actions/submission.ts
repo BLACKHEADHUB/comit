@@ -1,6 +1,7 @@
 "use server";
 
 import { isValidObjectId } from "mongoose";
+import { analyzeSubmission } from "@/lib/ai";
 import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
 import { createSubmissionSchema, type SubmissionResult } from "@/lib/validation";
@@ -37,8 +38,12 @@ export async function createSubmission(
     title: parsed.data.title,
     beforeCode: project.mainCode,
     afterCode: parsed.data.afterCode,
-    status: "PENDING", // aiReport는 기본값(빈 값), Step 3에서 채운다
+    status: "PENDING",
   });
+
+  // 제출은 이미 저장됐으므로, AI가 실패해도(fallback 반환) 흐름은 계속된다
+  const aiReport = await analyzeSubmission(project.mainCode, parsed.data.afterCode);
+  await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
 
   return {
     submission: {
