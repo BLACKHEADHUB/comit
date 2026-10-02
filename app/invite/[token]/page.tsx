@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import CenteredCard from "@/components/CenteredCard";
 import NicknameForm from "@/components/NicknameForm";
 import { joinProject } from "@/app/actions/project";
 import { connectDB } from "@/lib/db";
@@ -19,12 +20,11 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">{project.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">초대받았어요! 닉네임을 정하고 합류하세요.</p>
-      </div>
+    <CenteredCard
+      title={`${project.title}에 초대받았어요`}
+      description={`현재 멤버 ${project.members.length}명 · 닉네임을 정하고 합류하세요.`}
+    >
       <NicknameForm action={joinProject} submitLabel="합류하기" token={token} />
-    </main>
+    </CenteredCard>
   );
 }

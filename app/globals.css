@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
+/* 디자인 토큰: 모노톤 베이스 + 포인트 컬러(인디고) 1개. 다크/라이트는 시스템 설정을 따른다 */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --surface: #fafafa; /* 카드 안쪽/보조 영역 */
+  --foreground: #0a0a0a;
+  --muted: #71717a; /* 보조 텍스트 */
+  --line: #e4e4e7; /* 약한 경계선 */
+  --line-strong: #d4d4d8; /* 입력창/버튼 경계선 */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
+    --surface: #111113;
     --foreground: #ededed;
+    --muted: #a1a1aa;
+    --line: #27272a;
+    --line-strong: #3f3f46;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --accent-soft: #1e1b4b;
+    --ok: #86efac;
+    --ok-soft: #052e16;
+    --warn: #fcd34d;
+    --warn-soft: #3b2506;
+    --danger: #fca5a5;
+    --danger-soft: #450a0a;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* 모달/토스트가 부드럽게 나타나는 애니메이션 */
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-pop-in: pop-in 0.18s ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+    to { opacity: 1; transform: none; }
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 키보드로 이동할 때 현재 위치가 보이도록 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* 움직임에 민감한 사용자를 위해 애니메이션을 줄인다 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

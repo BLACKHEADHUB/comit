@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import type { FormState } from "@/lib/validation";
-import { btnPrimary, inputClass } from "@/lib/ui";
+import { btnPrimary, inputClass, noticeError } from "@/lib/ui";
 
 type Props = {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -14,13 +14,13 @@ export default function NicknameForm({ action, submitLabel, token }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-5">
       {token && <input type="hidden" name="token" value={token} />}
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="flex flex-col gap-1.5 text-sm font-medium">
         내 닉네임
         <input name="nickname" required maxLength={20} className={inputClass} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p role="alert" className={noticeError}>{state.error}</p>}
       <button
         type="submit"
         disabled={pending}
