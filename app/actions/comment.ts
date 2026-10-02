@@ -12,7 +12,7 @@ export async function createComment(
   submissionId: string,
   lineNumber: number,
   tag: string,
-  content: string
+  content: string,
 ): Promise<CommentResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) {
     return { error: "잘못된 요청이에요." };
@@ -26,7 +26,10 @@ export async function createComment(
   const { project, me } = member;
 
   // projectId까지 걸어 조회 → 다른 프로젝트의 제출에는 댓글을 달 수 없다
-  const submission = await Submission.findOne({ _id: submissionId, projectId: project._id })
+  const submission = await Submission.findOne({
+    _id: submissionId,
+    projectId: project._id,
+  })
     .select("afterCode")
     .lean();
   if (!submission) return { error: "제출을 찾을 수 없어요." };
