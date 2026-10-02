@@ -3,13 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
+import MergePanel from "@/components/MergePanel";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import type { CommentItem } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
-
-const STATUS_LABEL = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌" } as const;
 
 export default async function SubmissionPage({
   params,
@@ -21,10 +20,11 @@ export default async function SubmissionPage({
 
   // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 접근 허용 (멀티테넌시 격리)
   const memberId = await getMemberId(id);
-  const isMember = memberId
-    ? await Project.exists({ _id: id, "members._id": memberId })
+  const project = memberId
+    ? await Project.findOne({ _id: id, "members._id": memberId }).select("members").lean()
     : null;
-  if (!isMember) notFound();
+  const me = project?.members.find((m) => String(m._id) === memberId);
+  if (!project || !me) notFound();
 
   // projectId까지 함께 걸어서 다른 프로젝트의 제출은 조회되지 않게 한다
   const submission = await Submission.findOne({ _id: sid, projectId: id }).lean();
@@ -50,10 +50,16 @@ export default async function SubmissionPage({
       </Link>
       <div>
         <h1 className="text-2xl font-bold">{submission.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {submission.author} · {STATUS_LABEL[submission.status]}
-        </p>
+        <p className="mt-1 text-sm text-zinc-500">{submission.author}</p>
       </div>
+
+      {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
+      <MergePanel
+        projectId={id}
+        submissionId={sid}
+        initialStatus={submission.status}
+        canMerge={me.role === "LEADER"}
+      />
 
       {/* AI 분석 카드 */}
       <section className="flex flex-col gap-4 rounded-xl border border-zinc-300 p-4 dark:border-zinc-700">

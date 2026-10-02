@@ -58,3 +58,8 @@ export type CommentItem = {
 };
 
 export type CommentResult = { error?: string; comment?: CommentItem };
+
+export type SubmissionStatus = "PENDING" | "MERGED" | "STALE";
+
+// 병합 결과: error는 권한/입력 오류, status는 병합 시도 후의 최종 상태
+export type MergeResult = { error?: string; status?: SubmissionStatus; message?: string };
