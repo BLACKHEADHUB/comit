@@ -23,5 +23,9 @@ export const noticeError = "rounded-lg border border-danger/20 bg-danger-soft px
 export const noticeWarn = "rounded-lg border border-warn/20 bg-warn-soft px-3 py-2 text-sm text-warn";
 export const noticeOk = "rounded-lg border border-ok/20 bg-ok-soft px-3 py-2 text-sm text-ok";
 
+// "충돌(STALE)" 상태를 입문자가 이해하기 쉽게 풀어 쓴 설명 (탭/배지 툴팁에 사용)
+export const STALE_LABEL = "다시 제출 필요";
+export const STALE_HINT = "다른 변경이 먼저 병합돼서 최신 코드로 다시 제출해야 해요";
+
 // 예상하지 못한 오류(네트워크 끊김 등)일 때 보여줄 공통 안내
 export const RETRY_MESSAGE = "문제가 생겨 처리하지 못했어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.";

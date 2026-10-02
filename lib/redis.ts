@@ -33,7 +33,8 @@ export async function allowAiCall(projectId: string, author: string): Promise<bo
 }
 
 // 캐시 키: diff 내용의 SHA-256 (같은 변경이면 같은 키)
-export const cacheKeyForDiff = (diff: string) => `comit:ai:${createHash("sha256").update(diff).digest("hex")}`;
+// v2: 프롬프트를 바꿨을 때 이전 프롬프트로 만든 캐시가 재사용되지 않도록 버전을 키에 포함한다
+export const cacheKeyForDiff = (diff: string) => `comit:ai:v2:${createHash("sha256").update(diff).digest("hex")}`;
 
 export async function getCachedReport(key: string): Promise<AIReport | null> {
   if (!redis) return null;

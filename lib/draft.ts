@@ -38,3 +38,38 @@ export function clearDraft(projectId: string) {
     sessionStorage.removeItem(key(projectId));
   } catch {}
 }
+
+// 에디터 언어 선택 (Monaco는 언어에 맞춰 문법 검사/색상을 적용한다. 일반 텍스트는 검사하지 않는다)
+export const LANGUAGES = [
+  { value: "plaintext", label: "일반 텍스트" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "html", label: "HTML" },
+] as const;
+export type Language = (typeof LANGUAGES)[number]["value"];
+
+const langKey = (projectId: string) => `comit_lang_${projectId}`;
+const langListeners = new Set<() => void>();
+
+export function subscribeLanguage(cb: () => void) {
+  langListeners.add(cb);
+  return () => {
+    langListeners.delete(cb);
+  };
+}
+
+export function readLanguage(projectId: string): Language {
+  try {
+    const saved = sessionStorage.getItem(langKey(projectId));
+    return LANGUAGES.find((l) => l.value === saved)?.value ?? "plaintext";
+  } catch {
+    return "plaintext";
+  }
+}
+
+export function writeLanguage(projectId: string, language: Language) {
+  try {
+    sessionStorage.setItem(langKey(projectId), language);
+  } catch {}
+  langListeners.forEach((cb) => cb()); // 같은 탭의 화면을 즉시 갱신
+}

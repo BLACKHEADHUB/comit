@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import type { CommentItem, CommentTag } from "@/lib/validation";
+import { useReview } from "@/components/ReviewProvider";
 import { useIsDark } from "@/lib/useIsDark";
 import { badge, btnGhost, btnPrimary, card, inputClass, noticeError, RETRY_MESSAGE } from "@/lib/ui";
 
@@ -14,9 +15,9 @@ const DiffViewer = dynamic(() => import("react-diff-viewer-continued"), {
 });
 
 const TAGS: { tag: CommentTag; emoji: string; label: string }[] = [
-  { tag: "LIKE", emoji: "👍", label: "LIKE" },
-  { tag: "QUESTION", emoji: "❓", label: "QUESTION" },
-  { tag: "BUG", emoji: "🐞", label: "BUG" },
+  { tag: "LIKE", emoji: "👍", label: "좋아요" },
+  { tag: "QUESTION", emoji: "❓", label: "질문" },
+  { tag: "BUG", emoji: "🐞", label: "버그" },
 ];
 // 태그별 배지 색상 (LIKE=초록, QUESTION=포인트, BUG=빨강)
 const TAG_STYLE: Record<CommentTag, string> = {
@@ -24,7 +25,9 @@ const TAG_STYLE: Record<CommentTag, string> = {
   QUESTION: "bg-accent-soft text-accent",
   BUG: "bg-danger-soft text-danger",
 };
+// 화면에는 한국어 라벨을 쓰고, DB에는 기존 값(LIKE/QUESTION/BUG)이 그대로 저장된다
 const emojiOf = (tag: CommentTag) => TAGS.find((t) => t.tag === tag)!.emoji;
+const labelOf = (tag: CommentTag) => TAGS.find((t) => t.tag === tag)!.label;
 
 // 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대 고정
 const formatTime = (iso: string) =>
@@ -41,11 +44,10 @@ type Props = {
   submissionId: string;
   beforeCode: string;
   afterCode: string;
-  initialComments: CommentItem[];
 };
 
-export default function SubmissionDiff({ projectId, submissionId, beforeCode, afterCode, initialComments }: Props) {
-  const [comments, setComments] = useState(initialComments);
+export default function SubmissionDiff({ projectId, submissionId, beforeCode, afterCode }: Props) {
+  const { comments, addComment } = useReview();
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [tag, setTag] = useState<CommentTag>("LIKE");
   const [content, setContent] = useState("");
@@ -78,7 +80,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
       setError(result.error ?? RETRY_MESSAGE);
       return;
     }
-    setComments((prev) => [...prev, result.comment!]);
+    addComment(result.comment);
     setContent("");
     setActiveLine(null);
   }
@@ -89,7 +91,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
         <h2 className="mr-1 text-base font-semibold tracking-tight">코드 변경</h2>
         {counts.map((c) => (
           <span key={c.tag} className={`${badge} ${TAG_STYLE[c.tag]}`}>
-            {c.emoji} {c.count}
+            {c.emoji} {c.label} {c.count}
           </span>
         ))}
         <span className="text-xs text-muted">오른쪽(변경 후) 줄 번호를 클릭하면 댓글을 달 수 있어요.</span>
@@ -104,7 +106,16 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             useDarkTheme={dark}
             leftTitle="변경 전"
             rightTitle="변경 후"
-            highlightLines={lines.map((n) => `R-${n}`)}
+            // 지금 댓글을 다는 줄만 강조한다 (이 라이브러리는 줄마다 다른 색을 줄 수 없다)
+            highlightLines={activeLine === null ? [] : [`R-${activeLine}`]}
+            styles={{
+              variables: {
+                light: { highlightBackground: "#e0e7ff", highlightGutterBackground: "#c7d2fe" },
+                dark: { highlightBackground: "#312e81", highlightGutterBackground: "#3730a3" },
+              },
+            }}
+            // 접힌(변경 없는) 구간의 기본 문구 "@@ -a,n +b,n @@"를 입문자용 문구로 바꾼다
+            codeFoldMessageRenderer={(total) => <span className="text-xs">변경 없는 {total}줄 펼치기</span>}
             onLineNumberClick={(lineId) => {
               // 오른쪽(R-) 줄 번호만 댓글 대상으로 사용
               if (!lineId.startsWith("R-")) return;
@@ -114,7 +125,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
           />
         </div>
 
-        <aside className="flex flex-col gap-4 text-sm lg:sticky lg:top-4 lg:self-start">
+        <aside className="flex flex-col gap-4 text-sm lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
           {activeLine !== null && (
             <form onSubmit={handleSubmit} className={`${card} flex animate-pop-in flex-col gap-3 p-4`}>
               <p className="font-semibold">{activeLine}번 줄에 댓글</p>
@@ -173,7 +184,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                 {byLine.get(n)!.map((c) => (
                   <li key={c.id} className={`${card} p-3`}>
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <span className={`${badge} ${TAG_STYLE[c.tag]}`}>{emojiOf(c.tag)} {c.tag}</span>
+                      <span className={`${badge} ${TAG_STYLE[c.tag]}`}>{emojiOf(c.tag)} {labelOf(c.tag)}</span>
                       <span className="font-medium text-foreground">{c.author}</span>
                       <span>{formatTime(c.createdAt)}</span>
                     </p>

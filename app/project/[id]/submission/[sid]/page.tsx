@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
 import MergePanel from "@/components/MergePanel";
+import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import { card, noticeError } from "@/lib/ui";
 import type { CommentItem } from "@/lib/validation";
@@ -38,6 +39,7 @@ export default async function SubmissionPage({
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
+    <ReviewProvider initialComments={comments}>
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
         ← 프로젝트로 돌아가기
@@ -107,8 +109,8 @@ export default async function SubmissionPage({
         submissionId={sid}
         beforeCode={submission.beforeCode}
         afterCode={submission.afterCode}
-        initialComments={comments}
       />
     </main>
+    </ReviewProvider>
   );
 }

@@ -4,7 +4,16 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
-import { clearDraft, readDraft, writeDraft } from "@/lib/draft";
+import {
+  clearDraft,
+  LANGUAGES,
+  readDraft,
+  readLanguage,
+  subscribeLanguage,
+  writeDraft,
+  writeLanguage,
+  type Language,
+} from "@/lib/draft";
 import type { SubmissionItem } from "@/lib/validation";
 import { useIsDark } from "@/lib/useIsDark";
 import {
@@ -18,6 +27,8 @@ import {
   noticeError,
   noticeWarn,
   RETRY_MESSAGE,
+  STALE_HINT,
+  STALE_LABEL,
 } from "@/lib/ui";
 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
@@ -29,7 +40,7 @@ const Editor = dynamic(() => import("@monaco-editor/react"), {
 const TABS = [
   { status: "PENDING", label: "대기" },
   { status: "MERGED", label: "병합됨" },
-  { status: "STALE", label: "충돌" },
+  { status: "STALE", label: STALE_LABEL },
 ] as const;
 
 // 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대를 고정한다 (hydration 불일치 방지)
@@ -61,6 +72,8 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
     () => false
   );
   const [staleDismissed, setStaleDismissed] = useState(false);
+  // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
+  const language = useSyncExternalStore(subscribeLanguage, () => readLanguage(projectId), () => "plaintext" as Language);
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState<(typeof TABS)[number]["status"]>("PENDING");
   const [modalOpen, setModalOpen] = useState(false);
@@ -130,7 +143,8 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
                 key={t.status}
                 type="button"
                 onClick={() => setTab(t.status)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition ${
+                title={t.status === "STALE" ? STALE_HINT : undefined} // 마우스를 올리면 설명이 보인다
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[13px] leading-tight transition ${
                   active ? "bg-background font-medium shadow-sm ring-1 ring-line" : "text-muted hover:text-foreground"
                 }`}
               >
@@ -147,7 +161,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
                 ? "아직 리뷰를 기다리는 제출이 없어요. 코드를 고친 뒤 아래 [Comit하기]를 눌러 팀원에게 보여주세요."
                 : tab === "MERGED"
                   ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
-                  : "충돌한 제출이 없어요. 다른 사람이 먼저 병합하면 여기에 표시돼요."}
+                  : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 코드로 다시 제출해야 하는 제출이 여기에 표시돼요."}
             </li>
           )}
           {visible.map((s) => (
@@ -177,13 +191,29 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
             </button>
           </div>
         )}
-        <p className="border-b border-line bg-surface px-4 py-2 text-xs text-muted">
-          코드를 자유롭게 고쳐보세요. 다 됐다면 아래 [Comit하기]로 팀원에게 리뷰를 요청해요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
-        </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface px-4 py-2">
+          <p className="min-w-0 flex-1 text-xs text-muted">
+            코드를 자유롭게 고쳐보세요. 다 됐다면 아래 [Comit하기]로 팀원에게 리뷰를 요청해요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
+          </p>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            언어
+            <select
+              value={language}
+              onChange={(e) => writeLanguage(projectId, e.target.value as Language)}
+              className="rounded-md border border-line-strong bg-background px-2 py-1 text-xs text-foreground"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="min-h-64 flex-1">
           <Editor
             height="100%"
-            defaultLanguage="javascript"
+            language={language}
             theme={dark ? "vs-dark" : "light"}
             value={code}
             onChange={(v) => handleCodeChange(v ?? "")}

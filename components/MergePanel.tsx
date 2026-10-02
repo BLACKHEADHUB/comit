@@ -1,13 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
+import { useReview } from "@/components/ReviewProvider";
 import { writeDraft } from "@/lib/draft";
 import type { SubmissionStatus } from "@/lib/validation";
-import { badge, btnPrimary, btnSecondary, noticeError, noticeOk, noticeWarn, RETRY_MESSAGE } from "@/lib/ui";
+import {
+  badge,
+  btnGhost,
+  btnPrimary,
+  btnSecondary,
+  modalCard,
+  modalOverlay,
+  noticeError,
+  noticeOk,
+  noticeWarn,
+  RETRY_MESSAGE,
+  STALE_HINT,
+  STALE_LABEL,
+} from "@/lib/ui";
 
-const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌(STALE)" };
+const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: STALE_LABEL };
 const STATUS_STYLE: Record<SubmissionStatus, string> = {
   PENDING: "bg-surface text-muted ring-1 ring-line-strong",
   MERGED: "bg-ok-soft text-ok",
@@ -29,8 +43,24 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
   const [isError, setIsError] = useState(false);
   const [pending, setPending] = useState(false);
   const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // 확인 창에 보여줄 리뷰 개수 (병합을 막지는 않고 확인만 받는다)
+  const { comments } = useReview();
+  const likeCount = comments.filter((c) => c.tag === "LIKE").length;
+  const questionCount = comments.filter((c) => c.tag === "QUESTION").length;
+  const bugCount = comments.filter((c) => c.tag === "BUG").length;
+
+  // ESC 키로 확인 창 닫기
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setConfirmOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmOpen]);
 
   async function handleMerge() {
+    setConfirmOpen(false);
     setPending(true);
     let result;
     try {
@@ -55,9 +85,9 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
   return (
     <div className="flex max-w-sm flex-col items-start gap-2 sm:items-end">
       <div className="flex items-center gap-3">
-        <span className={`${badge} ${STATUS_STYLE[status]} !px-3 !py-1`}>{STATUS_LABEL[status]}</span>
+        <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_STYLE[status]} !px-3 !py-1`}>{STATUS_LABEL[status]}</span>
         {canMerge && (
-          <button type="button" onClick={handleMerge} disabled={status !== "PENDING" || pending} className={btnPrimary}>
+          <button type="button" onClick={() => setConfirmOpen(true)} disabled={status !== "PENDING" || pending} className={btnPrimary}>
             {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
             {pending ? "병합 중..." : "병합하기"}
           </button>
@@ -80,6 +110,35 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
         >
           {message}
         </p>
+      )}
+      {confirmOpen && (
+        <div className={modalOverlay} onClick={() => setConfirmOpen(false)}>
+          <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className={`${modalCard} flex flex-col gap-4`}>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">이 제출을 병합할까요?</h2>
+              <p className="mt-1 text-sm text-muted">병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div className="rounded-lg border border-line bg-surface p-2">👍 좋아요<p className="mt-0.5 text-lg font-semibold">{likeCount}</p></div>
+              <div className="rounded-lg border border-line bg-surface p-2">❓ 질문<p className="mt-0.5 text-lg font-semibold">{questionCount}</p></div>
+              <div className="rounded-lg border border-line bg-surface p-2">🐞 버그<p className="mt-0.5 text-lg font-semibold">{bugCount}</p></div>
+            </div>
+            {bugCount > 0 && (
+              <p role="alert" className={noticeError}>
+                🐞 버그 지적이 있어요. 병합하기 전에 댓글을 한 번 더 확인해보세요.
+              </p>
+            )}
+            {comments.length === 0 && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원의 리뷰 없이 병합하게 돼요.</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmOpen(false)} className={btnGhost}>
+                취소
+              </button>
+              <button type="button" autoFocus onClick={handleMerge} className={btnPrimary}>
+                {bugCount > 0 || comments.length === 0 ? "그래도 병합하기" : "병합하기"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
