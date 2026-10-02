@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
+import { buildInviteUrl } from "@/lib/invite";
 import { setMemberCookie } from "@/lib/session";
 import { createProjectSchema, joinProjectSchema, type FormState } from "@/lib/validation";
 import { Project } from "@/models/Project";
@@ -21,14 +22,15 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
   // 16바이트 난수 → 추측이 사실상 불가능한 초대 토큰
   const inviteToken = randomBytes(16).toString("base64url");
   const project = await Project.create({
-    title: parsed.data.title,
+    title: parsed.data.title || `${parsed.data.nickname}의 프로젝트`,
     description: parsed.data.description,
     members: [{ nickname: parsed.data.nickname, role: "LEADER" }],
     inviteToken,
   });
 
   await setMemberCookie(String(project._id), String(project.members[0]._id));
-  redirect(`/p/${project._id}`); // redirect는 예외를 던지므로 try-catch 밖에서 호출
+  // 초대 링크를 화면에 보여줘야 하므로 여기서는 redirect하지 않고 결과를 돌려준다
+  return { projectId: String(project._id), inviteUrl: await buildInviteUrl(inviteToken) };
 }
 
 // 초대 링크로 합류: MEMBER로 저장
@@ -56,5 +58,5 @@ export async function joinProject(_prev: FormState, formData: FormData): Promise
   // 방금 추가된 멤버는 배열 마지막
   const me = project.members[project.members.length - 1];
   await setMemberCookie(String(project._id), String(me._id));
-  redirect(`/p/${project._id}`);
+  redirect(`/project/${project._id}`); // redirect는 예외를 던지므로 try-catch 밖에서 호출
 }

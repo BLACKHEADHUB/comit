@@ -1,12 +1,15 @@
 import { isValidObjectId } from "mongoose";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
+import { buildInviteUrl } from "@/lib/invite";
 import { getMemberId } from "@/lib/session";
+import ProjectWorkspace from "@/components/ProjectWorkspace";
+import type { SubmissionItem } from "@/lib/validation";
 import { Project } from "@/models/Project";
+import { Submission } from "@/models/Submission";
 
 // 임시 프로젝트 화면: 쿠키로 "나"를 식별하는지 확인하는 용도 (에디터는 다음 단계)
-export default async function ProjectPage({ params }: PageProps<"/p/[id]">) {
+export default async function ProjectPage({ params }: PageProps<"/project/[id]">) {
   const { id } = await params;
   if (!isValidObjectId(id)) notFound();
 
@@ -21,38 +24,35 @@ export default async function ProjectPage({ params }: PageProps<"/p/[id]">) {
 
   // 초대 링크는 팀장에게만 보여준다
   let inviteUrl: string | null = null;
-  if (me.role === "LEADER") {
-    const h = await headers();
-    const host = h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "http";
-    inviteUrl = `${proto}://${host}/invite/${project.inviteToken}`;
-  }
+  if (me.role === "LEADER") inviteUrl = await buildInviteUrl(project.inviteToken);
+
+  // 항상 projectId로 필터링하고, 목록에는 코드 본문을 싣지 않는다
+  const docs = await Submission.find({ projectId: id })
+    .select("title author status createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+  const submissions: SubmissionItem[] = docs.map((d) => ({
+    id: String(d._id),
+    title: d.title,
+    author: d.author,
+    status: d.status,
+    createdAt: d.createdAt.toISOString(),
+  }));
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">{project.title}</h1>
-        {project.description && <p className="mt-1 text-sm text-zinc-500">{project.description}</p>}
-      </div>
-      <p className="text-sm">
-        내 정보: <b>{me.nickname}</b> ({me.role === "LEADER" ? "팀장" : "팀원"})
-      </p>
-      {inviteUrl && (
-        <div className="rounded-lg border border-zinc-300 p-3 text-sm dark:border-zinc-700">
-          <p className="mb-1 font-medium">초대 링크</p>
-          <code className="break-all">{inviteUrl}</code>
-        </div>
-      )}
-      <div>
-        <p className="mb-1 text-sm font-medium">멤버 ({project.members.length})</p>
-        <ul className="text-sm">
-          {project.members.map((m) => (
-            <li key={String(m._id)}>
-              {m.nickname} · {m.role === "LEADER" ? "팀장" : "팀원"}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <main className="flex h-screen w-full flex-col">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700">
+        <h1 className="font-bold">{project.title}</h1>
+        <span className="text-zinc-500">
+          {me.nickname} ({me.role === "LEADER" ? "팀장" : "팀원"}) · 멤버 {project.members.length}명
+        </span>
+        {inviteUrl && (
+          <span className="min-w-0 truncate text-zinc-500">
+            초대 링크: <code>{inviteUrl}</code>
+          </span>
+        )}
+      </header>
+      <ProjectWorkspace projectId={id} initialCode={project.mainCode} initialSubmissions={submissions} />
     </main>
   );
 }

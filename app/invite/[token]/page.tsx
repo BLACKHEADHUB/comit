@@ -15,7 +15,7 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   // 이미 합류한 브라우저라면 닉네임을 다시 묻지 않고 바로 이동
   const memberId = await getMemberId(String(project._id));
   if (memberId && project.members.some((m) => String(m._id) === memberId)) {
-    redirect(`/p/${project._id}`);
+    redirect(`/project/${project._id}`);
   }
 
   return (
