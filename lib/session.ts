@@ -1,3 +1,4 @@
+import "server-only";
 import { cookies } from "next/headers";
 
 // 로그인 기능이 생기기 전까지 임시로 쓰는 "현재 사용자" 저장소.

@@ -1,3 +1,4 @@
+import "server-only";
 import mongoose from "mongoose";
 
 // 연결 객체와 진행 중인 연결 Promise를 함께 캐싱한다.

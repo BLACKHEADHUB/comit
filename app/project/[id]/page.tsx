@@ -1,26 +1,23 @@
 import { isValidObjectId } from "mongoose";
 import { notFound } from "next/navigation";
-import { connectDB } from "@/lib/db";
+import { findMember } from "@/lib/auth";
 import { buildInviteUrl } from "@/lib/invite";
-import { getMemberId } from "@/lib/session";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import type { SubmissionItem } from "@/lib/validation";
-import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
 
-// 임시 프로젝트 화면: 쿠키로 "나"를 식별하는지 확인하는 용도 (에디터는 다음 단계)
+// Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
+export const maxDuration = 30;
+
+// 프로젝트 메인 화면: 제출 목록 + 에디터
 export default async function ProjectPage({ params }: PageProps<"/project/[id]">) {
   const { id } = await params;
   if (!isValidObjectId(id)) notFound();
 
-  await connectDB();
-  const project = await Project.findById(id).lean();
-  if (!project) notFound();
-
-  // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 접근 허용 (멀티테넌시 격리)
-  const memberId = await getMemberId(id);
-  const me = project.members.find((m) => String(m._id) === memberId);
-  if (!me) notFound();
+  // 이 프로젝트의 멤버만 접근 허용 (멀티테넌시 격리)
+  const member = await findMember(id);
+  if (!member) notFound();
+  const { project, me } = member;
 
   // 초대 링크는 팀장에게만 보여준다
   let inviteUrl: string | null = null;

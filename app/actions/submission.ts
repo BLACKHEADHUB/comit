@@ -4,8 +4,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
 import { analyzeSubmission, buildDiff, FALLBACK_REPORT, RATE_LIMIT_MESSAGE, RATE_LIMITED_REPORT } from "@/lib/ai";
 import { allowAiCall, cacheKeyForDiff, getCachedReport, setCachedReport } from "@/lib/redis";
-import { connectDB } from "@/lib/db";
-import { getMemberId } from "@/lib/session";
+import { findMember } from "@/lib/auth";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
@@ -21,13 +20,10 @@ export async function createSubmission(
   const parsed = createSubmissionSchema.safeParse({ title, afterCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  await connectDB();
-
-  // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 허용 (멀티테넌시 격리)
-  const memberId = await getMemberId(projectId);
-  const project = await Project.findOne({ _id: projectId, "members._id": memberId }).lean();
-  const me = project?.members.find((m) => String(m._id) === memberId);
-  if (!project || !me) return { error: "이 프로젝트의 멤버만 제출할 수 있어요." };
+  // 이 프로젝트의 멤버만 제출할 수 있다 (멀티테넌시 격리)
+  const member = await findMember(projectId);
+  if (!member) return { error: "이 프로젝트의 멤버만 제출할 수 있어요." };
+  const { project, me } = member;
 
   if (parsed.data.afterCode === project.mainCode) {
     return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
@@ -77,13 +73,10 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
     return { error: "잘못된 요청이에요." };
   }
 
-  await connectDB();
-
-  // 쿠키의 멤버가 이 프로젝트의 LEADER인지 DB에서 확인 (역할은 쿠키를 믿지 않는다)
-  const memberId = await getMemberId(projectId);
-  const project = await Project.findOne({ _id: projectId, "members._id": memberId }).select("members").lean();
-  const me = project?.members.find((m) => String(m._id) === memberId);
-  if (!project || !me) return { error: "이 프로젝트의 멤버만 접근할 수 있어요." };
+  // 역할(LEADER)은 쿠키를 믿지 않고 DB 기준으로 확인한다
+  const member = await findMember(projectId);
+  if (!member) return { error: "이 프로젝트의 멤버만 접근할 수 있어요." };
+  const { project, me } = member;
   if (me.role !== "LEADER") return { error: "팀장만 병합할 수 있어요." };
 
   // projectId 필터로 다른 프로젝트의 제출은 조회되지 않는다

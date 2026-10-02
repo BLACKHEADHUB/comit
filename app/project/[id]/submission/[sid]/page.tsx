@@ -1,13 +1,11 @@
 import { isValidObjectId } from "mongoose";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connectDB } from "@/lib/db";
-import { getMemberId } from "@/lib/session";
+import { findMember } from "@/lib/auth";
 import MergePanel from "@/components/MergePanel";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import type { CommentItem } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
-import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
 
 export default async function SubmissionPage({
@@ -16,15 +14,10 @@ export default async function SubmissionPage({
   const { id, sid } = await params;
   if (!isValidObjectId(id) || !isValidObjectId(sid)) notFound();
 
-  await connectDB();
-
-  // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 접근 허용 (멀티테넌시 격리)
-  const memberId = await getMemberId(id);
-  const project = memberId
-    ? await Project.findOne({ _id: id, "members._id": memberId }).select("members mainCode").lean()
-    : null;
-  const me = project?.members.find((m) => String(m._id) === memberId);
-  if (!project || !me) notFound();
+  // 이 프로젝트의 멤버만 접근 허용 (멀티테넌시 격리)
+  const member = await findMember(id);
+  if (!member) notFound();
+  const { project, me } = member;
 
   // projectId까지 함께 걸어서 다른 프로젝트의 제출은 조회되지 않게 한다
   const submission = await Submission.findOne({ _id: sid, projectId: id }).lean();

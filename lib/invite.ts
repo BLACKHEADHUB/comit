@@ -1,3 +1,4 @@
+import "server-only";
 import { headers } from "next/headers";
 
 // 초대 링크는 현재 접속한 호스트 기준으로 만든다 (로컬/배포 환경 모두 동작)
