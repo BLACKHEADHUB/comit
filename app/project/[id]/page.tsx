@@ -1,8 +1,11 @@
 import { isValidObjectId } from "mongoose";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
 import { buildInviteUrl } from "@/lib/invite";
+import InviteLink from "@/components/InviteLink";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
+import { badge } from "@/lib/ui";
 import type { SubmissionItem } from "@/lib/validation";
 import { Submission } from "@/models/Submission";
 
@@ -37,17 +40,20 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   }));
 
   return (
-    <main className="flex h-screen w-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700">
-        <h1 className="font-bold">{project.title}</h1>
-        <span className="text-zinc-500">
-          {me.nickname} ({me.role === "LEADER" ? "팀장" : "팀원"}) · 멤버 {project.members.length}명
-        </span>
-        {inviteUrl && (
-          <span className="min-w-0 truncate text-zinc-500">
-            초대 링크: <code>{inviteUrl}</code>
+    <main className="flex h-dvh w-full flex-col">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2.5">
+        <Link href="/" className="text-base font-bold tracking-tight transition hover:opacity-70">
+          Comit<span className="text-accent">.</span>
+        </Link>
+        <span className="hidden h-4 w-px bg-line-strong sm:block" />
+        <h1 className="min-w-0 truncate text-sm font-semibold">{project.title}</h1>
+        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted">
+          <span className={`${badge} ${me.role === "LEADER" ? "bg-accent-soft text-accent" : "bg-surface text-muted ring-1 ring-line"}`}>
+            {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
-        )}
+          <span>멤버 {project.members.length}명</span>
+          {inviteUrl && <InviteLink url={inviteUrl} />}
+        </div>
       </header>
       <ProjectWorkspace projectId={id} initialCode={project.mainCode} initialSubmissions={submissions} />
     </main>

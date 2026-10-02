@@ -5,13 +5,13 @@ import { useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
 import { writeDraft } from "@/lib/draft";
 import type { SubmissionStatus } from "@/lib/validation";
-import { btnPrimary, btnSecondary, RETRY_MESSAGE } from "@/lib/ui";
+import { badge, btnPrimary, btnSecondary, noticeError, noticeOk, noticeWarn, RETRY_MESSAGE } from "@/lib/ui";
 
 const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌(STALE)" };
 const STATUS_STYLE: Record<SubmissionStatus, string> = {
-  PENDING: "bg-zinc-200 dark:bg-zinc-700",
-  MERGED: "bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-100",
-  STALE: "bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-100",
+  PENDING: "bg-surface text-muted ring-1 ring-line-strong",
+  MERGED: "bg-ok-soft text-ok",
+  STALE: "bg-warn-soft text-warn",
 };
 
 type Props = {
@@ -53,39 +53,40 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex max-w-sm flex-col items-start gap-2 sm:items-end">
       <div className="flex items-center gap-3">
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>
+        <span className={`${badge} ${STATUS_STYLE[status]} !px-3 !py-1`}>{STATUS_LABEL[status]}</span>
         {canMerge && (
-          <button
-            type="button"
-            onClick={handleMerge}
-            disabled={status !== "PENDING" || pending}
-            className={btnPrimary}
-          >
+          <button type="button" onClick={handleMerge} disabled={status !== "PENDING" || pending} className={btnPrimary}>
+            {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
             {pending ? "병합 중..." : "병합하기"}
           </button>
         )}
       </div>
       {status === "STALE" && (
-        <div>
-          <button
-            type="button"
-            onClick={loadIntoEditor}
-            className={btnSecondary}
-          >
-            이 코드를 에디터로 불러와 다시 Comit하기
-          </button>
-        </div>
+        <button type="button" onClick={loadIntoEditor} className={btnSecondary}>
+          이 코드를 에디터로 불러와 다시 Comit하기
+        </button>
       )}
       {canMerge && status === "PENDING" && !message && (
-        <p className="text-xs text-zinc-500">병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.</p>
+        <p className="text-xs leading-relaxed text-muted sm:text-right">
+          병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.
+        </p>
       )}
       {message && (
-        <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-red-600" : "text-green-700 dark:text-green-400"}`}>
+        <p
+          role={isError ? "alert" : "status"}
+          className={resultClass(isError, status)}
+        >
           {message}
         </p>
       )}
     </div>
   );
+}
+
+// 오류는 빨강, 충돌(STALE) 안내는 노랑, 성공은 초록
+function resultClass(isError: boolean, status: SubmissionStatus) {
+  if (isError && status === "STALE") return noticeWarn;
+  return isError ? noticeError : noticeOk;
 }

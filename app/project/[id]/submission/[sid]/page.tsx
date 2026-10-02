@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
 import MergePanel from "@/components/MergePanel";
 import SubmissionDiff from "@/components/SubmissionDiff";
+import { card, noticeError } from "@/lib/ui";
 import type { CommentItem } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
 import { Submission } from "@/models/Submission";
@@ -37,51 +38,67 @@ export default async function SubmissionPage({
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-6">
-      <Link href={`/project/${id}`} className="text-sm text-zinc-500 hover:underline">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
+      <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
         ← 프로젝트로 돌아가기
       </Link>
-      <div>
-        <h1 className="text-2xl font-bold">{submission.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{submission.author}</p>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">{submission.title}</h1>
+          <p className="mt-1 text-sm text-muted">{submission.author}님의 제출</p>
+        </div>
+        {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
+        <MergePanel
+          projectId={id}
+          submissionId={sid}
+          initialStatus={submission.status}
+          canMerge={me.role === "LEADER"}
+          afterCode={submission.afterCode}
+          latestMainCode={project.mainCode}
+        />
       </div>
 
-      {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
-      <MergePanel
-        projectId={id}
-        submissionId={sid}
-        initialStatus={submission.status}
-        canMerge={me.role === "LEADER"}
-        afterCode={submission.afterCode}
-        latestMainCode={project.mainCode}
-      />
-
       {/* AI 분석 카드 */}
-      <section className="flex flex-col gap-4 rounded-xl border border-zinc-300 p-4 dark:border-zinc-700">
-        <h2 className="font-bold">🤖 AI 분석</h2>
-        <div>
-          <h3 className="mb-1 text-sm font-medium">3줄 요약</h3>
-          {summary.length > 0 ? (
-            <ol className="list-decimal pl-5 text-sm">
-              {summary.slice(0, 3).map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-sm text-zinc-500">분석 결과가 없어요.</p>
-          )}
+      <section className={`${card} overflow-hidden`}>
+        <div className="flex items-center gap-2 border-b border-line bg-surface px-5 py-3">
+          <span>🤖</span>
+          <h2 className="text-sm font-semibold">AI 분석</h2>
+          <span className="text-xs text-muted">참고용이에요. 최종 판단은 팀원이 해주세요.</span>
         </div>
-        {warning && (
-          <div role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-            <b>⚠️ 주의</b> {warning}
-          </div>
-        )}
-        {concept && (
+        <div className="grid gap-5 p-5 md:grid-cols-[2fr_1fr]">
           <div>
-            <h3 className="mb-1 text-sm font-medium">핵심 개념</h3>
-            <p className="text-sm">{concept}</p>
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">3줄 요약</h3>
+            {summary.length > 0 ? (
+              <ol className="space-y-2">
+                {summary.slice(0, 3).map((line, i) => (
+                  <li key={i} className="flex gap-3 text-sm leading-relaxed">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                      {i + 1}
+                    </span>
+                    {line}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-muted">분석 결과가 없어요.</p>
+            )}
           </div>
-        )}
+          <div className="flex flex-col gap-3">
+            {warning && (
+              <div role="alert" className={noticeError}>
+                <p className="mb-0.5 font-semibold">⚠️ 주의</p>
+                <p className="leading-relaxed">{warning}</p>
+              </div>
+            )}
+            {concept && (
+              <div className="rounded-lg border border-line bg-surface p-3">
+                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">💡 핵심 개념</h3>
+                <p className="text-sm leading-relaxed">{concept}</p>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* 코드는 실행하지 않고 텍스트로만 비교한다 */}
