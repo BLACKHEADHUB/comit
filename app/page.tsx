@@ -10,6 +10,7 @@ export default function Home() {
       <div>
         <LandingModal />
       </div>
+      <p className="text-sm text-zinc-500">팀장에게 초대 링크를 받았다면, 링크를 열어 닉네임만 입력하면 바로 참여할 수 있어요.</p>
     </main>
   );
 }

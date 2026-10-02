@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useSyncExternalStore } from "react";
 import { createComment } from "@/app/actions/comment";
 import type { CommentItem, CommentTag } from "@/lib/validation";
+import { btnGhost, btnPrimary, inputClass, RETRY_MESSAGE } from "@/lib/ui";
 
 // Diff Viewer는 브라우저 전용이라 SSR을 끄고 불러온다
 const DiffViewer = dynamic(() => import("react-diff-viewer-continued"), {
@@ -66,10 +67,16 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
     if (activeLine === null) return;
     setPending(true);
     setError("");
-    const result = await createComment(projectId, submissionId, activeLine, tag, content);
-    setPending(false);
+    let result;
+    try {
+      result = await createComment(projectId, submissionId, activeLine, tag, content);
+    } catch {
+      result = { error: RETRY_MESSAGE };
+    } finally {
+      setPending(false);
+    }
     if (result.error || !result.comment) {
-      setError(result.error ?? "댓글 작성에 실패했어요.");
+      setError(result.error ?? RETRY_MESSAGE);
       return;
     }
     setComments((prev) => [...prev, result.comment!]);
@@ -130,25 +137,27 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                 maxLength={300}
                 rows={3}
                 placeholder="내용 (선택)"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                className={inputClass}
               />
               {error && <p role="alert" className="text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setActiveLine(null)} className="px-3 py-1">
+                <button type="button" onClick={() => setActiveLine(null)} className={btnGhost}>
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="rounded-lg bg-zinc-900 px-3 py-1 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                  className={btnPrimary}
                 >
-                  {pending ? "등록 중..." : "등록"}
+                  {pending ? "등록 중..." : error ? "다시 시도" : "등록하기"}
                 </button>
               </div>
             </form>
           )}
 
-          {lines.length === 0 && activeLine === null && <p className="text-zinc-500">아직 댓글이 없어요.</p>}
+          {lines.length === 0 && activeLine === null && (
+            <p className="text-zinc-500">아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄의 번호를 눌러 첫 댓글을 남겨보세요.</p>
+          )}
           {lines.map((n) => (
             <div key={n}>
               <button

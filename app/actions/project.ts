@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { buildInviteUrl } from "@/lib/invite";
+import { RETRY_MESSAGE } from "@/lib/ui";
 import { setMemberCookie } from "@/lib/session";
 import { createProjectSchema, joinProjectSchema, type FormState } from "@/lib/validation";
 import { Project } from "@/models/Project";
@@ -17,7 +18,11 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  await connectDB();
+  try {
+    await connectDB();
+  } catch {
+    return { error: RETRY_MESSAGE };
+  }
 
   // 16바이트 난수 → 추측이 사실상 불가능한 초대 토큰
   const inviteToken = randomBytes(16).toString("base64url");
@@ -41,7 +46,11 @@ export async function joinProject(_prev: FormState, formData: FormData): Promise
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  await connectDB();
+  try {
+    await connectDB();
+  } catch {
+    return { error: RETRY_MESSAGE };
+  }
 
   // 같은 닉네임이 없을 때만 추가 (조건부 원자적 업데이트로 동시 합류 시 중복 방지)
   const project = await Project.findOneAndUpdate(

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
 import { writeDraft } from "@/lib/draft";
 import type { SubmissionStatus } from "@/lib/validation";
+import { btnPrimary, btnSecondary, RETRY_MESSAGE } from "@/lib/ui";
 
 const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌(STALE)" };
 const STATUS_STYLE: Record<SubmissionStatus, string> = {
@@ -31,8 +32,14 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
 
   async function handleMerge() {
     setPending(true);
-    const result = await mergeSubmission(projectId, submissionId);
-    setPending(false);
+    let result;
+    try {
+      result = await mergeSubmission(projectId, submissionId);
+    } catch {
+      result = { error: RETRY_MESSAGE };
+    } finally {
+      setPending(false);
+    }
 
     if (result.status) setStatus(result.status);
     setIsError(Boolean(result.error) || result.status === "STALE");
@@ -54,9 +61,9 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
             type="button"
             onClick={handleMerge}
             disabled={status !== "PENDING" || pending}
-            className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+            className={btnPrimary}
           >
-            {pending ? "병합 중..." : "병합"}
+            {pending ? "병합 중..." : "병합하기"}
           </button>
         )}
       </div>
@@ -65,11 +72,14 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
           <button
             type="button"
             onClick={loadIntoEditor}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+            className={btnSecondary}
           >
             이 코드를 에디터로 불러와 다시 Comit하기
           </button>
         </div>
+      )}
+      {canMerge && status === "PENDING" && !message && (
+        <p className="text-xs text-zinc-500">병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.</p>
       )}
       {message && (
         <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-red-600" : "text-green-700 dark:text-green-400"}`}>

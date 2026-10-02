@@ -2,15 +2,13 @@
 
 import { useActionState } from "react";
 import type { FormState } from "@/lib/validation";
+import { btnPrimary, inputClass } from "@/lib/ui";
 
 type Props = {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   submitLabel: string;
   token?: string; // 초대 합류 시 hidden으로 전달
 };
-
-const inputClass =
-  "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900";
 
 export default function NicknameForm({ action, submitLabel, token }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
@@ -26,7 +24,7 @@ export default function NicknameForm({ action, submitLabel, token }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+        className={btnPrimary}
       >
         {pending ? "처리 중..." : submitLabel}
       </button>

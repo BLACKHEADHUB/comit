@@ -6,6 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
 import { clearDraft, readDraft, writeDraft } from "@/lib/draft";
 import type { SubmissionItem } from "@/lib/validation";
+import { btnGhost, btnPrimary, inputClass, modalCard, modalOverlay, RETRY_MESSAGE } from "@/lib/ui";
 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
 const Editor = dynamic(() => import("@monaco-editor/react"), {
@@ -74,11 +75,17 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
     e.preventDefault();
     setPending(true);
     setError("");
-    const result = await createSubmission(projectId, title, code);
-    setPending(false);
+    let result;
+    try {
+      result = await createSubmission(projectId, title, code);
+    } catch {
+      result = { error: RETRY_MESSAGE }; // 네트워크 오류 등: 모달을 유지해 바로 다시 시도할 수 있게 한다
+    } finally {
+      setPending(false);
+    }
 
     if (result.error || !result.submission) {
-      setError(result.error ?? "제출에 실패했어요.");
+      setError(result.error ?? RETRY_MESSAGE);
       return;
     }
     // 성공: 사이드바 맨 위에 추가하고 대기 탭으로 이동
@@ -105,7 +112,15 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
           ))}
         </div>
         <ul className="flex-1 overflow-y-auto">
-          {visible.length === 0 && <li className="p-3 text-sm text-zinc-500">제출이 없어요.</li>}
+          {visible.length === 0 && (
+            <li className="p-3 text-sm text-zinc-500">
+              {tab === "PENDING"
+                ? "아직 리뷰를 기다리는 제출이 없어요. 코드를 고친 뒤 아래 [Comit하기]를 눌러 팀원에게 보여주세요."
+                : tab === "MERGED"
+                  ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
+                  : "충돌한 제출이 없어요. 다른 사람이 먼저 병합하면 여기에 표시돼요."}
+            </li>
+          )}
           {visible.map((s) => (
             <li key={s.id} className="border-b border-zinc-200 dark:border-zinc-800">
               <Link href={`/project/${projectId}/submission/${s.id}`} className="block p-3 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900">
@@ -130,6 +145,9 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
             </button>
           </div>
         )}
+        <p className="border-b border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 dark:border-zinc-700">
+          코드를 자유롭게 고쳐보세요. 다 됐다면 아래 [Comit하기]로 팀원에게 리뷰를 요청해요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
+        </p>
         <div className="min-h-0 flex-1">
           <Editor
             height="100%"
@@ -145,7 +163,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+            className={btnPrimary}
           >
             Comit하기
           </button>
@@ -153,33 +171,34 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
       </section>
 
       {modalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-6" onClick={() => setModalOpen(false)}>
+        <div className={modalOverlay} onClick={() => setModalOpen(false)}>
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-sm flex-col gap-3 rounded-xl bg-white p-6 dark:bg-zinc-900"
+            className={`${modalCard} flex flex-col gap-3`}
           >
             <h2 className="text-lg font-bold">무엇을 바꿨나요?</h2>
+            <p className="text-sm text-zinc-500">팀원이 알아보기 쉽게 한 줄로 적어주세요.</p>
             <input
               autoFocus
               required
               maxLength={80}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="제출 제목"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              placeholder="예) 로그인 버튼 추가"
+              className={inputClass}
             />
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setModalOpen(false)} className="px-3 py-2 text-sm">
+              <button type="button" onClick={() => setModalOpen(false)} className={btnGhost}>
                 취소
               </button>
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                className={btnPrimary}
               >
-                {pending ? "제출 중..." : "제출"}
+                {pending ? "AI가 코드를 분석하는 중이에요... (최대 15초)" : error ? "다시 시도" : "제출하기"}
               </button>
             </div>
           </form>
