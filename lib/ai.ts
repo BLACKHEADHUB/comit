@@ -38,6 +38,22 @@ const RESPONSE_SCHEMA = {
   required: ["summary", "warning", "concept"],
 };
 
+// 일시적인 서버 오류(429 한도 초과, 503 과부하)만 재시도 대상으로 본다
+const isRetryable = (error: unknown) => {
+  const status = (error as { status?: number })?.status;
+  return status === 429 || status === 503;
+};
+
+// 에러 객체 전체(요청 정보 포함 가능)를 찍지 않고 상태 코드와 메시지만 로그로 남긴다 (API 키 노출 방지)
+function logAiError(error: unknown) {
+  const status = (error as { status?: number })?.status ?? "-";
+  let message = error instanceof Error ? error.message : String(error);
+  try {
+    message = JSON.parse(message)?.error?.message ?? message; // SDK 에러 메시지는 JSON 문자열일 때가 많다
+  } catch {}
+  console.error(`[AI] 분석 실패 (status: ${status}): ${message.slice(0, 300)}`);
+}
+
 export async function analyzeSubmission(beforeCode: string, afterCode: string): Promise<AIReport> {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -51,21 +67,30 @@ export async function analyzeSubmission(beforeCode: string, afterCode: string): 
     );
 
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model,
-      contents: `다음 diff를 분석해줘.\n\n${diff}`,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseJsonSchema: RESPONSE_SCHEMA,
-        abortSignal: AbortSignal.timeout(AI_TIMEOUT_MS), // 타임아웃
-      },
-    });
+    // 재시도 시간까지 포함해 전체 15초 안에 끝나도록 하나의 타임아웃 신호를 공유한다
+    const signal = AbortSignal.timeout(AI_TIMEOUT_MS);
 
-    return aiReportSchema.parse(JSON.parse(response.text ?? ""));
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: `다음 diff를 분석해줘.\n\n${diff}`,
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            responseMimeType: "application/json",
+            responseJsonSchema: RESPONSE_SCHEMA,
+            abortSignal: signal,
+          },
+        });
+        return aiReportSchema.parse(JSON.parse(response.text ?? ""));
+      } catch (error) {
+        if (attempt >= 2 || !isRetryable(error)) throw error;
+        await new Promise((r) => setTimeout(r, 1000)); // 잠깐 쉬고 한 번만 재시도
+      }
+    }
   } catch (error) {
-    // 실패 원인은 서버 로그에만 남기고 기본 리포트로 계속 진행
-    console.error("[AI] 분석 실패, 기본 리포트 사용:", error instanceof Error ? error.message : error);
+    // 실패해도 제출 흐름은 계속되도록 기본 리포트를 돌려준다
+    logAiError(error);
     return FALLBACK_REPORT;
   }
 }

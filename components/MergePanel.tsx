@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
+import { writeDraft } from "@/lib/draft";
 import type { SubmissionStatus } from "@/lib/validation";
 
 const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: "충돌(STALE)" };
@@ -16,13 +18,16 @@ type Props = {
   submissionId: string;
   initialStatus: SubmissionStatus;
   canMerge: boolean; // LEADER일 때만 true (서버 액션에서도 다시 검증한다)
+  afterCode: string; // STALE일 때 에디터로 불러올 코드
+  latestMainCode: string; // 지금 시점의 최신 mainCode (에디터 초안의 기준값)
 };
 
-export default function MergePanel({ projectId, submissionId, initialStatus, canMerge }: Props) {
+export default function MergePanel({ projectId, submissionId, initialStatus, canMerge, afterCode, latestMainCode }: Props) {
   const [status, setStatus] = useState(initialStatus);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [pending, setPending] = useState(false);
+  const router = useRouter();
 
   async function handleMerge() {
     setPending(true);
@@ -32,6 +37,12 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
     if (result.status) setStatus(result.status);
     setIsError(Boolean(result.error) || result.status === "STALE");
     setMessage(result.error ?? result.message ?? "");
+  }
+
+  // 충돌 난 제출의 코드를 에디터로 불러와 최신 코드 기준으로 다시 Comit할 수 있게 한다
+  function loadIntoEditor() {
+    writeDraft(projectId, { code: afterCode, base: latestMainCode, fromStale: true });
+    router.push(`/project/${projectId}`);
   }
 
   return (
@@ -49,6 +60,17 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
           </button>
         )}
       </div>
+      {status === "STALE" && (
+        <div>
+          <button
+            type="button"
+            onClick={loadIntoEditor}
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+          >
+            이 코드를 에디터로 불러와 다시 Comit하기
+          </button>
+        </div>
+      )}
       {message && (
         <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-red-600" : "text-green-700 dark:text-green-400"}`}>
           {message}

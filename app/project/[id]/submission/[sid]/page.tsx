@@ -21,7 +21,7 @@ export default async function SubmissionPage({
   // 쿠키의 멤버 _id가 이 프로젝트의 멤버일 때만 접근 허용 (멀티테넌시 격리)
   const memberId = await getMemberId(id);
   const project = memberId
-    ? await Project.findOne({ _id: id, "members._id": memberId }).select("members").lean()
+    ? await Project.findOne({ _id: id, "members._id": memberId }).select("members mainCode").lean()
     : null;
   const me = project?.members.find((m) => String(m._id) === memberId);
   if (!project || !me) notFound();
@@ -59,6 +59,8 @@ export default async function SubmissionPage({
         submissionId={sid}
         initialStatus={submission.status}
         canMerge={me.role === "LEADER"}
+        afterCode={submission.afterCode}
+        latestMainCode={project.mainCode}
       />
 
       {/* AI 분석 카드 */}

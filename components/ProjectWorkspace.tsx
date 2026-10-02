@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
+import { clearDraft, readDraft, writeDraft } from "@/lib/draft";
 import type { SubmissionItem } from "@/lib/validation";
 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
@@ -35,13 +36,36 @@ type Props = {
 };
 
 export default function ProjectWorkspace({ projectId, initialCode, initialSubmissions }: Props) {
-  const [code, setCode] = useState(initialCode);
+  // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
+  // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
+  const [code, setCode] = useState(() =>
+    typeof window === "undefined" ? initialCode : (readDraft(projectId, initialCode)?.code ?? initialCode)
+  );
+  // STALE 안내 배너는 마크업이 달라지므로 useSyncExternalStore로 안전하게 읽는다 (서버에서는 항상 false)
+  const fromStale = useSyncExternalStore(
+    () => () => {},
+    () => readDraft(projectId, initialCode)?.fromStale ?? false,
+    () => false
+  );
+  const [staleDismissed, setStaleDismissed] = useState(false);
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState<(typeof TABS)[number]["status"]>("PENDING");
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  function handleCodeChange(value: string) {
+    setCode(value);
+    writeDraft(projectId, { code: value, base: initialCode, fromStale: fromStale && !staleDismissed });
+  }
+
+  // 최신 mainCode로 되돌리기: 초안을 지우고 에디터를 서버가 준 최신 코드로 되돌린다
+  function resetToMain() {
+    clearDraft(projectId);
+    setCode(initialCode);
+    setStaleDismissed(true);
+  }
 
   const visible = submissions.filter((s) => s.status === tab);
 
@@ -94,13 +118,23 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
+        {fromStale && !staleDismissed && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+            <span className="flex-1">
+              충돌했던 제출의 코드를 불러왔어요. 다른 사람이 먼저 바꾼 내용이 있을 수 있으니, 확인하고 고친 뒤 다시 Comit하세요.
+            </span>
+            <button type="button" onClick={resetToMain} className="rounded border border-amber-400 px-2 py-1 dark:border-amber-700">
+              최신 코드로 되돌리기
+            </button>
+          </div>
+        )}
         <div className="min-h-0 flex-1">
           <Editor
             height="100%"
             defaultLanguage="javascript"
             theme="vs-dark"
             value={code}
-            onChange={(v) => setCode(v ?? "")}
+            onChange={(v) => handleCodeChange(v ?? "")}
             options={{ minimap: { enabled: false }, fontSize: 14 }}
           />
         </div>

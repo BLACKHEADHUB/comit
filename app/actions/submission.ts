@@ -1,6 +1,7 @@
 "use server";
 
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
+import { revalidatePath } from "next/cache";
 import { analyzeSubmission } from "@/lib/ai";
 import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
@@ -78,24 +79,44 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
     return { status: submission.status, message: "이미 처리된 제출이에요." };
   }
 
-  // 핵심: mainCode가 beforeCode와 같을 때만 덮어쓴다. 그 사이 다른 병합이 있었다면 null
-  const merged = await Project.findOneAndUpdate(
-    { _id: project._id, mainCode: submission.beforeCode },
-    { mainCode: submission.afterCode }
-  );
+  // 트랜잭션 안에서 mainCode 갱신과 status 변경을 함께 처리한다 (중간에 끊기면 둘 다 취소 → 불일치 없음)
+  // 동시에 두 요청이 오면 늦은 쪽은 write conflict로 자동 재시도되고, 재시도 때는 mainCode가 바뀌어 있어 STALE이 된다
+  const outcome = await mongoose.connection.transaction(async (session) => {
+    // 핵심: mainCode가 beforeCode와 같을 때만 덮어쓴다. 그 사이 다른 병합이 있었다면 null
+    const merged = await Project.findOneAndUpdate(
+      { _id: project._id, mainCode: submission.beforeCode },
+      { mainCode: submission.afterCode },
+      { session }
+    );
 
-  // 상태 변경도 PENDING일 때만: 같은 제출을 동시에 병합해도 MERGED가 STALE로 덮어써지지 않는다
-  const pendingFilter = { _id: submission._id, projectId: project._id, status: "PENDING" as const };
+    // 상태 변경은 PENDING일 때만: 같은 제출이 이미 처리됐다면 아무것도 바뀌지 않는다
+    const updated = await Submission.updateOne(
+      { _id: submission._id, projectId: project._id, status: "PENDING" },
+      { status: merged ? "MERGED" : "STALE" },
+      { session }
+    );
+    if (updated.modifiedCount === 0) {
+      // 이미 다른 요청이 처리한 제출 → 방금 한 mainCode 변경도 취소(롤백)
+      throw new AlreadyHandledError();
+    }
+    return merged ? ("MERGED" as const) : ("STALE" as const);
+  }).catch(async (error) => {
+    if (!(error instanceof AlreadyHandledError)) throw error;
+    return null;
+  });
 
-  if (merged) {
-    await Submission.updateOne(pendingFilter, { status: "MERGED" });
-    return { status: "MERGED", message: "병합 완료! 메인 코드가 업데이트됐어요." };
+  // 병합 결과가 화면(프로젝트 메인/상세)에 바로 반영되도록 캐시를 비운다
+  revalidatePath(`/project/${projectId}`, "layout");
+
+  if (outcome === "MERGED") return { status: "MERGED", message: "병합 완료! 메인 코드가 업데이트됐어요." };
+  if (outcome === "STALE") {
+    return { status: "STALE", message: "다른 변경이 먼저 병합됐어요. 최신 코드로 다시 Comit해주세요" };
   }
 
-  await Submission.updateOne(pendingFilter, { status: "STALE" });
-  // 동시 요청으로 방금 다른 요청이 이 제출을 병합했는지 최종 상태를 다시 확인한다
+  // 동시 요청으로 다른 요청이 먼저 처리한 경우: 최종 상태를 다시 읽어 알려준다
   const latest = await Submission.findOne({ _id: submission._id, projectId: project._id }).select("status").lean();
-  if (latest?.status === "MERGED") return { status: "MERGED", message: "이미 병합된 제출이에요." };
-
-  return { status: "STALE", message: "다른 변경이 먼저 병합됐어요. 최신 코드로 다시 Comit해주세요" };
+  return { status: latest?.status ?? "STALE", message: "이미 처리된 제출이에요." };
 }
+
+// 트랜잭션을 롤백시키기 위한 내부용 에러
+class AlreadyHandledError extends Error {}
