@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
+import Confetti from "@/components/Confetti";
+import Mascot from "@/components/Mascot";
 import RebaseHelper from "@/components/RebaseHelper";
 import { useReview } from "@/components/ReviewProvider";
 import { countOpen, countRoots } from "@/lib/comments";
@@ -45,6 +47,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   const [pending, setPending] = useState(false);
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [celebrate, setCelebrate] = useState(false); // 병합 성공 직후의 짧은 축하 효과
 
   // 확인 창에 보여줄 리뷰 개수 (병합을 막지는 않고 확인만 받는다)
   // 상태는 진행 단계 바와 함께 쓰기 위해 ReviewProvider에서 가져온다
@@ -77,6 +80,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
     }
 
     if (result.status) setStatus(result.status);
+    setCelebrate(result.status === "MERGED" && !result.error); // 방금 내가 병합에 성공했을 때만 축하한다
     setIsError(Boolean(result.error) || result.status === "STALE");
     setMessage(result.error ?? result.message ?? "");
   }
@@ -116,8 +120,15 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
       {message && (
         <p
           role={isError ? "alert" : "status"}
-          className={resultClass(isError, status)}
+          className={`${resultClass(isError, status)} ${celebrate ? "relative flex items-center gap-2" : ""}`}
         >
+          {/* 작은 기쁨: 병합에 성공하면 코밋이가 만세하고 색종이가 한 번 터진다 (1초 이내, CSS만) */}
+          {celebrate && (
+            <>
+              <Confetti />
+              <Mascot mood="cheer" size={32} className="comit-bounce-in" />
+            </>
+          )}
           {message}
         </p>
       )}

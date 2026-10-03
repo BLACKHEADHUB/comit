@@ -58,3 +58,27 @@ test("키보드만으로 Comit → 댓글 → 병합", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.getByText("병합 완료!")).toBeVisible();
 });
+
+// 작은 기쁨(색종이)은 "움직임 줄이기" 설정에서는 그려지지 않아야 한다
+test("병합 축하 효과는 움직임 줄이기 설정에서 꺼진다", async ({ browser }) => {
+  for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    const context = await browser.newContext({ reducedMotion });
+    const page = await context.newPage();
+    await createProject(page, "축하", `축하 효과 ${reducedMotion}`);
+    await page.locator(".monaco-editor").first().waitFor();
+    await page.locator(".monaco-editor").first().click();
+    await page.keyboard.type("x = 1");
+    await page.keyboard.press("ControlOrMeta+Enter");
+    await page.getByRole("dialog").getByLabel("제출 제목").fill("축하 테스트");
+    await page.keyboard.press("Enter");
+    await page.getByRole("link", { name: /축하 테스트/ }).click();
+    await page.getByRole("button", { name: "병합하기" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /병합하기/ }).click();
+    await expect(page.getByText("병합 완료!")).toBeVisible();
+
+    const confetti = page.locator(".comit-confetti");
+    if (reducedMotion === "reduce") await expect(confetti).toBeHidden();
+    else await expect(confetti).toBeAttached();
+    await context.close();
+  }
+});

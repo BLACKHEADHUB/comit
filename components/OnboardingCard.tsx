@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Mascot from "@/components/Mascot";
 import {
   dismissOnboarding,
   hasReviewedOnce,
@@ -27,10 +28,12 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
   return (
     <section aria-label="시작 안내" className="m-3 mb-0 animate-fade-in rounded-xl border border-line bg-background p-3 shadow-sm">
       <div className="flex items-start gap-2">
+        {/* 코밋이: 처음엔 손을 흔들고, 세 가지를 다 하면 만세한다 */}
+        <Mascot mood={allDone ? "cheer" : "hello"} size={40} className={allDone ? "comit-bounce-in" : ""} />
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold">{allDone ? "🎉 세 가지를 모두 해봤어요!" : "👋 처음이라면 이 세 가지만 해보세요"}</h2>
+          <h2 className="text-sm font-semibold">{allDone ? "잘했어요! 세 가지를 모두 해봤어요 🎉" : "처음이라면 이 세 가지만 해보세요"}</h2>
           <p className="mt-0.5 text-xs text-muted">
-            {allDone ? "이제 같은 순서로 팀원과 코드를 주고받으면 돼요." : "직접 해보면 자동으로 체크돼요."}
+            {allDone ? "이제 같은 순서로 팀원과 코드를 주고받으면 돼요. 이 안내는 닫아도 좋아요." : "직접 해보면 자동으로 체크돼요. 틀려도 괜찮아요!"}
           </p>
         </div>
         <button

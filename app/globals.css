@@ -155,3 +155,56 @@ body {
 .comit-diff:not(.comit-diff-split) col:nth-child(3) {
   width: 40px;
 }
+
+/* 색종이 효과 (components/Confetti.tsx): 가운데에서 사방으로 퍼지며 사라진다. 1초 이내 */
+.comit-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.comit-confetti > i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  opacity: 0;
+  animation: comit-confetti 0.9s ease-out forwards;
+}
+@keyframes comit-confetti {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(1);
+  }
+}
+/* 살짝 통통 튀며 나타나기 (칭찬 문구, 축하하는 마스코트) */
+@keyframes comit-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.comit-bounce-in {
+  animation: comit-bounce-in 0.45s ease-out both;
+}
+/* 움직임에 민감한 사용자: 색종이는 아예 그리지 않는다 */
+@media (prefers-reduced-motion: reduce) {
+  .comit-confetti {
+    display: none;
+  }
+}
