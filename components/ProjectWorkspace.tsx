@@ -3,11 +3,13 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { OnMount } from "@monaco-editor/react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import { byCreatedDesc, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
+import { startPolling } from "@/lib/polling";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
   clearDraft,
@@ -81,6 +83,8 @@ const formatTime = (iso: string) =>
     minute: "2-digit",
   });
 
+const POLL_MS = 15_000;
+
 type Props = {
   projectId: string;
   myNickname: string; // "내 제안 / 리뷰할 것"을 나누는 기준
@@ -104,6 +108,25 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
   const language = useSyncExternalStore(subscribeLanguage, () => readLanguage(projectId), () => "plaintext" as Language);
   const [submissions, setSubmissions] = useState(initialSubmissions);
+  // 자동 갱신으로 새 활동(새 제출, 새 댓글)이 생긴 제출 id. 카드와 탭에 작은 점으로 표시한다
+  const [unseen, setUnseen] = useState<ReadonlySet<string>>(new Set());
+  const latestSubmissions = useRef(submissions); // 폴링 콜백에서 "지금 목록"과 비교하기 위한 최신 값
+  useEffect(() => {
+    latestSubmissions.current = submissions;
+  }, [submissions]);
+
+  // 자동 갱신: 창에 포커스가 돌아올 때 + 15초마다 목록을 다시 가져온다 (숨은 탭에서는 멈춤)
+  useEffect(() => {
+    return startPolling(async () => {
+      const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { submissions: SubmissionItem[] };
+      const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
+      if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
+      setSubmissions((prev) => mergeById(prev, data.submissions).sort(byCreatedDesc));
+    }, POLL_MS);
+  }, [projectId, myNickname]);
+
   const [tab, setTab] = useState<TaskTab>("REVIEW");
   const [filter, setFilter] = useState<StatusFilter>("PENDING");
   // 탭을 바꾸면 그 탭의 기본 상태 필터로 되돌린다
@@ -198,8 +221,10 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       <aside className="flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0">
         <div role="tablist" aria-label="제출 목록 보기" className="flex gap-1 border-b border-line p-2">
           {TABS.map((t) => {
-            const count = submissions.filter((s) => inTab(s, t.tab, myNickname)).length;
+            const inThisTab = submissions.filter((s) => inTab(s, t.tab, myNickname));
+            const count = inThisTab.length;
             const active = tab === t.tab;
+            const hasNew = inThisTab.some((s) => unseen.has(s.id));
             return (
               <button
                 key={t.tab}
@@ -214,6 +239,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               >
                 {t.label}
                 <span className={`${badge} ${active ? "bg-accent-soft text-accent" : "bg-line text-muted"} !px-1.5 !py-0`}>{count}</span>
+                {hasNew && (
+                  <>
+                    <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent" />
+                    <span className="sr-only">새 활동 있음</span>
+                  </>
+                )}
               </button>
             );
           })}
@@ -258,7 +289,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                     <span aria-hidden>{STATUS_META[s.status].icon}</span>
                     {STATUS_META[s.status].label}
                   </span>
-                  <span className="min-w-0 truncate text-sm font-medium">{s.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</span>
+                  {/* 자동 갱신으로 새로 올라왔거나 새 댓글이 달린 제출 */}
+                  {unseen.has(s.id) && (
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-accent">
+                      <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 활동
+                    </span>
+                  )}
                 </p>
                 <p className="mt-0.5 text-xs text-muted">
                   {s.author} · {formatTime(s.createdAt)}

@@ -48,7 +48,7 @@ type Props = {
 };
 
 export default function SubmissionDiff({ projectId, submissionId, beforeCode, afterCode }: Props) {
-  const { comments, addComment } = useReview();
+  const { comments, addComment, newIds, markSeen } = useReview();
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [tag, setTag] = useState<CommentTag>("LIKE");
   const [content, setContent] = useState("");
@@ -63,9 +63,15 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   const threads = groupByLine(comments);
   const threadByLine = new Map(threads.map((t) => [t.line, t]));
 
+  // 줄을 고르면 그 줄의 "새 댓글" 표시는 본 것으로 처리한다
+  function selectLine(line: number) {
+    setActiveLine(line);
+    markSeen(threadByLine.get(line)?.comments.map((c) => c.id) ?? []);
+  }
+
   // 줄 옆 말풍선을 누르면: 그 줄을 강조하고, 옆 패널의 해당 댓글 묶음으로 이동한다
   function openThread(line: number) {
-    setActiveLine(line);
+    selectLine(line);
     setError("");
     const target = document.getElementById(`line-comments-${line}`);
     target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -103,6 +109,11 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             {c.emoji} {c.label} {c.count}
           </span>
         ))}
+        {newIds.size > 0 && (
+          <span role="status" className={`${badge} bg-accent-soft text-accent`}>
+            <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 댓글 {newIds.size}개
+          </span>
+        )}
         <span className="text-xs text-muted">오른쪽(변경 후) 줄 번호를 클릭하면 댓글을 달 수 있어요. 💬 표시는 댓글이 달린 줄이에요.</span>
       </div>
 
@@ -151,7 +162,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             onLineNumberClick={(lineId) => {
               // 오른쪽(R-) 줄 번호만 댓글 대상으로 사용
               if (!lineId.startsWith("R-")) return;
-              setActiveLine(Number(lineId.slice(2)));
+              selectLine(Number(lineId.slice(2)));
               setError("");
             }}
           />
@@ -213,7 +224,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             >
               <button
                 type="button"
-                onClick={() => setActiveLine(t.line)}
+                onClick={() => selectLine(t.line)}
                 className="mb-1.5 text-xs font-semibold text-muted transition hover:text-accent"
               >
                 {t.line}번 줄 · 댓글 {t.comments.length}개
@@ -225,6 +236,12 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                       <span className={`${badge} ${TAG_STYLE[c.tag]}`}>{emojiOf(c.tag)} {labelOf(c.tag)}</span>
                       <span className="font-medium text-foreground">{c.author}</span>
                       <span>{formatTime(c.createdAt)}</span>
+                      {/* 자동 갱신으로 방금 들어온 댓글: 점 + 글자로 알려준다 */}
+                      {newIds.has(c.id) && (
+                        <span className="flex items-center gap-1 font-medium text-accent">
+                          <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 댓글
+                        </span>
+                      )}
                     </p>
                     {/* 댓글은 텍스트로만 렌더링 (React가 자동 이스케이프) */}
                     {c.content && <p className="mt-1.5 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>}

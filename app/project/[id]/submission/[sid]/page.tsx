@@ -7,8 +7,7 @@ import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import SubmissionFlow from "@/components/SubmissionFlow";
 import { card, noticeError } from "@/lib/ui";
-import type { CommentItem } from "@/lib/validation";
-import { Comment } from "@/models/Comment";
+import { listComments } from "@/lib/review";
 import { Submission } from "@/models/Submission";
 
 export default async function SubmissionPage({
@@ -27,20 +26,18 @@ export default async function SubmissionPage({
   if (!submission) notFound();
 
   // 위에서 projectId로 검증한 제출의 댓글만 조회한다
-  const commentDocs = await Comment.find({ submissionId: submission._id }).sort({ createdAt: 1 }).lean();
-  const comments: CommentItem[] = commentDocs.map((c) => ({
-    id: String(c._id),
-    author: c.author,
-    lineNumber: c.lineNumber,
-    tag: c.tag,
-    content: c.content,
-    createdAt: c.createdAt.toISOString(),
-  }));
+  const comments = await listComments(submission._id);
 
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
-    <ReviewProvider initialComments={comments} initialStatus={submission.status}>
+    <ReviewProvider
+      projectId={id}
+      submissionId={sid}
+      myNickname={me.nickname}
+      initialComments={comments}
+      initialStatus={submission.status}
+    >
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
         ← 프로젝트로 돌아가기
