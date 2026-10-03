@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
+import ChangePreview from "@/components/ChangePreview";
 import {
   clearDraft,
   LANGUAGES,
@@ -105,6 +106,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
   }, [modalOpen]);
 
   const visible = submissions.filter((s) => s.status === tab);
+  const hasChanges = code !== initialCode;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -233,15 +235,22 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className={`${modalCard} flex flex-col gap-4`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="comit-modal-title"
+            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
           >
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">무엇을 바꿨나요?</h2>
-              <p className="mt-1 text-sm text-muted">팀원이 알아보기 쉽게 한 줄로 적어주세요.</p>
+              <h2 id="comit-modal-title" className="text-lg font-semibold tracking-tight">무엇을 바꿨나요?</h2>
+              <p className="mt-1 text-sm text-muted">보내기 전에 바뀐 부분을 확인하고, 팀원이 알아보기 쉽게 한 줄로 적어주세요.</p>
             </div>
+            {/* 보내기 전 확인: 원본과 달라진 부분만 보여준다 */}
+            <ChangePreview before={initialCode} after={code} />
             <input
-              autoFocus
+              autoFocus={hasChanges}
               required
+              disabled={!hasChanges}
+              aria-label="제출 제목"
               maxLength={80}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -253,7 +262,8 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
               <button type="button" onClick={() => setModalOpen(false)} disabled={pending} className={btnGhost}>
                 취소
               </button>
-              <button type="submit" disabled={pending} className={btnPrimary}>
+              {/* 원본과 같으면 보낼 것이 없으므로 제출을 막는다 (서버에서도 다시 확인한다) */}
+              <button type="submit" disabled={pending || !hasChanges} className={btnPrimary}>
                 {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                 {pending ? "AI가 분석하는 중... (최대 15초)" : error ? "다시 시도" : "제출하기"}
               </button>
