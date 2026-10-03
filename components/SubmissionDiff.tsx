@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import { groupByLine } from "@/lib/comments";
+import { markReviewedOnce } from "@/lib/onboarding";
 import type { CommentTag } from "@/lib/validation";
 import { useReview } from "@/components/ReviewProvider";
 import { useIsDark } from "@/lib/useIsDark";
@@ -96,6 +97,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
       return;
     }
     addComment(result.comment);
+    markReviewedOnce(); // 첫 진입 체크리스트의 "리뷰 남기기" 완료 기록
     setContent("");
     setActiveLine(null);
   }

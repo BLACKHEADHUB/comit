@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import OnboardingCard from "@/components/OnboardingCard";
 import { byCreatedDesc, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
@@ -327,6 +328,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* 첫 진입 안내 (닫으면 다시 나오지 않는다) */}
+        <OnboardingCard hasChanges={hasChanges} hasSubmitted={submissions.some((s) => s.author === myNickname)} />
         {fromStale && !staleDismissed && (
           <div className={`${noticeWarn} m-3 flex flex-wrap items-center gap-2 !rounded-lg`}>
             <span className="flex-1">
