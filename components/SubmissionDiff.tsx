@@ -112,7 +112,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
           </span>
         ))}
         {newIds.size > 0 && (
-          <span role="status" className={`${badge} bg-accent-soft text-accent`}>
+          <span role="status" className={`${badge} bg-accent-soft text-accent-ink`}>
             <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 댓글 {newIds.size}개
           </span>
         )}
@@ -159,7 +159,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                           ? "bg-ok-soft text-ok"
                           : thread.hasOpenBug
                             ? "bg-danger-soft text-danger"
-                            : "bg-accent-soft text-accent"
+                            : "bg-accent-soft text-accent-ink"
                       }`}
                     >
                       {thread.openCount === 0 ? (
@@ -216,7 +216,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                     aria-pressed={tag === t.tag}
                     className={`rounded-lg border px-1 py-1.5 text-xs transition active:scale-[0.97] ${
                       tag === t.tag
-                        ? "border-accent bg-accent-soft font-semibold text-accent"
+                        ? "border-accent bg-accent-soft font-semibold text-accent-ink"
                         : "border-line-strong text-muted hover:bg-surface hover:text-foreground"
                     }`}
                   >
@@ -263,7 +263,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
               <button
                 type="button"
                 onClick={() => selectLine(t.line)}
-                className="mb-1.5 text-xs font-semibold text-muted transition hover:text-accent"
+                className="mb-1.5 text-xs font-semibold text-muted transition hover:text-accent-ink"
               >
                 {t.line}번 줄 · 댓글 {t.threads.length}개
                 {t.openCount < t.threads.length && ` (해결 ${t.threads.length - t.openCount})`}

@@ -14,7 +14,7 @@ export default function CenteredCard({
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
       <Link href="/" className="text-lg font-bold tracking-tight transition hover:opacity-70">
-        Comit<span className="text-accent">.</span>
+        Comit<span className="text-accent-ink">.</span>
       </Link>
       <div className={`${card} w-full max-w-md p-6 sm:p-8`}>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>

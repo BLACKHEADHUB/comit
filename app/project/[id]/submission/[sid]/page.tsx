@@ -76,7 +76,7 @@ export default async function SubmissionPage({
               <ol className="space-y-2">
                 {summary.slice(0, 3).map((line, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-relaxed">
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">
                       {i + 1}
                     </span>
                     {line}

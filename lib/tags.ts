@@ -10,7 +10,7 @@ export const TAGS: { tag: CommentTag; emoji: string; label: string }[] = [
 // 태그별 배지 색상 (LIKE=초록, QUESTION=포인트, BUG=빨강)
 export const TAG_STYLE: Record<CommentTag, string> = {
   LIKE: "bg-ok-soft text-ok",
-  QUESTION: "bg-accent-soft text-accent",
+  QUESTION: "bg-accent-soft text-accent-ink",
   BUG: "bg-danger-soft text-danger",
 };
 

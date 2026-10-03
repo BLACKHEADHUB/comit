@@ -7,7 +7,7 @@ function Avatar({ member, overlap = false }: { member: MemberView; overlap?: boo
     <span
       aria-hidden
       className={`relative flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ring-2 ring-background ${
-        member.isMe ? "bg-accent text-white" : "bg-accent-soft text-accent"
+        member.isMe ? "bg-accent text-white" : "bg-accent-soft text-accent-ink"
       } ${overlap ? "-ml-1.5" : ""}`}
     >
       {initialOf(member.nickname)}

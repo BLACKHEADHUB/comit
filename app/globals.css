@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
-/* 디자인 토큰: 모노톤 베이스 + 포인트 컬러(인디고) 1개. 다크/라이트는 시스템 설정을 따른다 */
+/* 디자인 토큰: 모노톤 베이스 + 포인트 컬러(인디고) 1개 + 파스텔 보조색 3개. 다크/라이트는 시스템 설정을 따른다.
+   글자색과 배경색의 조합은 WCAG AA(4.5:1) 이상이 되도록 골랐다 (DESIGN_NOTES.md "디자인 톤" 참고) */
 :root {
   --background: #ffffff;
   --surface: #fafafa; /* 카드 안쪽/보조 영역 */
   --foreground: #0a0a0a;
-  --muted: #71717a; /* 보조 텍스트 */
+  --muted: #71717a; /* 보조 텍스트 (흰색/surface 위에서만 쓴다. 파스텔 배경 위에는 쓰지 않는다) */
   --line: #e4e4e7; /* 약한 경계선 */
   --line-strong: #d4d4d8; /* 입력창/버튼 경계선 */
-  --accent: #4f46e5;
+  --accent: #4f46e5; /* 채우는 색 (버튼 배경, 강조 테두리). 위에 흰 글자를 올린다 */
   --accent-hover: #4338ca;
+  --accent-ink: #4f46e5; /* 글자로 쓰는 포인트 색 */
   --accent-soft: #eef2ff;
   --ok: #15803d;
   --ok-soft: #dcfce7;
@@ -17,6 +19,15 @@
   --warn-soft: #fef3c7;
   --danger: #b91c1c;
   --danger-soft: #fee2e2;
+  /* 파스텔 보조색: 친근한 분위기를 위한 장식/구분용 (상태 표시에는 쓰지 않는다) */
+  --mint: #0b6e52;
+  --mint-soft: #dcf7ec;
+  --lavender: #5b3fc4;
+  --lavender-soft: #efeaff;
+  --peach: #a3470f;
+  --peach-soft: #ffeadb;
+  /* 아주 부드러운 그림자 (카드가 살짝 떠 보이는 정도) */
+  --shadow-soft-value: 0 1px 2px rgb(24 24 60 / 0.04), 0 8px 24px rgb(79 70 229 / 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,8 +38,10 @@
     --muted: #a1a1aa;
     --line: #27272a;
     --line-strong: #3f3f46;
-    --accent: #6366f1;
-    --accent-hover: #818cf8;
+    /* 다크에서는 "채우는 색"과 "글자 색"을 나눈다: 한 가지 색으로는 흰 글자 대비와 어두운 배경 대비를 둘 다 맞출 수 없다 */
+    --accent: #5b5ee8;
+    --accent-hover: #4f52d6;
+    --accent-ink: #a5b4fc;
     --accent-soft: #1e1b4b;
     --ok: #86efac;
     --ok-soft: #052e16;
@@ -36,6 +49,13 @@
     --warn-soft: #3b2506;
     --danger: #fca5a5;
     --danger-soft: #450a0a;
+    --mint: #7ee0bf;
+    --mint-soft: #0d2e25;
+    --lavender: #c3b5ff;
+    --lavender-soft: #241d45;
+    --peach: #ffbf99;
+    --peach-soft: #3a2113;
+    --shadow-soft-value: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
   }
 }
 
@@ -49,13 +69,22 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-lavender: var(--lavender);
+  --color-lavender-soft: var(--lavender-soft);
+  --color-peach: var(--peach);
+  --color-peach-soft: var(--peach-soft);
+  --shadow-soft: var(--shadow-soft-value);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans);
+  /* 영문/숫자는 Geist, 한글은 Noto Sans KR (둥글고 읽기 쉬운 본문용 글꼴) */
+  --font-sans: var(--font-geist-sans), var(--font-noto-kr);
   --font-mono: var(--font-geist-mono);
 
   /* 모달/토스트가 부드럽게 나타나는 애니메이션 */
@@ -75,7 +104,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), var(--font-noto-kr), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

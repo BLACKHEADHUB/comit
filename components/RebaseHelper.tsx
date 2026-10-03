@@ -100,7 +100,7 @@ export default function RebaseHelper({ projectId, beforeCode, afterCode, latestM
                         title={choice.hint}
                         className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
                           choices[i] === choice.value
-                            ? "border-accent bg-accent-soft font-semibold text-accent"
+                            ? "border-accent bg-accent-soft font-semibold text-accent-ink"
                             : "border-line-strong text-muted hover:bg-surface hover:text-foreground"
                         }`}
                       >

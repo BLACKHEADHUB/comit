@@ -35,12 +35,12 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
     <main className="flex h-dvh w-full flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2.5">
         <Link href="/" className="text-base font-bold tracking-tight transition hover:opacity-70">
-          Comit<span className="text-accent">.</span>
+          Comit<span className="text-accent-ink">.</span>
         </Link>
         <span className="hidden h-4 w-px bg-line-strong sm:block" />
         <h1 className="min-w-0 truncate text-sm font-semibold">{project.title}</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted">
-          <span className={`${badge} ${me.role === "LEADER" ? "bg-accent-soft text-accent" : "bg-surface text-muted ring-1 ring-line"}`}>
+          <span className={`${badge} ${me.role === "LEADER" ? "bg-accent-soft text-accent-ink" : "bg-surface text-muted ring-1 ring-line"}`}>
             {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}

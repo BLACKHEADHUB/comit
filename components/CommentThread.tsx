@@ -13,7 +13,7 @@ const smallBtn = `${btnGhost} !px-2 !py-1 !text-xs`;
 // 자동 갱신으로 방금 들어온 댓글/답글: 점 + 글자로 알려준다
 function NewMark({ label }: { label: string }) {
   return (
-    <span className="flex items-center gap-1 font-medium text-accent">
+    <span className="flex items-center gap-1 font-medium text-accent-ink">
       <span aria-hidden className="size-1.5 rounded-full bg-accent" />
       {label}
     </span>

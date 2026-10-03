@@ -13,7 +13,7 @@ export default function Home() {
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-5">
       <header className="flex items-center justify-between py-5">
         <span className="text-lg font-bold tracking-tight">
-          Comit<span className="text-accent">.</span>
+          Comit<span className="text-accent-ink">.</span>
         </span>
         <span className="text-xs text-muted">코딩 입문자를 위한 협업 샌드박스</span>
       </header>
@@ -25,7 +25,7 @@ export default function Home() {
         <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
           팀 코드 협업,
           <br />
-          <span className="text-accent">웹에서 바로</span> 시작하세요
+          <span className="text-accent-ink">웹에서 바로</span> 시작하세요
         </h1>
         <p className="max-w-md text-base leading-relaxed text-muted">
           코드를 쓰고, AI의 설명을 받고, 팀원과 리뷰하고, 안전하게 합치는 과정을 브라우저 하나로 끝내요.

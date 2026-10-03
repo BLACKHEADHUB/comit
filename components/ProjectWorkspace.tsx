@@ -271,7 +271,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 }`}
               >
                 {t.label}
-                <span className={`${badge} ${active ? "bg-accent-soft text-accent" : "bg-line text-muted"} !px-1.5 !py-0 !text-[11px]`}>{count}</span>
+                <span className={`${badge} ${active ? "bg-accent-soft text-accent-ink" : "bg-line text-muted"} !px-1.5 !py-0 !text-[11px]`}>{count}</span>
                 {hasNew && (
                   <>
                     <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent" />
@@ -293,7 +293,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 onClick={() => setFilter(f)}
                 title={f === "STALE" ? STALE_HINT : undefined}
                 className={`rounded-full px-2 py-0.5 text-xs transition ${
-                  filter === f ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-background hover:text-foreground"
+                  filter === f ? "bg-accent-soft font-medium text-accent-ink" : "text-muted hover:bg-background hover:text-foreground"
                 }`}
               >
                 {FILTER_LABEL[f]}
@@ -325,7 +325,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</span>
                   {/* 자동 갱신으로 새로 올라왔거나 새 댓글이 달린 제출 */}
                   {unseen.has(s.id) && (
-                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-accent">
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-accent-ink">
                       <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 활동
                     </span>
                   )}
