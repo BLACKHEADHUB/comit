@@ -78,6 +78,9 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   // 입력 폼이 닫히고(등록 완료) 댓글 카드로 나타날 때까지 기다린다
   await expect(leader.getByRole("button", { name: "등록하기" })).toBeHidden();
   await expect(leader.getByText("따옴표 안의 쉼표 뒤 공백이 빠진 것 같아요.")).toBeVisible();
+  // 댓글을 단 뒤에도 Diff가 그대로 보이고, 그 줄에 말풍선이 붙어야 한다 (댓글을 달면 Diff가 비던 버그의 회귀 방지)
+  await expect(leader.locator("table").first()).toContainText("console.log");
+  await expect(leader.getByRole("button", { name: /2번 줄 댓글 1개 보기/ })).toBeVisible();
   await shot(leader, testInfo, "12-submission-with-comment");
 
   // --- 팀장: 병합 ---

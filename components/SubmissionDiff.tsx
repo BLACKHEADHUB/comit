@@ -130,6 +130,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className={`${card} min-w-0 overflow-x-auto text-xs`}>
           <DiffViewer
+            // 이 라이브러리는 alwaysShowLines가 바뀌어도 Diff를 다시 계산하지 않아 표가 통째로 비어 버린다.
+            // 댓글이 달린 줄 목록이 바뀔 때마다 key를 바꿔 새로 그리게 한다
+            key={threads.map((t) => t.line).join(",")}
             oldValue={beforeCode}
             newValue={afterCode}
             splitView
