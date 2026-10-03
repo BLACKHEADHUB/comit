@@ -2,9 +2,11 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import type { OnMount } from "@monaco-editor/react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
+import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
   clearDraft,
   LANGUAGES,
@@ -97,6 +99,26 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
 
   const dark = useIsDark();
 
+  // 원본(mainCode)과 달라진 줄을 에디터 줄 번호 옆에 색 띠로 표시한다
+  const summary = useMemo(() => summarizeChanges(initialCode, code), [initialCode, code]);
+  type MonacoEditor = Parameters<OnMount>[0];
+  const [editor, setEditor] = useState<MonacoEditor | null>(null);
+  useEffect(() => {
+    if (!editor) return;
+    const { added, modified, deletedAt } = changedLineMarks(initialCode, code);
+    const mark = (line: number, className: string, tooltip: string) => ({
+      range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+      options: { linesDecorationsClassName: className, linesDecorationsTooltip: tooltip },
+    });
+    const decorations = [
+      ...added.map((n) => mark(n, "comit-line-added", "원본에 없던 새 줄")),
+      ...modified.map((n) => mark(n, "comit-line-modified", "원본에서 고친 줄")),
+      ...deletedAt.map((n) => mark(n, "comit-line-deleted", "이 위에서 원본의 줄이 지워졌어요")),
+    ];
+    const collection = editor.createDecorationsCollection(decorations);
+    return () => collection.clear(); // 코드가 바뀌면 이전 표시를 지우고 새로 그린다
+  }, [editor, initialCode, code]);
+
   // ESC 키로 제출 모달 닫기
   useEffect(() => {
     if (!modalOpen) return;
@@ -106,7 +128,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
   }, [modalOpen]);
 
   const visible = submissions.filter((s) => s.status === tab);
-  const hasChanges = code !== initialCode;
+  const hasChanges = summary.changed > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -194,8 +216,24 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
           </div>
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface px-4 py-2">
-          <p className="min-w-0 flex-1 text-xs text-muted">
+          <p className="min-w-0 flex-1 basis-64 text-xs text-muted">
             코드를 자유롭게 고쳐보세요. 다 됐다면 아래 [Comit하기]로 팀원에게 리뷰를 요청해요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
+          </p>
+          {/* 원본과 얼마나 달라졌는지 글자로도 알려준다 (색 띠만으로 구분하지 않게) */}
+          <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            {summary.changed === 0 ? (
+              <span className="text-muted">원본과 같아요</span>
+            ) : (
+              <>
+                <span className="font-medium">원본에서 {summary.changed}줄 바뀜</span>
+                <span className="flex items-center gap-1 text-ok">
+                  <span aria-hidden className="inline-block h-3 w-1 rounded-sm bg-ok" />+{summary.added} 추가
+                </span>
+                <span className="flex items-center gap-1 text-danger">
+                  <span aria-hidden className="inline-block h-0.5 w-2.5 bg-danger" />−{summary.removed} 삭제
+                </span>
+              </>
+            )}
           </p>
           <label className="flex items-center gap-2 text-xs text-muted">
             언어
@@ -219,6 +257,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
             theme={dark ? "vs-dark" : "light"}
             value={code}
             onChange={(v) => handleCodeChange(v ?? "")}
+            onMount={(mounted) => setEditor(mounted)}
             options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
         </div>

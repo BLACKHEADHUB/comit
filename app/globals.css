@@ -96,3 +96,23 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 에디터 줄 번호 옆 "원본과 달라진 줄" 표시 (Monaco decoration에서 쓰는 클래스) */
+.comit-line-added,
+.comit-line-modified {
+  width: 4px !important;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+.comit-line-added {
+  background: var(--ok);
+}
+.comit-line-modified {
+  background: var(--accent);
+}
+/* 삭제는 줄이 남아 있지 않으므로, 지워진 자리 바로 아래 줄의 위쪽에 짧은 가로선으로 표시 */
+.comit-line-deleted {
+  width: 10px !important;
+  margin-left: 1px;
+  border-top: 3px solid var(--danger);
+}
