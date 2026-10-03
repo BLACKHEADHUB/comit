@@ -31,6 +31,12 @@ test("조회 API는 멤버에게만, 자기 프로젝트 것만 보여준다", a
   expect((mine.body as { submissions: { title: string }[] }).submissions.map((s) => s.title)).toEqual(["A의 제출"]);
   expect((await get(page, `/api/project/${projectA}/submission/${submissionA}/review`)).status).toBe(200);
 
+  // 원본 조회도 멤버에게만
+  const main = await get(page, `/api/project/${projectA}/main`);
+  expect(main.status).toBe(200);
+  expect(main.body).toEqual({ mainCode: "" }); // 아직 병합 전이라 원본은 비어 있다
+  expect((await get(otherPage, `/api/project/${projectA}/main`)).status).toBe(404);
+
   // 다른 프로젝트의 멤버(B)는 A를 볼 수 없다
   expect((await get(otherPage, `/api/project/${projectA}/submissions`)).status).toBe(404);
   expect((await get(otherPage, `/api/project/${projectA}/submission/${submissionA}/review`)).status).toBe(404);

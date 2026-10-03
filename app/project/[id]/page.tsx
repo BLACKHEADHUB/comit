@@ -9,6 +9,7 @@ import ProjectWorkspace from "@/components/ProjectWorkspace";
 import { badge } from "@/lib/ui";
 import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
+import { codeVersion } from "@/lib/version";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
 export const maxDuration = 30;
@@ -47,7 +48,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {inviteUrl && <InviteLink url={inviteUrl} />}
         </div>
       </header>
-      <ProjectWorkspace projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialSubmissions={submissions} />
+      <ProjectWorkspace projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions} />
     </main>
   );
 }

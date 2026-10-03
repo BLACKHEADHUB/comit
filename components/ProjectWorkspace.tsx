@@ -90,10 +90,11 @@ type Props = {
   projectId: string;
   myNickname: string; // "내 제안 / 리뷰할 것"을 나누는 기준
   initialCode: string;
+  initialVersion: string; // 이 화면이 받은 원본(mainCode)의 버전. 폴링으로 받은 버전과 다르면 원본이 바뀐 것
   initialSubmissions: SubmissionItem[];
 };
 
-export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialSubmissions }: Props) {
+export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions }: Props) {
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -112,6 +113,22 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   const [submissions, setSubmissions] = useState(initialSubmissions);
   // 자동 갱신으로 새 활동(새 제출, 새 댓글)이 생긴 제출 id. 카드와 탭에 작은 점으로 표시한다
   const [unseen, setUnseen] = useState<ReadonlySet<string>>(new Set());
+  // 폴링으로 확인한 최신 원본의 버전. 처음 받은 버전과 다르면 "원본이 바뀌었어요" 배너를 띄운다
+  const [latestVersion, setLatestVersion] = useState(initialVersion);
+  const originalChanged = latestVersion !== initialVersion;
+  // [최신 원본 보기]를 눌렀을 때만 받아 오는 최신 원본 (null이면 창이 닫힌 상태)
+  const [latestMain, setLatestMain] = useState<string | null>(null);
+  const [latestError, setLatestError] = useState("");
+  async function showLatestMain() {
+    setLatestError("");
+    try {
+      const res = await fetch(`/api/project/${projectId}/main`, { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      setLatestMain(((await res.json()) as { mainCode: string }).mainCode);
+    } catch {
+      setLatestError(RETRY_MESSAGE);
+    }
+  }
   const latestSubmissions = useRef(submissions); // 폴링 콜백에서 "지금 목록"과 비교하기 위한 최신 값
   useEffect(() => {
     latestSubmissions.current = submissions;
@@ -122,7 +139,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { submissions: SubmissionItem[] };
+      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string };
+      setLatestVersion(data.mainVersion); // 원본이 바뀌었는지 알림용 (에디터의 코드는 건드리지 않는다)
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
       setSubmissions((prev) => keepIfSame(prev, mergeById(prev, data.submissions).sort(byCreatedDesc))); // 바뀐 게 없으면 다시 그리지 않는다
@@ -182,13 +200,18 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     return () => collection.clear(); // 코드가 바뀌면 이전 표시를 지우고 새로 그린다
   }, [editor, initialCode, code]);
 
-  // ESC 키로 제출 모달 닫기
+  // ESC 키로 모달(제출 / 최신 원본 보기) 닫기
+  const anyModalOpen = modalOpen || latestMain !== null;
   useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setModalOpen(false);
+    if (!anyModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setModalOpen(false);
+      setLatestMain(null);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalOpen]);
+  }, [anyModalOpen]);
 
   const visible = filterSubmissions(submissions, tab, myNickname, filter);
   const hasChanges = summary.changed > 0;
@@ -332,6 +355,19 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* 첫 진입 안내 (닫으면 다시 나오지 않는다) */}
         <OnboardingCard hasChanges={hasChanges} hasSubmitted={submissions.some((s) => s.author === myNickname)} />
+        {/* 다른 변경이 병합돼 원본이 바뀌었을 때: 알려주기만 하고, 작성 중인 코드는 절대 자동으로 바꾸지 않는다 */}
+        {originalChanged && (
+          <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-wrap items-center gap-2 !rounded-lg`}>
+            <span className="min-w-0 flex-1 basis-56 leading-relaxed">
+              <strong className="font-semibold">원본이 바뀌었어요.</strong> 다른 변경이 병합됐어요. 작성 중인 코드는 그대로 두었으니, 최신 원본을
+              확인하고 필요한 부분을 맞춰주세요.
+            </span>
+            <button type="button" onClick={showLatestMain} className={`${btnSecondary} !px-2.5 !py-1 !text-xs`}>
+              최신 원본 보기
+            </button>
+            {latestError && <span role="alert" className="basis-full text-xs">{latestError}</span>}
+          </div>
+        )}
         {fromStale && !staleDismissed && (
           <div className={`${noticeWarn} m-3 flex flex-wrap items-center gap-2 !rounded-lg`}>
             <span className="flex-1">
@@ -433,6 +469,40 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           </div>
         </div>
       </section>
+
+      {latestMain !== null && (
+        <div className={modalOverlay} onClick={() => setLatestMain(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="latest-main-title"
+            onClick={(e) => e.stopPropagation()}
+            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
+          >
+            <div>
+              <h2 id="latest-main-title" className="text-lg font-semibold tracking-tight">최신 원본</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                이 화면을 열었을 때의 원본과 지금 원본의 차이예요. 내 에디터의 코드는 바뀌지 않았어요.
+              </p>
+            </div>
+            <ChangePreview
+              before={initialCode}
+              after={latestMain}
+              label="내가 보던 원본에서"
+              emptyText="내용은 같아요. (다른 변경이 병합됐다가 같은 내용으로 돌아왔어요)"
+            />
+            <p className="rounded-lg bg-surface p-3 text-xs leading-relaxed text-muted">
+              지금 그대로 Comit하면 위에 보이는 변경이 지워진 것처럼 제출될 수 있어요. 초록색 줄을 내 코드에도 옮겨 적거나, 페이지를 새로고침해 최신
+              원본에서 다시 시작하세요. (새로고침하면 작성 중인 코드는 사라져요)
+            </p>
+            <div className="flex justify-end">
+              <button type="button" autoFocus onClick={() => setLatestMain(null)} className={btnPrimary}>
+                확인했어요
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalOpen && (
         <div className={modalOverlay} onClick={() => !pending && setModalOpen(false)}>
