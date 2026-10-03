@@ -17,7 +17,7 @@
 - [x] 2-2. 에디터 색 띠가 정확한 줄에 붙는지
 - [x] 2-3. Diff 말풍선 칸 / 왼쪽 빈 50px 칸
 - [x] 2-4. 375px에서 사이드바, 온보딩 카드, 단계 바, 모달
-- [ ] 2-5. 코드 리뷰 (`git diff main...HEAD`)
+- [x] 2-5. 코드 리뷰 (`git diff main...HEAD`)
 - [x] 2-6. 접근성: 키보드만으로 Comit → 댓글 → 병합
 ### 3단계: 결정된 기능
 - [ ] 3-1. 댓글 답글/해결
@@ -98,6 +98,22 @@
 - 덤: 안내 문구 3곳의 "줄 번호를 눌러"를 "줄 옆의 + 를 눌러"로 통일. e2e 스크린샷은 애니메이션이 끝난 뒤 찍도록 300ms 대기 추가(모달이 반투명으로 찍히던 문제).
 - 확인 스크린샷: `desktop-light/12-submission-with-comment.png`, `mobile/12-submission-with-comment.png`, `mobile/07-comit-modal.png`.
 - 셀프 리뷰: ① `highlightLines`에 `undefined-N`을 넘기는 건 라이브러리 내부 표기에 기대는 것 → 주석으로 이유 명시, 실패해도 강조만 안 될 뿐 ② + 버튼이 줄마다 있어 Tab 횟수가 늘어난다 → 줄이 많은 Diff에서는 부담. 아침에 결정할 것에 적음(건너뛰기 링크 등) ③ 모달에 포커스 가두기(focus trap)가 없다 → 4단계 후보로 남김.
+
+
+### 검수 2-5. 코드 리뷰 (`git diff main...HEAD`, 54개 파일)
+처음 보는 리뷰어 입장에서 읽고 확인한 것:
+- **Route Handler 2개의 권한**: 둘 다 `findMember(id)`(ObjectId 형식 + 쿠키의 멤버 id가 그 프로젝트 멤버인지)를 먼저 거치고, 제출 조회는 `{ _id: sid, projectId }`로 건다. 말로만 확인하지 않고 `e2e/api.spec.ts`로 실제 요청을 보냈다: 멤버 200 / 다른 프로젝트 멤버 404 / 자기 프로젝트 주소에 남의 제출 id를 끼워도 404 / 쿠키 없음 404 / 형식 틀린 id 404. **통과.**
+- **aggregate의 projectId `$match`**: 파이프라인 첫 단계(단위 테스트로 고정). 실제 MongoDB(메모리)에서도 목록이 정상 조회됨.
+- **hydration 불일치**: 브라우저에만 있는 값(초안, localStorage, 화면 폭)은 전부 `useSyncExternalStore`의 서버 스냅샷으로 가려져 있다. e2e 중 콘솔에 hydration 오류 없음.
+- **폴링이 숨은 탭에서 멈추는지**: `lib/polling.test.ts`로 확인됨. e2e에 "창 포커스 복귀 → 새 제출이 '새 활동' 점과 함께 나타남" 확인 추가(`08b-auto-refresh-new-activity.png`).
+- 찾은 문제와 고친 것:
+  1. 문제: 15초마다 조회 결과로 `setSubmissions/setComments`에 **새 배열**을 넣어, 바뀐 게 없어도 에디터 화면/Diff 전체가 다시 그려짐. 원인: 내용 비교 없이 상태를 교체. 고친 방법: `keepIfSame`(내용이 같으면 이전 배열 유지, 테스트 2개 추가 → 총 102개).
+  2. 문제: 서버 로그에 mongoose 경고(`new` 옵션 deprecated). 원인: `joinProject`의 `{ new: true }`. 고친 방법: `{ returnDocument: "after" }`(동작 동일, 조건부 원자적 업데이트는 그대로).
+- 고치지 않고 남긴 것(아침에 결정할 것에 반영):
+  - 목록 조회가 프로젝트의 모든 댓글을 `$lookup`으로 세므로, 제출/댓글이 아주 많아지면 15초 폴링이 무거워질 수 있다(지금 규모에선 문제없음).
+  - 에디터에서 키 입력마다 줄 단위 diff를 두 번 계산한다(요약 + 띠). 10만 자 한도 안에서는 체감 문제 없음.
+- 테스트 쪽 메모: Playwright의 `page.request`는 http에서 `Secure` 쿠키를 보내지 않아 멤버 요청이 404로 나왔다(앱 문제 아님). 브라우저 안 `fetch`로 바꿔 해결.
+- 셀프 리뷰: ① `keepIfSame`의 JSON 비교는 필드 순서가 같다는 전제 → 같은 서버 코드가 만든 객체끼리라 성립, 주석에 남김 ② api.spec은 화면 크기와 무관한데 3번 돈다 → 6초라 감수 ③ 그 외 없음.
 
 ---
 

@@ -56,7 +56,7 @@ export async function joinProject(_prev: FormState, formData: FormData): Promise
   const project = await Project.findOneAndUpdate(
     { inviteToken: parsed.data.token, "members.nickname": { $ne: parsed.data.nickname } },
     { $push: { members: { nickname: parsed.data.nickname, role: "MEMBER" } } },
-    { new: true }
+    { returnDocument: "after" } // 갱신된 문서를 돌려받는다 (예전 옵션 `new: true`는 mongoose에서 더 이상 권장하지 않는다)
   );
 
   if (!project) {

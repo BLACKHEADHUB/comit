@@ -60,6 +60,14 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await setEditorCode(leader, BASE_CODE.replace("greet(name)", "greet(name, punctuation)").replace("+ name;", "+ name + punctuation;"));
   await comit(leader, "문장 부호 추가");
 
+  // --- 자동 갱신: 팀원 화면은 새로고침 없이(창에 포커스가 돌아오면) 팀장의 새 제출을 "새 활동" 점과 함께 보여준다 ---
+  await member.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await member.getByRole("tab", { name: /리뷰할 것/ }).click();
+  const fresh = member.getByRole("link", { name: /문장 부호 추가/ });
+  await expect(fresh).toBeVisible();
+  await expect(fresh).toContainText("새 활동");
+  await shot(member, testInfo, "08b-auto-refresh-new-activity");
+
   // --- 팀장: 팀원의 제출을 리뷰 (BUG 댓글) ---
   await leader.reload();
   await leader.locator(".monaco-editor").first().waitFor();

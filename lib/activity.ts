@@ -40,3 +40,9 @@ export function nextStatus(local: SubmissionStatus, server: SubmissionStatus): S
 // 작성 시간 기준 정렬 (ISO 문자열은 글자 순서가 곧 시간 순서)
 export const byCreatedAsc = (a: { createdAt: string }, b: { createdAt: string }) => a.createdAt.localeCompare(b.createdAt);
 export const byCreatedDesc = (a: { createdAt: string }, b: { createdAt: string }) => b.createdAt.localeCompare(a.createdAt);
+
+// 내용이 그대로면 이전 배열을 그대로 돌려준다.
+// React는 "같은 객체"면 다시 그리지 않으므로, 15초마다 조회해도 바뀐 게 없을 때는 화면을 다시 그리지 않는다
+export function keepIfSame<T>(prev: T[], next: T[]): T[] {
+  return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+}

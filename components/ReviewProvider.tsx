@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { byCreatedAsc, mergeById, newCommentIds, nextStatus } from "@/lib/activity";
+import { byCreatedAsc, keepIfSame, mergeById, newCommentIds, nextStatus } from "@/lib/activity";
 import { startPolling } from "@/lib/polling";
 import type { CommentItem, SubmissionStatus } from "@/lib/validation";
 
@@ -50,7 +50,7 @@ export function ReviewProvider({ projectId, submissionId, myNickname, initialCom
 
       const fresh = newCommentIds(latest.current.comments, data.comments, myNickname);
       if (fresh.length > 0) setNewIds((prev) => new Set([...prev, ...fresh]));
-      setComments((prev) => mergeById(prev, data.comments).sort(byCreatedAsc));
+      setComments((prev) => keepIfSame(prev, mergeById(prev, data.comments).sort(byCreatedAsc))); // 바뀐 게 없으면 다시 그리지 않는다
 
       const next = nextStatus(latest.current.status, data.status);
       if (next !== latest.current.status) {

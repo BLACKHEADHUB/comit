@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { byCreatedAsc, byCreatedDesc, mergeById, newActivityIds, newCommentIds, nextStatus } from "@/lib/activity";
+import { byCreatedAsc, byCreatedDesc, keepIfSame, mergeById, newActivityIds, newCommentIds, nextStatus } from "@/lib/activity";
 
 describe("mergeById", () => {
   it("같은 id는 서버 값이 이긴다", () => {
@@ -59,5 +59,18 @@ describe("정렬", () => {
   it("오래된 순 / 최신 순", () => {
     expect([...list].sort(byCreatedAsc)[0].createdAt).toContain("T01");
     expect([...list].sort(byCreatedDesc)[0].createdAt).toContain("T02");
+  });
+});
+
+describe("keepIfSame", () => {
+  it("내용이 같으면 이전 배열(같은 객체)을 돌려준다", () => {
+    const prev = [{ id: "a", n: 1 }];
+    expect(keepIfSame(prev, [{ id: "a", n: 1 }])).toBe(prev);
+  });
+
+  it("내용이 다르면 새 배열을 돌려준다", () => {
+    const prev = [{ id: "a", n: 1 }];
+    const next = [{ id: "a", n: 2 }];
+    expect(keepIfSame(prev, next)).toBe(next);
   });
 });

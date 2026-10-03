@@ -8,7 +8,7 @@ import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
 import OnboardingCard from "@/components/OnboardingCard";
-import { byCreatedDesc, mergeById, newActivityIds } from "@/lib/activity";
+import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
@@ -125,7 +125,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       const data = (await res.json()) as { submissions: SubmissionItem[] };
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
-      setSubmissions((prev) => mergeById(prev, data.submissions).sort(byCreatedDesc));
+      setSubmissions((prev) => keepIfSame(prev, mergeById(prev, data.submissions).sort(byCreatedDesc))); // 바뀐 게 없으면 다시 그리지 않는다
     }, POLL_MS);
   }, [projectId, myNickname]);
 
