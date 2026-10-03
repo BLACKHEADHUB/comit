@@ -29,3 +29,10 @@ export const STALE_HINT = "다른 변경이 먼저 병합돼서 최신 코드로
 
 // 예상하지 못한 오류(네트워크 끊김 등)일 때 보여줄 공통 안내
 export const RETRY_MESSAGE = "문제가 생겨 처리하지 못했어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.";
+
+// 제출 상태를 화면에 보여줄 때 쓰는 라벨/아이콘/색 (색만으로 구분하지 않도록 아이콘과 글자를 함께 쓴다)
+export const STATUS_META = {
+  PENDING: { label: "대기", icon: "⏳", style: "bg-surface text-muted ring-1 ring-line-strong" },
+  MERGED: { label: "병합됨", icon: "✓", style: "bg-ok-soft text-ok" },
+  STALE: { label: STALE_LABEL, icon: "↻", style: "bg-warn-soft text-warn" },
+} as const;

@@ -31,8 +31,9 @@ import {
   noticeWarn,
   RETRY_MESSAGE,
   STALE_HINT,
-  STALE_LABEL,
+  STATUS_META,
 } from "@/lib/ui";
+import { filterSubmissions, inTab, TAB_FILTERS, type StatusFilter, type TaskTab } from "@/lib/tasks";
 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
 const Editor = dynamic(() => import("@monaco-editor/react"), {
@@ -40,11 +41,33 @@ const Editor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => <p className="p-4 text-sm text-muted">에디터 불러오는 중...</p>,
 });
 
-const TABS = [
-  { status: "PENDING", label: "대기" },
-  { status: "MERGED", label: "병합됨" },
-  { status: "STALE", label: STALE_LABEL },
-] as const;
+// 사이드바 탭: "내가 할 일" 기준 (탭 안에서 상태 칩으로 한 번 더 거를 수 있다)
+const TABS: { tab: TaskTab; label: string; hint: string }[] = [
+  { tab: "REVIEW", label: "리뷰할 것", hint: "팀원이 올린 제출 중 아직 병합 전인 것" },
+  { tab: "MINE", label: "내 제안", hint: "내가 Comit한 제출 전부" },
+  { tab: "HISTORY", label: "반영된 기록", hint: "병합됐거나 다시 제출이 필요한 제출" },
+];
+
+const FILTER_LABEL: Record<StatusFilter, string> = {
+  ALL: "전체",
+  PENDING: STATUS_META.PENDING.label,
+  MERGED: STATUS_META.MERGED.label,
+  STALE: STATUS_META.STALE.label,
+};
+
+// 목록이 비었을 때, 다음에 뭘 하면 되는지 알려주는 문구
+function emptyMessage(tab: TaskTab, filter: StatusFilter) {
+  if (tab === "REVIEW") return "지금 리뷰할 제출이 없어요. 팀원이 [Comit하기]로 코드를 올리면 여기에 나타나요.";
+  if (tab === "MINE") {
+    if (filter === "ALL") return "아직 올린 제출이 없어요. 코드를 고친 뒤 아래 [Comit하기]를 눌러 팀원에게 보여주세요.";
+    if (filter === "PENDING") return "리뷰를 기다리는 내 제출이 없어요.";
+    if (filter === "MERGED") return "아직 병합된 내 제출이 없어요. 팀장이 병합하면 여기에 모여요.";
+    return "다시 제출할 항목이 없어요.";
+  }
+  return filter === "MERGED"
+    ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
+    : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 코드로 다시 제출해야 하는 제출이 여기에 표시돼요.";
+}
 
 // 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대를 고정한다 (hydration 불일치 방지)
 const formatTime = (iso: string) =>
@@ -58,11 +81,12 @@ const formatTime = (iso: string) =>
 
 type Props = {
   projectId: string;
+  myNickname: string; // "내 제안 / 리뷰할 것"을 나누는 기준
   initialCode: string;
   initialSubmissions: SubmissionItem[];
 };
 
-export default function ProjectWorkspace({ projectId, initialCode, initialSubmissions }: Props) {
+export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialSubmissions }: Props) {
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -78,7 +102,13 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
   // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
   const language = useSyncExternalStore(subscribeLanguage, () => readLanguage(projectId), () => "plaintext" as Language);
   const [submissions, setSubmissions] = useState(initialSubmissions);
-  const [tab, setTab] = useState<(typeof TABS)[number]["status"]>("PENDING");
+  const [tab, setTab] = useState<TaskTab>("REVIEW");
+  const [filter, setFilter] = useState<StatusFilter>("PENDING");
+  // 탭을 바꾸면 그 탭의 기본 상태 필터로 되돌린다
+  function selectTab(next: TaskTab, nextFilter: StatusFilter = TAB_FILTERS[next][0]) {
+    setTab(next);
+    setFilter(nextFilter);
+  }
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
@@ -127,7 +157,7 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
     return () => window.removeEventListener("keydown", onKey);
   }, [modalOpen]);
 
-  const visible = submissions.filter((s) => s.status === tab);
+  const visible = filterSubmissions(submissions, tab, myNickname, filter);
   const hasChanges = summary.changed > 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -147,9 +177,9 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
       setError(result.error ?? RETRY_MESSAGE);
       return;
     }
-    // 성공: 사이드바 맨 위에 추가하고 대기 탭으로 이동
+    // 성공: 사이드바 맨 위에 추가하고 "내 제안" 탭으로 이동
     setSubmissions((prev) => [result.submission!, ...prev]);
-    setTab("PENDING");
+    selectTab("MINE");
     setTitle("");
     setNotice(result.notice ?? "");
     setModalOpen(false);
@@ -158,17 +188,19 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside className="flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0">
-        <div className="flex gap-1 border-b border-line p-2">
+        <div role="tablist" aria-label="제출 목록 보기" className="flex gap-1 border-b border-line p-2">
           {TABS.map((t) => {
-            const count = submissions.filter((s) => s.status === t.status).length;
-            const active = tab === t.status;
+            const count = submissions.filter((s) => inTab(s, t.tab, myNickname)).length;
+            const active = tab === t.tab;
             return (
               <button
-                key={t.status}
+                key={t.tab}
                 type="button"
-                onClick={() => setTab(t.status)}
-                title={t.status === "STALE" ? STALE_HINT : undefined} // 마우스를 올리면 설명이 보인다
-                className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[13px] leading-tight transition ${
+                role="tab"
+                aria-selected={active}
+                onClick={() => selectTab(t.tab)}
+                title={t.hint} // 마우스를 올리면 설명이 보인다
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[13px] leading-tight transition ${
                   active ? "bg-background font-medium shadow-sm ring-1 ring-line" : "text-muted hover:text-foreground"
                 }`}
               >
@@ -178,14 +210,29 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
             );
           })}
         </div>
+        {/* 탭 안에서 상태로 한 번 더 거르기 (고를 상태가 하나뿐인 탭에서는 숨긴다) */}
+        {TAB_FILTERS[tab].length > 1 && (
+          <div role="group" aria-label="상태로 거르기" className="flex flex-wrap gap-1 border-b border-line px-2 py-1.5">
+            {TAB_FILTERS[tab].map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+                title={f === "STALE" ? STALE_HINT : undefined}
+                className={`rounded-full px-2 py-0.5 text-xs transition ${
+                  filter === f ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-background hover:text-foreground"
+                }`}
+              >
+                {FILTER_LABEL[f]}
+              </button>
+            ))}
+          </div>
+        )}
         <ul className="flex-1 space-y-1.5 overflow-y-auto p-2">
           {visible.length === 0 && (
             <li className="rounded-lg border border-dashed border-line-strong p-4 text-center text-sm leading-relaxed text-muted">
-              {tab === "PENDING"
-                ? "아직 리뷰를 기다리는 제출이 없어요. 코드를 고친 뒤 아래 [Comit하기]를 눌러 팀원에게 보여주세요."
-                : tab === "MERGED"
-                  ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
-                  : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 코드로 다시 제출해야 하는 제출이 여기에 표시돼요."}
+              {emptyMessage(tab, filter)}
             </li>
           )}
           {visible.map((s) => (
@@ -194,7 +241,17 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
                 href={`/project/${projectId}/submission/${s.id}`}
                 className="block rounded-lg border border-transparent bg-background p-3 shadow-sm ring-1 ring-line transition hover:-translate-y-px hover:shadow-md hover:ring-line-strong"
               >
-                <p className="truncate text-sm font-medium">{s.title}</p>
+                <p className="flex items-center gap-1.5">
+                  {/* 상태가 섞여 보이는 탭이 있어 카드마다 상태를 아이콘+글자로 표시한다 */}
+                  <span
+                    title={s.status === "STALE" ? STALE_HINT : undefined}
+                    className={`${badge} ${STATUS_META[s.status].style} shrink-0 !px-1.5 !py-0 !text-[11px]`}
+                  >
+                    <span aria-hidden>{STATUS_META[s.status].icon}</span>
+                    {STATUS_META[s.status].label}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-medium">{s.title}</span>
+                </p>
                 <p className="mt-0.5 text-xs text-muted">
                   {s.author} · {formatTime(s.createdAt)}
                 </p>

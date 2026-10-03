@@ -44,7 +44,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {inviteUrl && <InviteLink url={inviteUrl} />}
         </div>
       </header>
-      <ProjectWorkspace projectId={id} initialCode={project.mainCode} initialSubmissions={submissions} />
+      <ProjectWorkspace projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialSubmissions={submissions} />
     </main>
   );
 }
