@@ -6,6 +6,8 @@ import type { OnMount } from "@monaco-editor/react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
+import FlowSteps from "@/components/FlowSteps";
+import { writingFlow } from "@/lib/flow";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
   clearDraft,
@@ -130,7 +132,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   const dark = useIsDark();
 
   // 원본(mainCode)과 달라진 줄을 에디터 줄 번호 옆에 색 띠로 표시한다
-  const summary = useMemo(() => summarizeChanges(initialCode, code), [initialCode, code]);
+  // 저장된 초안은 브라우저에만 있어서, 서버가 그린 화면과 글자가 달라지지 않도록(hydration 불일치 방지)
+  // 브라우저에서 준비가 끝난 뒤에만 실제 변경 요약을 쓴다. 그 전에는 "변경 없음"으로 그린다
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const summary = useMemo(
+    () => (hydrated ? summarizeChanges(initialCode, code) : { added: 0, removed: 0, changed: 0 }),
+    [hydrated, initialCode, code]
+  );
   type MonacoEditor = Parameters<OnMount>[0];
   const [editor, setEditor] = useState<MonacoEditor | null>(null);
   useEffect(() => {
@@ -338,8 +346,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-line bg-surface px-4 py-3">
-          {notice && <p role="status" className="flex-1 text-sm text-warn">{notice}</p>}
+        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-3">
+          {/* 협업 흐름에서 지금은 "작성" 단계라는 것과 다음 할 일을 알려준다 */}
+          <div className="min-w-0 flex-1 basis-64">
+            <FlowSteps flow={writingFlow(hasChanges)} compact />
+            {notice && <p role="status" className="mt-1 text-xs text-warn">{notice}</p>}
+          </div>
           <button type="button" onClick={() => setModalOpen(true)} className={btnPrimary}>
             Comit하기
           </button>

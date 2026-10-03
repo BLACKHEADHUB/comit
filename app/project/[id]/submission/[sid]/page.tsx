@@ -5,6 +5,7 @@ import { findMember } from "@/lib/auth";
 import MergePanel from "@/components/MergePanel";
 import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
+import SubmissionFlow from "@/components/SubmissionFlow";
 import { card, noticeError } from "@/lib/ui";
 import type { CommentItem } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
@@ -39,7 +40,7 @@ export default async function SubmissionPage({
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
-    <ReviewProvider initialComments={comments}>
+    <ReviewProvider initialComments={comments} initialStatus={submission.status}>
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
         ← 프로젝트로 돌아가기
@@ -54,12 +55,14 @@ export default async function SubmissionPage({
         <MergePanel
           projectId={id}
           submissionId={sid}
-          initialStatus={submission.status}
           canMerge={me.role === "LEADER"}
           afterCode={submission.afterCode}
           latestMainCode={project.mainCode}
         />
       </div>
+
+      {/* 지금 어느 단계인지 + 다음 할 일 */}
+      <SubmissionFlow isAuthor={submission.author === me.nickname} isLeader={me.role === "LEADER"} />
 
       {/* AI 분석 카드 */}
       <section className={`${card} overflow-hidden`}>

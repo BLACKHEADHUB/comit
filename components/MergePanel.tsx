@@ -31,14 +31,12 @@ const STATUS_STYLE: Record<SubmissionStatus, string> = {
 type Props = {
   projectId: string;
   submissionId: string;
-  initialStatus: SubmissionStatus;
   canMerge: boolean; // LEADER일 때만 true (서버 액션에서도 다시 검증한다)
   afterCode: string; // STALE일 때 에디터로 불러올 코드
   latestMainCode: string; // 지금 시점의 최신 mainCode (에디터 초안의 기준값)
 };
 
-export default function MergePanel({ projectId, submissionId, initialStatus, canMerge, afterCode, latestMainCode }: Props) {
-  const [status, setStatus] = useState(initialStatus);
+export default function MergePanel({ projectId, submissionId, canMerge, afterCode, latestMainCode }: Props) {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -46,7 +44,8 @@ export default function MergePanel({ projectId, submissionId, initialStatus, can
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // 확인 창에 보여줄 리뷰 개수 (병합을 막지는 않고 확인만 받는다)
-  const { comments } = useReview();
+  // 상태는 진행 단계 바와 함께 쓰기 위해 ReviewProvider에서 가져온다
+  const { comments, status, setStatus } = useReview();
   const likeCount = comments.filter((c) => c.tag === "LIKE").length;
   const questionCount = comments.filter((c) => c.tag === "QUESTION").length;
   const bugCount = comments.filter((c) => c.tag === "BUG").length;
