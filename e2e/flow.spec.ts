@@ -55,6 +55,10 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await shot(member, testInfo, "07-comit-modal");
   await member.getByRole("dialog").getByRole("button", { name: "제출하기" }).click();
   await expect(member.getByRole("dialog")).toBeHidden({ timeout: 30_000 });
+  // Comit한 직후: 같은 코드를 또 보내라고 하지 않는다 (단계는 "제안함", 버튼은 "Comit 완료")
+  await expect(member.getByText("방금 Comit했어요!")).toBeVisible();
+  await expect(member.getByRole("button", { name: "✓ Comit 완료" })).toBeDisabled();
+  await expect(member.getByRole("link", { name: /방금 Comit한 제출 보러 가기/ })).toBeVisible();
   await shot(member, testInfo, "08-project-after-comit");
 
   // --- 팀장: 같은 원본에서 다른 변경을 올린다 (나중에 충돌이 날 제출) ---

@@ -12,6 +12,20 @@ describe("writingFlow", () => {
   });
 });
 
+describe("writingFlow: 방금 Comit한 코드 그대로일 때", () => {
+  it("'제안함' 단계로 넘어가고, 또 Comit하라고 하지 않는다", () => {
+    const flow = writingFlow(true, true);
+    expect(states(flow)).toEqual(["done", "current", "todo", "todo"]);
+    expect(flow.next).toContain("방금 Comit했어요");
+    expect(flow.next).not.toContain("[Comit하기]를 눌러");
+    expect(flow.tone).toBe("ok");
+  });
+
+  it("코드를 다시 고치면(더 이상 같지 않으면) 원래 안내로 돌아온다", () => {
+    expect(writingFlow(true, false).next).toContain("[Comit하기]");
+  });
+});
+
 describe("submissionFlow", () => {
   it("대기 + 댓글 없음 → '제안함' 단계", () => {
     const flow = submissionFlow({ ...base, status: "PENDING" });

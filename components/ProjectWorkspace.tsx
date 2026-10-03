@@ -19,6 +19,8 @@ import {
   clearDraft,
   LANGUAGES,
   readDraft,
+  readSubmitted,
+  writeSubmitted,
   readLanguage,
   subscribeLanguage,
   writeDraft,
@@ -116,6 +118,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     () => false
   );
   const [staleDismissed, setStaleDismissed] = useState(false);
+  // 방금 Comit한 코드 (에디터의 코드가 이것과 같으면 "이미 보낸 코드"로 보고 또 Comit하라고 하지 않는다)
+  const [submitted, setSubmitted] = useState(() => (typeof window === "undefined" ? null : readSubmitted(projectId)));
   const [confirmReset, setConfirmReset] = useState(false); // "원본으로 되돌리기" 확인 단계
   // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
   const language = useSyncExternalStore(subscribeLanguage, () => readLanguage(projectId), () => "plaintext" as Language);
@@ -225,6 +229,17 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
 
   const visible = filterSubmissions(submissions, tab, myNickname, filter);
   const hasChanges = summary.changed > 0;
+  // 브라우저 저장소 값이라 hydration이 끝난 뒤에만 반영한다
+  const alreadySubmitted = hydrated && hasChanges && submitted?.code === code;
+
+  // 에디터 단축키(Ctrl/⌘+Enter)는 처음 한 번만 등록되므로, 항상 "지금 상태"를 보도록 ref에 최신 함수를 담아 둔다
+  const openComitRef = useRef(() => {});
+  useEffect(() => {
+    openComitRef.current = () => {
+      if (!alreadySubmitted) setModalOpen(true); // 이미 보낸 코드면 창을 열지 않는다
+    };
+  }, [alreadySubmitted]);
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -245,6 +260,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     }
     // 성공: 사이드바 맨 위에 추가하고 "내 제안" 탭으로 이동
     setSubmissions((prev) => [result.submission!, ...prev]);
+    const sent = { code, submissionId: result.submission.id };
+    setSubmitted(sent); // 이 코드는 이미 보냈다고 기억한다
+    writeSubmitted(projectId, sent);
     selectTab("MINE");
     setTitle("");
     setNotice(result.notice ?? "");
@@ -461,7 +479,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             onMount={(mounted, monaco) => {
               setEditor(mounted);
               // 에디터 안에서는 Tab이 들여쓰기라 키보드로 빠져나오기 어렵다 → Ctrl/⌘+Enter로 바로 Comit 창을 연다
-              mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => setModalOpen(true));
+              mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => openComitRef.current());
             }}
             options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
@@ -469,7 +487,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-3">
           {/* 협업 흐름에서 지금은 "작성" 단계라는 것과 다음 할 일을 알려준다 */}
           <div className="min-w-0 flex-1 basis-64">
-            <FlowSteps flow={writingFlow(hasChanges)} compact />
+            <FlowSteps flow={writingFlow(hasChanges, alreadySubmitted)} compact />
+            {alreadySubmitted && submitted && (
+              <Link href={`/project/${projectId}/submission/${submitted.submissionId}`} className="mt-0.5 inline-block text-xs font-medium text-accent-ink underline-offset-2 hover:underline">
+                방금 Comit한 제출 보러 가기 →
+              </Link>
+            )}
             {notice && <p role="status" className="mt-1 text-xs text-warn">{notice}</p>}
           </div>
           <div className="flex items-center gap-2">
@@ -477,8 +500,15 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             <kbd className="hidden rounded-md border border-line-strong bg-background px-1.5 py-0.5 font-sans text-[11px] text-muted md:inline">
               Ctrl/⌘ + Enter
             </kbd>
-            <button type="button" onClick={() => setModalOpen(true)} className={btnPrimary}>
-              Comit하기
+            {/* 같은 코드를 두 번 보내지 않게: 이미 보낸 코드면 버튼을 쉬게 한다 (코드를 고치면 다시 켜진다) */}
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              disabled={alreadySubmitted}
+              title={alreadySubmitted ? "이미 Comit한 코드예요. 코드를 더 고치면 다시 Comit할 수 있어요." : undefined}
+              className={alreadySubmitted ? btnSecondary : btnPrimary}
+            >
+              {alreadySubmitted ? "✓ Comit 완료" : "Comit하기"}
             </button>
           </div>
         </div>

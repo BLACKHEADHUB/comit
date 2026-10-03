@@ -40,6 +40,29 @@ export function clearDraft(projectId: string) {
   } catch {}
 }
 
+// 방금 Comit한 코드를 기억한다. 에디터의 코드가 이것과 같으면 "이미 보낸 코드"라는 뜻이다
+// (같은 내용을 실수로 두 번 Comit하지 않게 안내하는 용도. 탭을 닫으면 사라진다)
+export type Submitted = { code: string; submissionId: string };
+
+const submittedKey = (projectId: string) => `comit_submitted_${projectId}`;
+
+export function readSubmitted(projectId: string): Submitted | null {
+  try {
+    const raw = sessionStorage.getItem(submittedKey(projectId));
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Submitted;
+    return typeof saved.code === "string" && typeof saved.submissionId === "string" ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSubmitted(projectId: string, submitted: Submitted) {
+  try {
+    sessionStorage.setItem(submittedKey(projectId), JSON.stringify(submitted));
+  } catch {}
+}
+
 // 에디터 언어 선택 (Monaco는 언어에 맞춰 문법 검사/색상을 적용한다. 일반 텍스트는 검사하지 않는다)
 export const LANGUAGES = [
   { value: "plaintext", label: "일반 텍스트" },

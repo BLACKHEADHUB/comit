@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearDraft, readDraft, readLanguage, subscribeLanguage, writeDraft, writeLanguage } from "@/lib/draft";
+import {
+  clearDraft,
+  readDraft,
+  readLanguage,
+  readSubmitted,
+  subscribeLanguage,
+  writeDraft,
+  writeLanguage,
+  writeSubmitted,
+} from "@/lib/draft";
 
 // 브라우저의 sessionStorage를 흉내 내는 가짜 저장소
 function fakeStorage() {
@@ -86,5 +95,26 @@ describe("언어 선택", () => {
   it("목록에 없는 값이 저장돼 있으면 일반 텍스트로 본다", () => {
     storage.setItem("comit_lang_p1", "cobol");
     expect(readLanguage("p1")).toBe("plaintext");
+  });
+});
+
+describe("방금 Comit한 코드 기억", () => {
+  it("저장한 값을 프로젝트별로 읽는다", () => {
+    writeSubmitted("p1", { code: "x = 1", submissionId: "s1" });
+    expect(readSubmitted("p1")).toEqual({ code: "x = 1", submissionId: "s1" });
+    expect(readSubmitted("p2")).toBeNull();
+  });
+
+  it("깨진 값이나 모양이 다른 값은 null", () => {
+    storage.setItem("comit_submitted_p1", "{oops");
+    expect(readSubmitted("p1")).toBeNull();
+    storage.setItem("comit_submitted_p1", JSON.stringify({ code: 1 }));
+    expect(readSubmitted("p1")).toBeNull();
+  });
+
+  it("저장소를 못 쓰는 환경에서도 에러 없이 null", () => {
+    vi.stubGlobal("sessionStorage", undefined);
+    expect(readSubmitted("p1")).toBeNull();
+    expect(() => writeSubmitted("p1", { code: "a", submissionId: "s" })).not.toThrow();
   });
 });

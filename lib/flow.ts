@@ -16,8 +16,16 @@ function stepsAt(current: number): FlowStep[] {
   return LABELS.map((label, i) => ({ label, state: i < current ? "done" : i === current ? "current" : "todo" }));
 }
 
-// 에디터 화면: 아직 Comit하기 전
-export function writingFlow(hasChanges: boolean): Flow {
+// 에디터 화면. alreadySubmitted: 지금 에디터의 코드가 방금 Comit한 코드와 똑같은지
+export function writingFlow(hasChanges: boolean, alreadySubmitted = false): Flow {
+  if (alreadySubmitted) {
+    // 이미 보낸 코드다 → "제안함" 단계. 또 Comit하라고 하지 않는다
+    return {
+      steps: stepsAt(1),
+      next: "방금 Comit했어요! 팀원의 리뷰를 기다리는 동안 쉬어도 되고, 더 고칠 곳이 있으면 이어서 고쳐도 돼요.",
+      tone: "ok",
+    };
+  }
   return {
     steps: stepsAt(0),
     next: hasChanges
