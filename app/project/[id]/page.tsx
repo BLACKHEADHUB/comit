@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
 import { buildInviteUrl } from "@/lib/invite";
 import InviteLink from "@/components/InviteLink";
+import MemberAvatars from "@/components/MemberAvatars";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import { badge } from "@/lib/ui";
+import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
@@ -40,7 +42,8 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           <span className={`${badge} ${me.role === "LEADER" ? "bg-accent-soft text-accent" : "bg-surface text-muted ring-1 ring-line"}`}>
             {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
-          <span>멤버 {project.members.length}명</span>
+          {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
+          <MemberAvatars members={orderMembers(project.members, me.nickname)} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
         </div>
       </header>
