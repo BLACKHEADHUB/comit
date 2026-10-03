@@ -408,7 +408,11 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             theme={dark ? "vs-dark" : "light"}
             value={code}
             onChange={(v) => handleCodeChange(v ?? "")}
-            onMount={(mounted) => setEditor(mounted)}
+            onMount={(mounted, monaco) => {
+              setEditor(mounted);
+              // 에디터 안에서는 Tab이 들여쓰기라 키보드로 빠져나오기 어렵다 → Ctrl/⌘+Enter로 바로 Comit 창을 연다
+              mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => setModalOpen(true));
+            }}
             options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
         </div>
@@ -418,9 +422,15 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             <FlowSteps flow={writingFlow(hasChanges)} compact />
             {notice && <p role="status" className="mt-1 text-xs text-warn">{notice}</p>}
           </div>
-          <button type="button" onClick={() => setModalOpen(true)} className={btnPrimary}>
-            Comit하기
-          </button>
+          <div className="flex items-center gap-2">
+            {/* 키보드 단축키 안내 (터치 화면에서는 숨긴다) */}
+            <kbd className="hidden rounded-md border border-line-strong bg-background px-1.5 py-0.5 font-sans text-[11px] text-muted md:inline">
+              Ctrl/⌘ + Enter
+            </kbd>
+            <button type="button" onClick={() => setModalOpen(true)} className={btnPrimary}>
+              Comit하기
+            </button>
+          </div>
         </div>
       </section>
 

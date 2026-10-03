@@ -2,6 +2,7 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 
 // 화면 스크린샷을 e2e/screenshots/<프로젝트 이름>/<이름>.png로 저장한다 (사람이 직접 열어 보는 용도)
 export async function shot(page: Page, testInfo: TestInfo, name: string) {
+  await page.waitForTimeout(300); // 모달/카드가 나타나는 애니메이션이 끝난 뒤에 찍는다
   await page.screenshot({ path: `e2e/screenshots/${testInfo.project.name}/${name}.png`, fullPage: true });
 }
 

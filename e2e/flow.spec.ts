@@ -69,8 +69,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await shot(leader, testInfo, "10-submission-detail");
   await expectNoHorizontalScroll(leader);
 
-  // 변경 후(오른쪽) 2번 줄 번호를 눌러 댓글을 단다
-  await leader.locator('td:has(> pre[class*="line-number"])').filter({ hasText: /^2$/ }).last().click();
+  await leader.getByRole("button", { name: "2번 줄에 댓글 달기" }).click();
   await leader.getByRole("button", { name: /버그/ }).click();
   await leader.getByPlaceholder("내용 (선택)").fill("따옴표 안의 쉼표 뒤 공백이 빠진 것 같아요.");
   await shot(leader, testInfo, "11-comment-form");

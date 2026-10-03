@@ -116,3 +116,13 @@ body {
   margin-left: 1px;
   border-top: 3px solid var(--danger);
 }
+
+/* Diff(좌우 분할)에서 "변경 전" 쪽의 버튼 칸은 쓰지 않으므로 폭을 없앤다 (라이브러리가 양쪽에 50px 칸을 만든다) */
+.comit-diff-split col:nth-child(2) {
+  width: 0;
+}
+/* 댓글 버튼 칸은 버튼 크기만큼만 */
+.comit-diff-split col:nth-child(6),
+.comit-diff:not(.comit-diff-split) col:nth-child(3) {
+  width: 40px;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
 import { groupByLine } from "@/lib/comments";
@@ -9,6 +9,7 @@ import { markReviewedOnce } from "@/lib/onboarding";
 import type { CommentTag } from "@/lib/validation";
 import { useReview } from "@/components/ReviewProvider";
 import { useIsDark } from "@/lib/useIsDark";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { badge, btnGhost, btnPrimary, card, inputClass, noticeError, RETRY_MESSAGE } from "@/lib/ui";
 
 // Diff Viewer는 브라우저 전용이라 SSR을 끄고 불러온다
@@ -57,6 +58,15 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const dark = useIsDark();
+  const narrow = useMediaQuery("(max-width: 767px)");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // 댓글 입력 폼이 열리면(또는 다른 줄로 바뀌면) 포커스를 폼으로 옮긴다 → 키보드만으로 이어서 입력할 수 있다
+  useEffect(() => {
+    if (activeLine === null) return;
+    formRef.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({ preventScroll: true });
+    formRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeLine]);
 
   const changes = useMemo(() => summarizeChanges(beforeCode, afterCode), [beforeCode, afterCode]);
   // 태그별 개수 요약
@@ -102,6 +112,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
     markReviewedOnce(); // 첫 진입 체크리스트의 "리뷰 남기기" 완료 기록
     setContent("");
     setActiveLine(null);
+    // 폼이 사라져도 포커스가 길을 잃지 않게, 방금 댓글을 단 줄의 묶음으로 옮긴다
+    const line = result.comment.lineNumber;
+    requestAnimationFrame(() => document.getElementById(`line-comments-${line}`)?.focus({ preventScroll: true }));
   }
 
   return (
@@ -124,31 +137,35 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 댓글 {newIds.size}개
           </span>
         )}
-        <span className="text-xs text-muted">오른쪽(변경 후) 줄 번호를 클릭하면 댓글을 달 수 있어요. 💬 표시는 댓글이 달린 줄이에요.</span>
+        <span className="text-xs text-muted">변경 후 줄 옆의 + 를 누르면 댓글을 달 수 있어요. 💬 표시는 댓글이 달린 줄이에요.</span>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className={`${card} min-w-0 overflow-x-auto text-xs`}>
+        <div className={`${card} comit-diff ${narrow ? "" : "comit-diff-split"} min-w-0 overflow-x-auto text-xs`}>
           <DiffViewer
             // 이 라이브러리는 alwaysShowLines가 바뀌어도 Diff를 다시 계산하지 않아 표가 통째로 비어 버린다.
             // 댓글이 달린 줄 목록이 바뀔 때마다 key를 바꿔 새로 그리게 한다
             key={threads.map((t) => t.line).join(",")}
             oldValue={beforeCode}
             newValue={afterCode}
-            splitView
+            splitView={!narrow} // 좁은 화면에서는 좌우 분할 대신 한 줄 보기 (분할하면 글자가 한 자씩 줄바꿈된다)
             useDarkTheme={dark}
-            leftTitle="변경 전"
+            leftTitle={narrow ? "− 변경 전 / + 변경 후" : "변경 전"}
             rightTitle="변경 후"
             // 지금 댓글을 다는 줄만 강조한다 (이 라이브러리는 줄마다 다른 색을 줄 수 없다)
-            highlightLines={activeLine === null ? [] : [`R-${activeLine}`]}
+            // 한 줄 보기에서 새로 추가된 줄은 라이브러리가 "undefined-줄번호"로 식별하므로 둘 다 넘긴다
+            highlightLines={activeLine === null ? [] : [`R-${activeLine}`, `undefined-${activeLine}`]}
             // 댓글이 달린 줄은 변경이 없는 구간이라도 접히지 않게 한다
             alwaysShowLines={threads.map((t) => `R-${t.line}`)}
-            // 줄 번호 옆 칸: 댓글이 달린 "변경 후" 줄에 말풍선 버튼을 그린다 (왼쪽/댓글 없는 줄은 빈 칸)
-            renderGutter={({ lineNumber, prefix, styles }) => {
-              const thread = prefix === "R" ? threadByLine.get(lineNumber) : undefined;
+            // 줄 번호 옆 칸: "변경 후" 줄마다 버튼을 하나 둔다. 댓글이 있으면 말풍선(개수), 없으면 댓글 달기(+).
+            // 줄 번호 칸은 키보드로 누를 수 없어서, 이 버튼이 키보드/터치 사용자의 댓글 입구가 된다
+            renderGutter={({ lineNumber, prefix, additionalLineNumber, styles }) => {
+              // 좌우 분할: 오른쪽 칸(prefix R)의 줄 번호 / 한 줄 보기: additionalLineNumber가 변경 후 줄 번호
+              const line = additionalLineNumber ?? (prefix === "R" && lineNumber > 0 ? lineNumber : undefined);
+              const thread = line === undefined ? undefined : threadByLine.get(line);
               return (
-                <td className={styles.gutter} style={{ minWidth: 0, padding: "0 2px", textAlign: "center" }}>
-                  {thread && (
+                <td className={styles.gutter} style={{ minWidth: 0, padding: line === undefined ? 0 : "0 2px", textAlign: "center" }}>
+                  {thread ? (
                     <button
                       type="button"
                       onClick={() => openThread(thread.line)}
@@ -160,6 +177,17 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                       <span aria-hidden>{thread.hasBug ? "🐞" : "💬"}</span>
                       {thread.comments.length}
                     </button>
+                  ) : (
+                    line !== undefined && (
+                      <button
+                        type="button"
+                        onClick={() => selectLine(line)}
+                        aria-label={`${line}번 줄에 댓글 달기`}
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[13px] leading-none text-muted opacity-45 transition hover:bg-accent hover:text-white hover:opacity-100 focus-visible:bg-accent focus-visible:text-white focus-visible:opacity-100"
+                      >
+                        <span aria-hidden>+</span>
+                      </button>
+                    )
                   )}
                 </td>
               );
@@ -183,7 +211,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
 
         <aside className="flex flex-col gap-4 text-sm lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
           {activeLine !== null && (
-            <form onSubmit={handleSubmit} className={`${card} flex animate-pop-in flex-col gap-3 p-4`}>
+            <form ref={formRef} onSubmit={handleSubmit} className={`${card} flex animate-pop-in flex-col gap-3 p-4`}>
               <p className="font-semibold">{activeLine}번 줄에 댓글</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {TAGS.map((t) => (
@@ -224,7 +252,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
 
           {threads.length === 0 && activeLine === null && (
             <p className="rounded-xl border border-dashed border-line-strong p-4 text-center leading-relaxed text-muted">
-              아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄의 번호를 눌러 첫 댓글을 남겨보세요.
+              아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄 옆의 + 를 눌러 첫 댓글을 남겨보세요.
             </p>
           )}
           {threads.map((t) => (

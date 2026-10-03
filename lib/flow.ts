@@ -62,7 +62,7 @@ export function submissionFlow({ status, commentCount, isAuthor, isLeader }: Sub
 
   // PENDING: 댓글이 하나라도 달리면 "리뷰 중"으로 본다
   if (commentCount === 0) {
-    let next = "바뀐 코드를 읽어보고, 줄 번호를 눌러 첫 리뷰를 남겨보세요.";
+    let next = "바뀐 코드를 읽어보고, 줄 옆의 + 를 눌러 첫 리뷰를 남겨보세요.";
     if (isAuthor && isLeader) next = "팀원의 리뷰를 기다리는 중이에요. 확인이 끝났다면 병합할 수 있어요.";
     else if (isAuthor) next = "팀원의 리뷰를 기다리는 중이에요. 댓글이 달리면 여기에서 확인할 수 있어요.";
     else if (isLeader) next = "바뀐 코드를 읽어보고 리뷰를 남기거나, 괜찮다면 병합하세요.";

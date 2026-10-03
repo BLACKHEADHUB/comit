@@ -14,7 +14,7 @@ export function onboardingSteps({ hasChanges, hasSubmitted, hasReviewed }: Progr
     // 이미 Comit한 사람은 코드도 고쳐본 것이다
     { title: "코드 고치기", hint: "에디터에서 아무 줄이나 고쳐보세요.", done: hasChanges || hasSubmitted },
     { title: "Comit하기", hint: "아래 [Comit하기]로 팀원에게 보여주세요.", done: hasSubmitted },
-    { title: "리뷰 남기기", hint: "목록에서 제출을 열고 줄 번호를 눌러 댓글을 달아보세요.", done: hasReviewed },
+    { title: "리뷰 남기기", hint: "목록에서 제출을 열고 줄 옆의 + 를 눌러 댓글을 달아보세요.", done: hasReviewed },
   ];
   const firstTodo = steps.findIndex((s) => !s.done);
   return steps.map((s, i) => ({ ...s, current: i === firstTodo }));
