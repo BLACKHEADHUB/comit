@@ -51,6 +51,10 @@ describe("changedLineMarks", () => {
     expect(changedLineMarks("a\nb\nc\n", "a\nc\n")).toEqual({ added: [], modified: [], deletedAt: [2] });
   });
 
+  it("두 줄을 한 줄로 바꾸면 수정 1 + 그 아래에 삭제 표시", () => {
+    expect(changedLineMarks("a\nb\nc\nd\n", "a\nB\nd\n")).toEqual({ added: [], modified: [2], deletedAt: [3] });
+  });
+
   it("맨 끝 줄을 지우면 마지막 줄을 넘지 않는 위치에 표시", () => {
     const marks = changedLineMarks("a\nb\nc", "a\nb");
     expect(marks.added).toEqual([]);

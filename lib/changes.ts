@@ -66,7 +66,8 @@ export function changedLineMarks(before: string, after: string): LineMarks {
         (i < pendingRemoved ? marks.modified : marks.added).push(line + i);
       }
       line += count;
-      pendingRemoved = 0;
+      // 들어온 줄보다 지워진 줄이 더 많으면, 남은 만큼은 "삭제"로 남겨 다음 줄에 표시한다
+      pendingRemoved = Math.max(0, pendingRemoved - count);
     } else {
       flushRemoved();
       line += count;
