@@ -221,7 +221,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside className="flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0">
-        <div role="tablist" aria-label="제출 목록 보기" className="flex gap-1 border-b border-line p-2">
+        {/* 탭은 글자 길이만큼만 차지한다 (똑같이 3등분하면 긴 라벨이 두 줄로 잘린다) */}
+        <div role="tablist" aria-label="제출 목록 보기" className="flex justify-between gap-0.5 overflow-x-auto border-b border-line p-2">
           {TABS.map((t) => {
             const inThisTab = submissions.filter((s) => inTab(s, t.tab, myNickname));
             const count = inThisTab.length;
@@ -235,12 +236,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 aria-selected={active}
                 onClick={() => selectTab(t.tab)}
                 title={t.hint} // 마우스를 올리면 설명이 보인다
-                className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[13px] leading-tight transition ${
+                className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] leading-tight transition ${
                   active ? "bg-background font-medium shadow-sm ring-1 ring-line" : "text-muted hover:text-foreground"
                 }`}
               >
                 {t.label}
-                <span className={`${badge} ${active ? "bg-accent-soft text-accent" : "bg-line text-muted"} !px-1.5 !py-0`}>{count}</span>
+                <span className={`${badge} ${active ? "bg-accent-soft text-accent" : "bg-line text-muted"} !px-1.5 !py-0 !text-[11px]`}>{count}</span>
                 {hasNew && (
                   <>
                     <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent" />
