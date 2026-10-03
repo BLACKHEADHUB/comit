@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import ModalHeader from "@/components/ModalHeader";
 import { writeDraft } from "@/lib/draft";
 import { resolveMerge, threeWayMerge, type ConflictChoice, type MergeResult } from "@/lib/rebase";
 import { btnGhost, btnPrimary, modalCard, modalOverlay } from "@/lib/ui";
@@ -79,12 +80,9 @@ export default function RebaseHelper({ projectId, beforeCode, afterCode, latestM
             onClick={(e) => e.stopPropagation()}
             className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-2xl flex-col gap-4 overflow-y-auto text-left`}
           >
-            <div>
-              <h2 id="rebase-title" className="text-lg font-semibold tracking-tight">겹치는 부분이 {conflicts.length}곳 있어요</h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted">
-                먼저 병합된 변경과 내 변경이 같은 줄을 고쳤어요. 겹치지 않는 나머지는 자동으로 합쳤으니, 아래 부분만 어느 쪽을 쓸지 골라주세요.
-              </p>
-            </div>
+            <ModalHeader id="rebase-title" mood="thinking" title={`겹치는 부분이 ${conflicts.length}곳 있어요`}>
+              먼저 병합된 변경과 내 변경이 같은 줄을 고쳤어요. 겹치지 않는 나머지는 자동으로 합쳤으니, 아래 부분만 어느 쪽을 쓸지 골라주세요.
+            </ModalHeader>
             {conflicts.map((conflict, i) =>
               conflict.type !== "conflict" ? null : (
                 <fieldset key={i} className="flex flex-col gap-2 rounded-xl border border-line p-3">

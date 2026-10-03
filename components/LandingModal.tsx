@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import Mascot from "@/components/Mascot";
+import ModalHeader from "@/components/ModalHeader";
 import { btnGhost, btnPrimary, modalCard, modalOverlay } from "@/lib/ui";
 
 // "프로젝트 생성" 버튼을 누르면 뜨는 안내 모달
@@ -37,13 +37,9 @@ export default function LandingModal() {
             className={`${modalCard} text-left`} // 가운데 정렬된 화면 안에 있어도 창 안의 글은 왼쪽 정렬
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3">
-              <Mascot mood="happy" size={48} />
-              <h2 className="text-lg font-semibold tracking-tight">새 프로젝트를 시작해볼까요?</h2>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
+            <ModalHeader mood="happy" title="새 프로젝트를 시작해볼까요?">
               닉네임만 정하면 바로 만들어져요. 회원가입도 설치도 없어요. 만든 뒤에는 초대 링크를 팀원에게 보내주세요.
-            </p>
+            </ModalHeader>
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className={btnGhost}>
                 취소

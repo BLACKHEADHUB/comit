@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import ModalHeader from "@/components/ModalHeader";
 import Mascot from "@/components/Mascot";
 import Loading from "@/components/Loading";
 import OnboardingCard from "@/components/OnboardingCard";
@@ -492,12 +493,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             onClick={(e) => e.stopPropagation()}
             className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
           >
-            <div>
-              <h2 id="latest-main-title" className="text-lg font-semibold tracking-tight">최신 원본</h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted">
-                이 화면을 열었을 때의 원본과 지금 원본의 차이예요. 내 에디터의 코드는 바뀌지 않았어요.
-              </p>
-            </div>
+            <ModalHeader id="latest-main-title" mood="oops" title="원본이 이렇게 바뀌었어요">
+              이 화면을 열었을 때의 원본과 지금 원본의 차이예요. 내 에디터의 코드는 그대로니 걱정 마세요.
+            </ModalHeader>
             <ChangePreview
               before={initialCode}
               after={latestMain}
@@ -527,10 +525,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             aria-labelledby="comit-modal-title"
             className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
           >
-            <div>
-              <h2 id="comit-modal-title" className="text-lg font-semibold tracking-tight">무엇을 바꿨나요?</h2>
-              <p className="mt-1 text-sm text-muted">보내기 전에 바뀐 부분을 확인하고, 팀원이 알아보기 쉽게 한 줄로 적어주세요.</p>
-            </div>
+            <ModalHeader id="comit-modal-title" mood="happy" title="무엇을 바꿨나요?">
+              보내기 전에 바뀐 부분을 한 번 확인하고, 팀원이 알아보기 쉽게 한 줄로 적어주세요.
+            </ModalHeader>
             {/* 보내기 전 확인: 원본과 달라진 부분만 보여준다 */}
             <ChangePreview before={initialCode} after={code} />
             <input
@@ -552,7 +549,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               {/* 원본과 같으면 보낼 것이 없으므로 제출을 막는다 (서버에서도 다시 확인한다) */}
               <button type="submit" disabled={pending || !hasChanges} className={btnPrimary}>
                 {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-                {pending ? "AI가 분석하는 중... (최대 15초)" : error ? "다시 시도" : "제출하기"}
+                {pending ? "AI가 읽어보는 중... (최대 15초)" : error ? "다시 시도" : "제출하기"}
               </button>
             </div>
           </form>

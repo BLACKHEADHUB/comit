@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
 import Confetti from "@/components/Confetti";
 import Mascot from "@/components/Mascot";
+import ModalHeader from "@/components/ModalHeader";
 import RebaseHelper from "@/components/RebaseHelper";
 import { useReview } from "@/components/ReviewProvider";
 import { countOpen, countRoots } from "@/lib/comments";
@@ -134,22 +135,27 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
       )}
       {confirmOpen && (
         <div className={modalOverlay} onClick={() => setConfirmOpen(false)}>
-          <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className={`${modalCard} flex flex-col gap-4`}>
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">이 제출을 병합할까요?</h2>
-              <p className="mt-1 text-sm text-muted">병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요.</p>
-            </div>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="merge-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+            className={`${modalCard} flex flex-col gap-4 text-left`}
+          >
+            <ModalHeader id="merge-confirm-title" mood="hello" title="이 제출을 병합할까요?">
+              병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요.
+            </ModalHeader>
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
-              <div className="rounded-lg border border-line bg-surface p-2">👍 좋아요<p className="mt-0.5 text-lg font-semibold">{likeCount}</p></div>
-              <div className="rounded-lg border border-line bg-surface p-2">❓ 질문<p className="mt-0.5 text-lg font-semibold">{questionCount}</p></div>
-              <div className="rounded-lg border border-line bg-surface p-2">🐞 버그<p className="mt-0.5 text-lg font-semibold">{bugCount}</p></div>
+              <div className="rounded-2xl border border-line bg-surface p-2">👍 좋아요<p className="mt-0.5 text-lg font-semibold">{likeCount}</p></div>
+              <div className="rounded-2xl border border-line bg-surface p-2">❓ 질문<p className="mt-0.5 text-lg font-semibold">{questionCount}</p></div>
+              <div className="rounded-2xl border border-line bg-surface p-2">🐞 버그<p className="mt-0.5 text-lg font-semibold">{bugCount}</p></div>
             </div>
             {bugCount > 0 && (
               <p role="alert" className={noticeError}>
                 🐞 해결 안 된 버그 지적이 있어요. 병합하기 전에 댓글을 한 번 더 확인해보세요.
               </p>
             )}
-            {noReview && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원의 리뷰 없이 병합하게 돼요.</p>}
+            {noReview && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원이 한 번 봐주면 더 안전해요.</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmOpen(false)} className={btnGhost}>
                 취소
