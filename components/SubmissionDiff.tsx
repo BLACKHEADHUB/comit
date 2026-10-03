@@ -6,6 +6,7 @@ import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
 import AskAi from "@/components/AskAi";
 import CommentThread from "@/components/CommentThread";
+import Mascot from "@/components/Mascot";
 import Loading from "@/components/Loading";
 import { countOpen, groupByLine } from "@/lib/comments";
 import { markReviewedOnce } from "@/lib/onboarding";
@@ -178,7 +179,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                         type="button"
                         onClick={() => selectLine(line)}
                         aria-label={`${line}번 줄에 댓글 달기`}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-[13px] leading-none text-muted opacity-45 transition hover:bg-accent hover:text-white hover:opacity-100 focus-visible:bg-accent focus-visible:text-white focus-visible:opacity-100"
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[13px] leading-none text-muted opacity-70 transition hover:bg-accent hover:text-white hover:opacity-100 focus-visible:bg-accent focus-visible:text-white focus-visible:opacity-100"
                       >
                         <span aria-hidden>+</span>
                       </button>
@@ -215,7 +216,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                     type="button"
                     onClick={() => setTag(t.tag)}
                     aria-pressed={tag === t.tag}
-                    className={`rounded-lg border px-1 py-1.5 text-xs transition active:scale-[0.97] ${
+                    className={`rounded-full border px-1 py-1.5 text-xs transition active:scale-[0.97] ${
                       tag === t.tag
                         ? "border-accent bg-accent-soft font-semibold text-accent-ink"
                         : "border-line-strong text-muted hover:bg-surface hover:text-foreground"
@@ -249,9 +250,13 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
           {activeLine !== null && <AskAi key={activeLine} projectId={projectId} submissionId={submissionId} line={activeLine} />}
 
           {threads.length === 0 && activeLine === null && (
-            <p className="rounded-xl border border-dashed border-line-strong p-4 text-center leading-relaxed text-muted">
-              아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄 옆의 + 를 눌러 첫 댓글을 남겨보세요.
-            </p>
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong p-5 text-center leading-relaxed text-muted">
+              <Mascot mood="calm" size={48} />
+              <p>
+                아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄 옆의 <strong className="text-foreground">+</strong> 를 눌러 첫 댓글을
+                남겨보세요. 칭찬 한마디도 좋은 리뷰예요!
+              </p>
+            </div>
           )}
           {threads.map((t) => (
             // 말풍선을 눌렀을 때 이동해 올 자리 (tabIndex=-1: 코드로만 포커스를 받는다)

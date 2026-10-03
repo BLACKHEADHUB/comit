@@ -64,10 +64,11 @@ export default async function SubmissionPage({
 
       {/* AI 분석 카드 */}
       <section className={`${card} overflow-hidden`}>
-        <div className="flex items-center gap-2 border-b border-line bg-surface px-5 py-3">
-          <span>🤖</span>
-          <h2 className="text-sm font-semibold">AI 분석</h2>
-          <span className="text-xs text-muted">참고용이에요. 최종 판단은 팀원이 해주세요.</span>
+        {/* 머리 부분은 라벤더 톤 (파스텔 위에는 회색 글자를 쓰지 않고 같은 계열의 진한 색을 쓴다) */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-line bg-lavender-soft px-5 py-3">
+          <span aria-hidden>🤖</span>
+          <h2 className="text-sm font-semibold">AI가 먼저 읽어봤어요</h2>
+          <span className="text-xs text-lavender">참고용이에요. 최종 판단은 팀원이 함께 해주세요.</span>
         </div>
         <div className="grid gap-5 p-5 md:grid-cols-[2fr_1fr]">
           <div>
@@ -84,7 +85,7 @@ export default async function SubmissionPage({
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-muted">분석 결과가 없어요.</p>
+              <p className="text-sm text-muted">아직 분석 결과가 없어요.</p>
             )}
           </div>
           <div className="flex flex-col gap-3">
@@ -95,8 +96,8 @@ export default async function SubmissionPage({
               </div>
             )}
             {concept && (
-              <div className="rounded-lg border border-line bg-surface p-3">
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">💡 핵심 개념</h3>
+              <div className="rounded-xl bg-peach-soft p-3">
+                <h3 className="mb-1 text-xs font-semibold tracking-wide text-peach">💡 오늘의 개념</h3>
                 <p className="text-sm leading-relaxed">{concept}</p>
               </div>
             )}

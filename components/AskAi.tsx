@@ -87,8 +87,8 @@ export default function AskAi({ projectId, submissionId, line }: Props) {
           </p>
         )}
         {answer && (
-          <div className="rounded-lg border border-line bg-surface p-3">
-            <p className="text-xs font-medium text-muted">Q. {asked}</p>
+          <div className="rounded-xl bg-lavender-soft p-3">
+            <p className="text-xs font-medium text-lavender">Q. {asked}</p>
             {/* 답변은 텍스트로만 렌더링 (React가 자동 이스케이프) */}
             <p className="mt-1 whitespace-pre-wrap break-words leading-relaxed">{answer}</p>
           </div>
