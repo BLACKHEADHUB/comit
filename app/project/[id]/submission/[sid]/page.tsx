@@ -34,7 +34,7 @@ export default async function SubmissionPage({
     <ReviewProvider
       projectId={id}
       submissionId={sid}
-      myNickname={me.nickname}
+      viewer={{ nickname: me.nickname, isLeader: me.role === "LEADER", submissionAuthor: submission.author }}
       initialComments={comments}
       initialStatus={submission.status}
     >

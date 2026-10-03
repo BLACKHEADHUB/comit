@@ -36,9 +36,10 @@ export type SubmissionItem = {
   status: "PENDING" | "MERGED" | "STALE";
   createdAt: string; // ISO 문자열 (서버→클라이언트 전달용)
   // 카드 배지용 집계 (DB에 저장하는 값이 아니라 목록을 조회할 때 계산한다)
-  commentCount: number;
-  bugCount: number;
+  commentCount: number; // 해결 안 된 원댓글 수
+  bugCount: number; // 그중 버그 지적 수
   hasWarning: boolean; // AI 분석에 경고가 있는지
+  totalComments: number; // 답글·해결된 것까지 포함한 전체 개수 ("새 활동" 판정용)
 };
 
 export type SubmissionResult = { error?: string; notice?: string; submission?: SubmissionItem };
@@ -56,10 +57,17 @@ export type CommentItem = {
   id: string;
   author: string;
   lineNumber: number;
-  tag: CommentTag;
+  tag: CommentTag | null; // 답글은 태그가 없다
   content: string;
   createdAt: string;
+  parentId: string | null; // 답글이면 원댓글의 id
+  resolved: boolean; // 원댓글의 해결 여부
 };
+
+// 답글 입력 검증: 태그가 없으므로 내용은 필수
+export const createReplySchema = z.object({
+  content: z.string().trim().min(1, "답글 내용을 입력해주세요.").max(300, "답글은 300자 이하로 입력해주세요."),
+});
 
 export type CommentResult = { error?: string; comment?: CommentItem };
 

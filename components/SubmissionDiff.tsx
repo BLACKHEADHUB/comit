@@ -4,8 +4,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
-import { groupByLine } from "@/lib/comments";
+import CommentThread from "@/components/CommentThread";
+import { countOpen, groupByLine } from "@/lib/comments";
 import { markReviewedOnce } from "@/lib/onboarding";
+import { TAG_STYLE, TAGS } from "@/lib/tags";
 import type { CommentTag } from "@/lib/validation";
 import { useReview } from "@/components/ReviewProvider";
 import { useIsDark } from "@/lib/useIsDark";
@@ -17,31 +19,6 @@ const DiffViewer = dynamic(() => import("react-diff-viewer-continued"), {
   ssr: false,
   loading: () => <p className="p-4 text-sm text-muted">Diff 불러오는 중...</p>,
 });
-
-const TAGS: { tag: CommentTag; emoji: string; label: string }[] = [
-  { tag: "LIKE", emoji: "👍", label: "좋아요" },
-  { tag: "QUESTION", emoji: "❓", label: "질문" },
-  { tag: "BUG", emoji: "🐞", label: "버그" },
-];
-// 태그별 배지 색상 (LIKE=초록, QUESTION=포인트, BUG=빨강)
-const TAG_STYLE: Record<CommentTag, string> = {
-  LIKE: "bg-ok-soft text-ok",
-  QUESTION: "bg-accent-soft text-accent",
-  BUG: "bg-danger-soft text-danger",
-};
-// 화면에는 한국어 라벨을 쓰고, DB에는 기존 값(LIKE/QUESTION/BUG)이 그대로 저장된다
-const emojiOf = (tag: CommentTag) => TAGS.find((t) => t.tag === tag)!.emoji;
-const labelOf = (tag: CommentTag) => TAGS.find((t) => t.tag === tag)!.label;
-
-// 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대 고정
-const formatTime = (iso: string) =>
-  new Date(iso).toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 type Props = {
   projectId: string;
@@ -69,8 +46,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   }, [activeLine]);
 
   const changes = useMemo(() => summarizeChanges(beforeCode, afterCode), [beforeCode, afterCode]);
-  // 태그별 개수 요약
-  const counts = TAGS.map((t) => ({ ...t, count: comments.filter((c) => c.tag === t.tag).length }));
+  // 태그별 개수 요약 (해결 안 된 원댓글만)
+  const open = countOpen(comments);
+  const counts = TAGS.map((t) => ({ ...t, count: open[t.tag] }));
 
   // 줄 번호별로 댓글 묶기 (Diff 줄 옆 말풍선과 옆 패널이 같은 묶음을 쓴다)
   const threads = groupByLine(comments);
@@ -79,7 +57,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   // 줄을 고르면 그 줄의 "새 댓글" 표시는 본 것으로 처리한다
   function selectLine(line: number) {
     setActiveLine(line);
-    markSeen(threadByLine.get(line)?.comments.map((c) => c.id) ?? []);
+    markSeen(threadByLine.get(line)?.threads.flatMap((t) => [t.root.id, ...t.replies.map((r) => r.id)]) ?? []);
   }
 
   // 줄 옆 말풍선을 누르면: 그 줄을 강조하고, 옆 패널의 해당 댓글 묶음으로 이동한다
@@ -166,16 +144,31 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
               return (
                 <td className={styles.gutter} style={{ minWidth: 0, padding: line === undefined ? 0 : "0 2px", textAlign: "center" }}>
                   {thread ? (
+                    // 해결 안 된 댓글이 있으면 개수(버그면 🐞), 전부 해결됐으면 ✓ 로 표시한다
                     <button
                       type="button"
                       onClick={() => openThread(thread.line)}
-                      aria-label={`${thread.line}번 줄 댓글 ${thread.comments.length}개 보기${thread.hasBug ? " (버그 지적 있음)" : ""}`}
+                      aria-label={
+                        thread.openCount > 0
+                          ? `${thread.line}번 줄 댓글 ${thread.openCount}개 보기${thread.hasOpenBug ? " (버그 지적 있음)" : ""}`
+                          : `${thread.line}번 줄 해결된 댓글 보기`
+                      }
                       className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[11px] font-semibold leading-4 transition hover:scale-105 ${
-                        thread.hasBug ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"
+                        thread.openCount === 0
+                          ? "bg-ok-soft text-ok"
+                          : thread.hasOpenBug
+                            ? "bg-danger-soft text-danger"
+                            : "bg-accent-soft text-accent"
                       }`}
                     >
-                      <span aria-hidden>{thread.hasBug ? "🐞" : "💬"}</span>
-                      {thread.comments.length}
+                      {thread.openCount === 0 ? (
+                        <span aria-hidden>✓</span>
+                      ) : (
+                        <>
+                          <span aria-hidden>{thread.hasOpenBug ? "🐞" : "💬"}</span>
+                          {thread.openCount}
+                        </>
+                      )}
                     </button>
                   ) : (
                     line !== undefined && (
@@ -268,25 +261,12 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
                 onClick={() => selectLine(t.line)}
                 className="mb-1.5 text-xs font-semibold text-muted transition hover:text-accent"
               >
-                {t.line}번 줄 · 댓글 {t.comments.length}개
+                {t.line}번 줄 · 댓글 {t.threads.length}개
+                {t.openCount < t.threads.length && ` (해결 ${t.threads.length - t.openCount})`}
               </button>
               <ul className="flex flex-col gap-2">
-                {t.comments.map((c) => (
-                  <li key={c.id} className={`${card} p-3`}>
-                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                      <span className={`${badge} ${TAG_STYLE[c.tag]}`}>{emojiOf(c.tag)} {labelOf(c.tag)}</span>
-                      <span className="font-medium text-foreground">{c.author}</span>
-                      <span>{formatTime(c.createdAt)}</span>
-                      {/* 자동 갱신으로 방금 들어온 댓글: 점 + 글자로 알려준다 */}
-                      {newIds.has(c.id) && (
-                        <span className="flex items-center gap-1 font-medium text-accent">
-                          <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 댓글
-                        </span>
-                      )}
-                    </p>
-                    {/* 댓글은 텍스트로만 렌더링 (React가 자동 이스케이프) */}
-                    {c.content && <p className="mt-1.5 whitespace-pre-wrap break-words leading-relaxed">{c.content}</p>}
-                  </li>
+                {t.threads.map((thread) => (
+                  <CommentThread key={thread.root.id} projectId={projectId} submissionId={submissionId} thread={thread} />
                 ))}
               </ul>
             </div>

@@ -14,6 +14,12 @@ export type SubmissionRow = {
   commentCount?: number;
   bugCount?: number;
   hasWarning?: boolean;
+  totalComments?: number;
+};
+
+// "해결 안 된 원댓글" 조건. 예전 댓글에는 parentId/resolved 필드가 없으므로, 없으면 원댓글·미해결로 본다
+const OPEN_ROOT = {
+  $and: [{ $eq: [{ $ifNull: ["$$this.parentId", null] }, null] }, { $ne: ["$$this.resolved", true] }],
 };
 
 // 목록 + 카드 배지용 집계를 쿼리 한 번으로 가져오는 파이프라인.
@@ -28,7 +34,7 @@ export function submissionListPipeline(projectId: Types.ObjectId, commentCollect
         from: commentCollection,
         localField: "_id",
         foreignField: "submissionId",
-        pipeline: [{ $project: { _id: 0, tag: 1 } }],
+        pipeline: [{ $project: { _id: 0, tag: 1, parentId: 1, resolved: 1 } }],
         as: "comments",
       },
     },
@@ -38,8 +44,10 @@ export function submissionListPipeline(projectId: Types.ObjectId, commentCollect
         author: 1,
         status: 1,
         createdAt: 1,
-        commentCount: { $size: "$comments" },
-        bugCount: { $size: { $filter: { input: "$comments", cond: { $eq: ["$$this.tag", "BUG"] } } } },
+        // 배지 숫자는 "해결 안 된 원댓글"만 센다 (답글과 해결된 댓글은 제외)
+        commentCount: { $size: { $filter: { input: "$comments", cond: OPEN_ROOT } } },
+        bugCount: { $size: { $filter: { input: "$comments", cond: { $and: [OPEN_ROOT, { $eq: ["$$this.tag", "BUG"] }] } } } },
+        totalComments: { $size: "$comments" },
         hasWarning: { $gt: [{ $strLenCP: { $ifNull: ["$aiReport.warning", ""] } }, 0] },
       },
     },
@@ -57,6 +65,7 @@ export function toSubmissionItem(row: SubmissionRow): SubmissionItem {
     commentCount: row.commentCount ?? 0,
     bugCount: row.bugCount ?? 0,
     hasWarning: row.hasWarning ?? false,
+    totalComments: row.totalComments ?? 0,
   };
 }
 

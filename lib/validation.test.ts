@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCommentSchema,
   createProjectSchema,
+  createReplySchema,
   createSubmissionSchema,
   joinProjectSchema,
   nicknameSchema,
@@ -73,5 +74,16 @@ describe("createCommentSchema", () => {
 
   it("내용은 300자 이하", () => {
     expect(createCommentSchema.safeParse({ lineNumber: 1, tag: "BUG", content: "a".repeat(301) }).success).toBe(false);
+  });
+});
+
+describe("createReplySchema", () => {
+  it("답글은 내용이 필수 (태그가 없으므로)", () => {
+    expect(createReplySchema.safeParse({ content: "  " }).success).toBe(false);
+    expect(createReplySchema.parse({ content: " 고마워요 " }).content).toBe("고마워요");
+  });
+
+  it("300자 이하", () => {
+    expect(createReplySchema.safeParse({ content: "a".repeat(301) }).success).toBe(false);
   });
 });

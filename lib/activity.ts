@@ -9,18 +9,18 @@ export function mergeById<T extends { id: string }>(local: T[], server: T[]): T[
   return [...server, ...local.filter((item) => !serverIds.has(item.id))];
 }
 
-// 제출 목록에서 "새 활동"이 생긴 제출 id: 새로 나타났거나 댓글 수가 늘어난 것 (내가 올린 새 제출은 제외)
+// 제출 목록에서 "새 활동"이 생긴 제출 id: 새로 나타났거나 댓글/답글이 늘어난 것 (내가 올린 새 제출은 제외)
 export function newActivityIds(
-  prev: Pick<SubmissionItem, "id" | "commentCount">[],
-  next: Pick<SubmissionItem, "id" | "commentCount" | "author">[],
+  prev: Pick<SubmissionItem, "id" | "totalComments">[],
+  next: Pick<SubmissionItem, "id" | "totalComments" | "author">[],
   me: string
 ): string[] {
-  const before = new Map(prev.map((s) => [s.id, s.commentCount]));
+  const before = new Map(prev.map((s) => [s.id, s.totalComments]));
   return next
     .filter((s) => {
       const old = before.get(s.id);
       if (old === undefined) return s.author !== me; // 처음 보는 제출
-      return s.commentCount > old; // 댓글이 늘어난 제출
+      return s.totalComments > old; // 댓글이나 답글이 늘어난 제출
     })
     .map((s) => s.id);
 }

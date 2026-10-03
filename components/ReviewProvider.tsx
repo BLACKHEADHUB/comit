@@ -13,27 +13,33 @@ const POLL_MS = 15_000;
 type ReviewContextValue = {
   comments: CommentItem[];
   addComment: (c: CommentItem) => void;
+  updateComment: (c: CommentItem) => void; // 해결 처리 등으로 바뀐 댓글을 교체한다
+  viewer: Viewer;
   status: SubmissionStatus;
   setStatus: (s: SubmissionStatus) => void;
   newIds: ReadonlySet<string>; // 자동 갱신으로 새로 들어온(아직 안 본) 댓글 id
   markSeen: (ids: string[]) => void;
 };
+// 지금 화면을 보는 사람 (버튼을 보여줄지 정하는 용도. 실제 권한은 서버 액션이 다시 확인한다)
+export type Viewer = { nickname: string; isLeader: boolean; submissionAuthor: string };
+
 const ReviewContext = createContext<ReviewContextValue | null>(null);
 
 type Props = {
   projectId: string;
   submissionId: string;
-  myNickname: string;
+  viewer: Viewer;
   initialComments: CommentItem[];
   initialStatus: SubmissionStatus;
   children: React.ReactNode;
 };
 
-export function ReviewProvider({ projectId, submissionId, myNickname, initialComments, initialStatus, children }: Props) {
+export function ReviewProvider({ projectId, submissionId, viewer, initialComments, initialStatus, children }: Props) {
   const [comments, setComments] = useState(initialComments);
   const [status, setStatus] = useState(initialStatus);
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
   const router = useRouter();
+  const myNickname = viewer.nickname;
 
   // 폴링 콜백에서 "지금 화면의 값"과 비교하기 위해 최신 값을 ref에 담아둔다
   const latest = useRef({ comments, status });
@@ -63,6 +69,8 @@ export function ReviewProvider({ projectId, submissionId, myNickname, initialCom
   const value: ReviewContextValue = {
     comments,
     addComment: (c) => setComments((prev) => [...prev, c]),
+    updateComment: (c) => setComments((prev) => prev.map((old) => (old.id === c.id ? c : old))),
+    viewer,
     status,
     setStatus,
     newIds,

@@ -18,19 +18,19 @@ describe("mergeById", () => {
 });
 
 describe("newActivityIds", () => {
-  const prev = [{ id: "a", commentCount: 1 }];
+  const prev = [{ id: "a", totalComments: 1 }];
 
   it("남이 올린 새 제출은 새 활동", () => {
-    expect(newActivityIds(prev, [{ id: "a", commentCount: 1, author: "지수" }, { id: "b", commentCount: 0, author: "지수" }], "민수")).toEqual(["b"]);
+    expect(newActivityIds(prev, [{ id: "a", totalComments: 1, author: "지수" }, { id: "b", totalComments: 0, author: "지수" }], "민수")).toEqual(["b"]);
   });
 
   it("내가 올린 새 제출은 새 활동이 아니다", () => {
-    expect(newActivityIds(prev, [{ id: "b", commentCount: 0, author: "민수" }], "민수")).toEqual([]);
+    expect(newActivityIds(prev, [{ id: "b", totalComments: 0, author: "민수" }], "민수")).toEqual([]);
   });
 
   it("댓글 수가 늘면 새 활동, 그대로면 아니다", () => {
-    expect(newActivityIds(prev, [{ id: "a", commentCount: 2, author: "민수" }], "민수")).toEqual(["a"]);
-    expect(newActivityIds(prev, [{ id: "a", commentCount: 1, author: "민수" }], "민수")).toEqual([]);
+    expect(newActivityIds(prev, [{ id: "a", totalComments: 2, author: "민수" }], "민수")).toEqual(["a"]);
+    expect(newActivityIds(prev, [{ id: "a", totalComments: 1, author: "민수" }], "민수")).toEqual([]);
   });
 });
 

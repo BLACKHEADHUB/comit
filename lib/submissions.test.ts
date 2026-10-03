@@ -21,11 +21,25 @@ describe("submissionListPipeline", () => {
   });
 });
 
+describe("배지 숫자 조건", () => {
+  it("해결 안 된 원댓글만 세도록 parentId와 resolved를 함께 본다", () => {
+    const pipeline = submissionListPipeline(new Types.ObjectId(), "comments");
+    const project = pipeline.find((stage) => "$project" in stage) as { $project: Record<string, unknown> };
+    const counted = JSON.stringify(project.$project.commentCount);
+    expect(counted).toContain("$$this.parentId");
+    expect(counted).toContain("$$this.resolved");
+    // 버그 수도 같은 조건 + BUG 태그
+    const bugs = JSON.stringify(project.$project.bugCount);
+    expect(bugs).toContain("$$this.resolved");
+    expect(bugs).toContain("BUG");
+  });
+});
+
 describe("toSubmissionItem", () => {
   const base = { _id: new Types.ObjectId(), title: "버튼 추가", author: "민수", status: "PENDING" as const, createdAt: new Date("2026-10-04T00:00:00Z") };
 
   it("id와 날짜를 문자열로 바꾼다", () => {
-    const item = toSubmissionItem({ ...base, commentCount: 3, bugCount: 1, hasWarning: true });
+    const item = toSubmissionItem({ ...base, commentCount: 3, bugCount: 1, hasWarning: true, totalComments: 5 });
     expect(item).toEqual({
       id: String(base._id),
       title: "버튼 추가",
@@ -35,6 +49,7 @@ describe("toSubmissionItem", () => {
       commentCount: 3,
       bugCount: 1,
       hasWarning: true,
+      totalComments: 5,
     });
   });
 
@@ -43,5 +58,6 @@ describe("toSubmissionItem", () => {
     expect(item.commentCount).toBe(0);
     expect(item.bugCount).toBe(0);
     expect(item.hasWarning).toBe(false);
+    expect(item.totalComments).toBe(0);
   });
 });

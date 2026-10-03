@@ -92,10 +92,33 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await expect(leader.getByRole("button", { name: /2번 줄 댓글 1개 보기/ })).toBeVisible();
   await shot(leader, testInfo, "12-submission-with-comment");
 
-  // --- 팀장: 병합 ---
+  // --- 팀장: 병합 확인 창에 "해결 안 된 버그" 경고가 뜬다 → 일단 취소 ---
   await leader.getByRole("button", { name: "병합하기" }).click();
+  await expect(leader.getByRole("dialog")).toContainText("해결 안 된 버그 지적이 있어요");
   await shot(leader, testInfo, "13-merge-confirm");
-  await leader.getByRole("dialog").getByRole("button", { name: /병합하기/ }).click();
+  await leader.getByRole("dialog").getByRole("button", { name: "취소" }).click();
+
+  // --- 팀원(제출 작성자): 답글을 달고 해결 처리 ---
+  await member.goto(new URL(leader.url()).pathname);
+  await member.getByRole("button", { name: /답글/ }).click();
+  await member.getByLabel(/댓글에 답글/).fill("확인했어요! 원래 문장 그대로 둔 거라 괜찮아요.");
+  await member.getByRole("button", { name: "답글 등록" }).click();
+  await expect(member.getByText("확인했어요! 원래 문장 그대로 둔 거라 괜찮아요.")).toBeVisible();
+  await member.getByRole("button", { name: "✓ 해결" }).click();
+  await expect(member.getByText("✓ 해결됨")).toBeVisible();
+  // 해결되면 줄 옆 말풍선은 숫자 대신 ✓, 상단의 버그 수는 0
+  await expect(member.getByRole("button", { name: "2번 줄 해결된 댓글 보기" })).toBeVisible();
+  await expect(member.getByText("🐞 버그 0")).toBeVisible();
+  await shot(member, testInfo, "13b-reply-resolved");
+
+  // --- 팀장: 새로고침 없이 답글과 해결 상태가 보이고, 병합 확인 창의 경고가 사라진다 ---
+  await leader.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(leader.getByText("새 답글")).toBeVisible();
+  await expect(leader.getByText("✓ 해결됨")).toBeVisible();
+  await leader.getByRole("button", { name: "병합하기" }).click();
+  await expect(leader.getByRole("dialog")).not.toContainText("해결 안 된 버그 지적이 있어요");
+  await shot(leader, testInfo, "13c-merge-confirm-after-resolve");
+  await leader.getByRole("dialog").getByRole("button", { name: "병합하기" }).click();
   await expect(leader.getByText("병합 완료!")).toBeVisible();
   await shot(leader, testInfo, "14-merged");
 
@@ -121,7 +144,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await expectNoHorizontalScroll(leader);
 
   // --- 팀원 화면: 병합된 뒤의 목록 / 404 ---
-  await member.reload();
+  await member.getByRole("link", { name: /프로젝트로 돌아가기/ }).click();
   await member.locator(".monaco-editor").first().waitFor();
   await member.getByRole("tab", { name: /내 제안/ }).click();
   await shot(member, testInfo, "18-member-after-merge");

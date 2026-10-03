@@ -67,6 +67,7 @@ export async function createSubmission(
       commentCount: 0,
       bugCount: 0,
       hasWarning: Boolean(aiReport.warning),
+      totalComments: 0,
     },
   };
 }

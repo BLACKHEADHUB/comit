@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
 import { useReview } from "@/components/ReviewProvider";
+import { countOpen, countRoots } from "@/lib/comments";
 import { writeDraft } from "@/lib/draft";
 import type { SubmissionStatus } from "@/lib/validation";
 import {
@@ -46,9 +47,12 @@ export default function MergePanel({ projectId, submissionId, canMerge, afterCod
   // 확인 창에 보여줄 리뷰 개수 (병합을 막지는 않고 확인만 받는다)
   // 상태는 진행 단계 바와 함께 쓰기 위해 ReviewProvider에서 가져온다
   const { comments, status, setStatus } = useReview();
-  const likeCount = comments.filter((c) => c.tag === "LIKE").length;
-  const questionCount = comments.filter((c) => c.tag === "QUESTION").length;
-  const bugCount = comments.filter((c) => c.tag === "BUG").length;
+  // 해결 안 된 원댓글만 센다 (해결된 버그 지적은 경고하지 않는다)
+  const open = countOpen(comments);
+  const likeCount = open.LIKE;
+  const questionCount = open.QUESTION;
+  const bugCount = open.BUG;
+  const noReview = countRoots(comments) === 0; // 리뷰가 하나도 없었는지 (해결된 것도 리뷰로 친다)
 
   // ESC 키로 확인 창 닫기
   useEffect(() => {
@@ -125,16 +129,16 @@ export default function MergePanel({ projectId, submissionId, canMerge, afterCod
             </div>
             {bugCount > 0 && (
               <p role="alert" className={noticeError}>
-                🐞 버그 지적이 있어요. 병합하기 전에 댓글을 한 번 더 확인해보세요.
+                🐞 해결 안 된 버그 지적이 있어요. 병합하기 전에 댓글을 한 번 더 확인해보세요.
               </p>
             )}
-            {comments.length === 0 && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원의 리뷰 없이 병합하게 돼요.</p>}
+            {noReview && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원의 리뷰 없이 병합하게 돼요.</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmOpen(false)} className={btnGhost}>
                 취소
               </button>
               <button type="button" autoFocus onClick={handleMerge} className={btnPrimary}>
-                {bugCount > 0 || comments.length === 0 ? "그래도 병합하기" : "병합하기"}
+                {bugCount > 0 || noReview ? "그래도 병합하기" : "병합하기"}
               </button>
             </div>
           </div>
