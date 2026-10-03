@@ -63,6 +63,10 @@ export async function createSubmission(
       author: submission.author,
       status: submission.status,
       createdAt: submission.createdAt.toISOString(),
+      // 방금 만든 제출이라 댓글은 아직 없다
+      commentCount: 0,
+      bugCount: 0,
+      hasWarning: Boolean(aiReport.warning),
     },
   };
 }

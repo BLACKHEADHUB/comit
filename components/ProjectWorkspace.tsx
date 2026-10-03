@@ -198,6 +198,26 @@ export default function ProjectWorkspace({ projectId, initialCode, initialSubmis
                 <p className="mt-0.5 text-xs text-muted">
                   {s.author} · {formatTime(s.createdAt)}
                 </p>
+                {/* 열어보지 않아도 알 수 있게: 댓글 수 / 버그 지적 수 / AI 경고 (있을 때만 표시) */}
+                {(s.commentCount > 0 || s.hasWarning) && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {s.commentCount > 0 && (
+                      <span aria-label={`댓글 ${s.commentCount}개`} className={`${badge} bg-surface text-muted ring-1 ring-line !px-1.5`}>
+                        <span aria-hidden>💬</span> {s.commentCount}
+                      </span>
+                    )}
+                    {s.bugCount > 0 && (
+                      <span aria-label={`버그 지적 ${s.bugCount}개`} className={`${badge} bg-danger-soft text-danger !px-1.5`}>
+                        <span aria-hidden>🐞</span> {s.bugCount}
+                      </span>
+                    )}
+                    {s.hasWarning && (
+                      <span className={`${badge} bg-warn-soft text-warn !px-1.5`}>
+                        <span aria-hidden>⚠</span> AI 경고
+                      </span>
+                    )}
+                  </p>
+                )}
               </Link>
             </li>
           ))}

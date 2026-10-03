@@ -35,6 +35,10 @@ export type SubmissionItem = {
   author: string;
   status: "PENDING" | "MERGED" | "STALE";
   createdAt: string; // ISO 문자열 (서버→클라이언트 전달용)
+  // 카드 배지용 집계 (DB에 저장하는 값이 아니라 목록을 조회할 때 계산한다)
+  commentCount: number;
+  bugCount: number;
+  hasWarning: boolean; // AI 분석에 경고가 있는지
 };
 
 export type SubmissionResult = { error?: string; notice?: string; submission?: SubmissionItem };

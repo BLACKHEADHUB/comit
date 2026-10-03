@@ -1,0 +1,47 @@
+import { Types } from "mongoose";
+import { describe, expect, it } from "vitest";
+import { submissionListPipeline, toSubmissionItem } from "@/lib/submissions";
+
+describe("submissionListPipeline", () => {
+  it("첫 단계에서 projectId로 거른다 (다른 프로젝트 데이터 차단)", () => {
+    const projectId = new Types.ObjectId();
+    const pipeline = submissionListPipeline(projectId, "comments");
+    expect(pipeline[0]).toEqual({ $match: { projectId } });
+  });
+
+  it("댓글은 $lookup 한 번으로 붙이고, 코드 본문은 결과에 싣지 않는다", () => {
+    const pipeline = submissionListPipeline(new Types.ObjectId(), "comments");
+    const lookups = pipeline.filter((stage) => "$lookup" in stage);
+    expect(lookups).toHaveLength(1);
+
+    const project = pipeline.find((stage) => "$project" in stage) as { $project: Record<string, unknown> };
+    expect(Object.keys(project.$project)).not.toContain("beforeCode");
+    expect(Object.keys(project.$project)).not.toContain("afterCode");
+    expect(Object.keys(project.$project)).not.toContain("comments");
+  });
+});
+
+describe("toSubmissionItem", () => {
+  const base = { _id: new Types.ObjectId(), title: "버튼 추가", author: "민수", status: "PENDING" as const, createdAt: new Date("2026-10-04T00:00:00Z") };
+
+  it("id와 날짜를 문자열로 바꾼다", () => {
+    const item = toSubmissionItem({ ...base, commentCount: 3, bugCount: 1, hasWarning: true });
+    expect(item).toEqual({
+      id: String(base._id),
+      title: "버튼 추가",
+      author: "민수",
+      status: "PENDING",
+      createdAt: "2026-10-04T00:00:00.000Z",
+      commentCount: 3,
+      bugCount: 1,
+      hasWarning: true,
+    });
+  });
+
+  it("집계 값이 없으면 0/false로 채운다", () => {
+    const item = toSubmissionItem(base);
+    expect(item.commentCount).toBe(0);
+    expect(item.bugCount).toBe(0);
+    expect(item.hasWarning).toBe(false);
+  });
+});

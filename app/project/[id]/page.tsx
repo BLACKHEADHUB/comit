@@ -6,8 +6,7 @@ import { buildInviteUrl } from "@/lib/invite";
 import InviteLink from "@/components/InviteLink";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import { badge } from "@/lib/ui";
-import type { SubmissionItem } from "@/lib/validation";
-import { Submission } from "@/models/Submission";
+import { listSubmissions } from "@/lib/submissions";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
 export const maxDuration = 30;
@@ -26,18 +25,8 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   let inviteUrl: string | null = null;
   if (me.role === "LEADER") inviteUrl = await buildInviteUrl(project.inviteToken);
 
-  // 항상 projectId로 필터링하고, 목록에는 코드 본문을 싣지 않는다
-  const docs = await Submission.find({ projectId: id })
-    .select("title author status createdAt")
-    .sort({ createdAt: -1 })
-    .lean();
-  const submissions: SubmissionItem[] = docs.map((d) => ({
-    id: String(d._id),
-    title: d.title,
-    author: d.author,
-    status: d.status,
-    createdAt: d.createdAt.toISOString(),
-  }));
+  // 항상 projectId로 필터링하고, 목록에는 코드 본문을 싣지 않는다 (댓글 수 등 배지용 집계도 같은 쿼리에서 계산)
+  const submissions = await listSubmissions(project._id);
 
   return (
     <main className="flex h-dvh w-full flex-col">
