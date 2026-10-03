@@ -6,8 +6,9 @@ import { btnPrimary } from "@/lib/ui";
 export default function NotFound() {
   return (
     <CenteredCard
-      title="페이지를 찾을 수 없어요"
-      description="주소가 잘못됐거나, 이 프로젝트의 멤버가 아니에요. 팀장에게 받은 초대 링크로 다시 들어와 보세요."
+      mood="oops"
+      title="앗, 여기엔 아무것도 없어요"
+      description="주소가 조금 다르거나, 아직 이 프로젝트의 멤버가 아닐 수 있어요. 팀장에게 받은 초대 링크로 다시 들어와 보세요."
     >
       <Link href="/" className={`${btnPrimary} w-full`}>
         처음으로

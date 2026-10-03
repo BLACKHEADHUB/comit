@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import Loading from "@/components/Loading";
 import OnboardingCard from "@/components/OnboardingCard";
 import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
@@ -43,7 +44,7 @@ import { filterSubmissions, inTab, TAB_FILTERS, type StatusFilter, type TaskTab 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
-  loading: () => <p className="p-4 text-sm text-muted">에디터 불러오는 중...</p>,
+  loading: () => <Loading text="에디터를 준비하고 있어요..." />,
 });
 
 // 사이드바 탭: "내가 할 일" 기준 (탭 안에서 상태 칩으로 한 번 더 거를 수 있다)

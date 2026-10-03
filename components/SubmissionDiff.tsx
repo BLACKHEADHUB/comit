@@ -6,6 +6,7 @@ import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
 import AskAi from "@/components/AskAi";
 import CommentThread from "@/components/CommentThread";
+import Loading from "@/components/Loading";
 import { countOpen, groupByLine } from "@/lib/comments";
 import { markReviewedOnce } from "@/lib/onboarding";
 import { TAG_STYLE, TAGS } from "@/lib/tags";
@@ -18,7 +19,7 @@ import { badge, btnGhost, btnPrimary, card, inputClass, noticeError, RETRY_MESSA
 // Diff Viewer는 브라우저 전용이라 SSR을 끄고 불러온다
 const DiffViewer = dynamic(() => import("react-diff-viewer-continued"), {
   ssr: false,
-  loading: () => <p className="p-4 text-sm text-muted">Diff 불러오는 중...</p>,
+  loading: () => <Loading text="바뀐 부분을 비교하고 있어요..." />,
 });
 
 type Props = {

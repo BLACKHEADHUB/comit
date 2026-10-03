@@ -26,7 +26,7 @@
 - [x] 3-4. AI에게 질문하기
 ### 3.5단계: 디자인 톤
 - [x] 3.5-1. 방향 정하기 (DESIGN_NOTES "디자인 톤") + 토큰/모양/글꼴
-- [ ] 3.5-2. 마스코트
+- [x] 3.5-2. 마스코트
 - [ ] 3.5-3. 작은 기쁨
 - [ ] 3.5-4. 화면별 적용: 랜딩
 - [ ] 3.5-5. 화면별 적용: 프로젝트 화면
@@ -191,6 +191,17 @@
 - 결정: 한글 글꼴은 Noto Sans KR. 이유: Pretendard는 Google Fonts에 없어 `next/font`로 쓰려면 글꼴 파일을 저장소에 넣어야 한다(새 자산 추가). 영문·숫자는 기존 Geist 유지.
 - 전후 비교: `desktop-light/09-project-review-list.png` — 버튼이 알약형으로, 카드 모서리가 더 둥글게, 한글이 Noto Sans KR로. 정보 배치는 그대로. `desktop-dark/12-submission-with-comment.png` — 배지/단계 숫자의 포인트색 글자가 밝아져 읽기 쉬워짐.
 - 셀프 리뷰: ① 회색 보조 글자를 파스텔 배경에 올리면 4.12:1로 미달 → 토큰 주석과 DESIGN_NOTES에 "파스텔 위에는 쓰지 않는다"를 규칙으로 명시 ② 버튼 hover의 1px 떠오름이 비활성 버튼에도 적용 → `disabled:hover:translate-y-0` 추가 ③ Noto Sans KR은 빌드할 때 Google Fonts에서 받아온다(Geist와 동일) → 오프라인 빌드는 원래도 안 됐으므로 새 제약은 아님.
+
+
+### 3.5-2. 마스코트 "코밋이"
+- 계획: `components/Mascot.tsx` — 커밋 그래프의 "점"에서 따온 동그란 캐릭터를 인라인 SVG로 직접 그린다(외부 이미지·기존 캐릭터 참고 없음). 표정은 `mood` prop(hello/happy/calm/oops/thinking/cheer), 색은 토큰(`--accent`, `--peach-soft` 등)이라 다크 모드 자동 대응. 기본은 장식(`aria-hidden`), `label`을 주면 그림으로 읽힌다.
+  이번 항목에서는 가운데 카드 화면(생성/초대: hello, 404: oops)과 에디터·Diff 로딩(thinking)에 적용. 빈 상태·온보딩은 화면별 항목에서.
+- 확인 방법: `e2e/screenshots/*/03-create.png`, `05-invite.png`, `19-not-found.png`.
+
+- 결과: `components/Mascot.tsx`(표정 6종) + `components/Loading.tsx`. 생성/초대 카드 위에 손 흔드는 코밋이, 404에는 놀란 코밋이(문구도 "앗, 여기엔 아무것도 없어요"로), 에디터·Diff 로딩에는 생각 중인 코밋이.
+- 표정 6종을 한 장에 그려 라이트/다크로 확인: `e2e/screenshots/mascot-gallery.png`.
+- 전후 비교: `mobile/19-not-found.png`, `desktop-dark/05-invite.png` — 전에는 글자만 있는 카드, 지금은 카드 위에 마스코트가 걸터앉아 있다. 제목·설명·버튼 위치와 크기는 그대로.
+- 셀프 리뷰: ① 다크에서 볼터치가 파스텔 토큰(어두운 갈색)을 따라가 얼룩처럼 보임 → 몸통 위 색은 고정값으로 ② 60px는 표정이 안 읽힘 → 84px로 키우고 카드 위 여백 조정 ③ 마스코트는 장식이라 `aria-hidden` 기본, 로딩 문구는 `role="status"`로 읽힌다.
 
 ---
 
