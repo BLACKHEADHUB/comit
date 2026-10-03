@@ -85,8 +85,9 @@ export default function MergePanel({ projectId, submissionId, canMerge, afterCod
     <div className="flex max-w-sm flex-col items-start gap-2 sm:items-end">
       <div className="flex items-center gap-3">
         <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_STYLE[status]} !px-3 !py-1`}>{STATUS_LABEL[status]}</span>
-        {canMerge && (
-          <button type="button" onClick={() => setConfirmOpen(true)} disabled={status !== "PENDING" || pending} className={btnPrimary}>
+        {/* 이미 처리된 제출에는 병합 버튼을 보여주지 않는다 (누를 수 없는 버튼이 남아 있으면 헷갈린다) */}
+        {canMerge && status === "PENDING" && (
+          <button type="button" onClick={() => setConfirmOpen(true)} disabled={pending} className={btnPrimary}>
             {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
             {pending ? "병합 중..." : "병합하기"}
           </button>
