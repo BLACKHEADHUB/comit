@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { createComment } from "@/app/actions/comment";
-import type { CommentItem, CommentTag } from "@/lib/validation";
+import { groupByLine } from "@/lib/comments";
+import type { CommentTag } from "@/lib/validation";
 import { useReview } from "@/components/ReviewProvider";
 import { useIsDark } from "@/lib/useIsDark";
 import { badge, btnGhost, btnPrimary, card, inputClass, noticeError, RETRY_MESSAGE } from "@/lib/ui";
@@ -58,10 +59,18 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   // 태그별 개수 요약
   const counts = TAGS.map((t) => ({ ...t, count: comments.filter((c) => c.tag === t.tag).length }));
 
-  // 줄 번호별로 댓글 묶기 (댓글이 있는 줄은 Diff에서 강조)
-  const byLine = new Map<number, CommentItem[]>();
-  for (const c of comments) byLine.set(c.lineNumber, [...(byLine.get(c.lineNumber) ?? []), c]);
-  const lines = [...byLine.keys()].sort((a, b) => a - b);
+  // 줄 번호별로 댓글 묶기 (Diff 줄 옆 말풍선과 옆 패널이 같은 묶음을 쓴다)
+  const threads = groupByLine(comments);
+  const threadByLine = new Map(threads.map((t) => [t.line, t]));
+
+  // 줄 옆 말풍선을 누르면: 그 줄을 강조하고, 옆 패널의 해당 댓글 묶음으로 이동한다
+  function openThread(line: number) {
+    setActiveLine(line);
+    setError("");
+    const target = document.getElementById(`line-comments-${line}`);
+    target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    target?.focus({ preventScroll: true });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,7 +103,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             {c.emoji} {c.label} {c.count}
           </span>
         ))}
-        <span className="text-xs text-muted">오른쪽(변경 후) 줄 번호를 클릭하면 댓글을 달 수 있어요.</span>
+        <span className="text-xs text-muted">오른쪽(변경 후) 줄 번호를 클릭하면 댓글을 달 수 있어요. 💬 표시는 댓글이 달린 줄이에요.</span>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -108,6 +117,29 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             rightTitle="변경 후"
             // 지금 댓글을 다는 줄만 강조한다 (이 라이브러리는 줄마다 다른 색을 줄 수 없다)
             highlightLines={activeLine === null ? [] : [`R-${activeLine}`]}
+            // 댓글이 달린 줄은 변경이 없는 구간이라도 접히지 않게 한다
+            alwaysShowLines={threads.map((t) => `R-${t.line}`)}
+            // 줄 번호 옆 칸: 댓글이 달린 "변경 후" 줄에 말풍선 버튼을 그린다 (왼쪽/댓글 없는 줄은 빈 칸)
+            renderGutter={({ lineNumber, prefix, styles }) => {
+              const thread = prefix === "R" ? threadByLine.get(lineNumber) : undefined;
+              return (
+                <td className={styles.gutter} style={{ minWidth: 0, padding: "0 2px", textAlign: "center" }}>
+                  {thread && (
+                    <button
+                      type="button"
+                      onClick={() => openThread(thread.line)}
+                      aria-label={`${thread.line}번 줄 댓글 ${thread.comments.length}개 보기${thread.hasBug ? " (버그 지적 있음)" : ""}`}
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[11px] font-semibold leading-4 transition hover:scale-105 ${
+                        thread.hasBug ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent"
+                      }`}
+                    >
+                      <span aria-hidden>{thread.hasBug ? "🐞" : "💬"}</span>
+                      {thread.comments.length}
+                    </button>
+                  )}
+                </td>
+              );
+            }}
             styles={{
               variables: {
                 light: { highlightBackground: "#e0e7ff", highlightGutterBackground: "#c7d2fe" },
@@ -166,22 +198,28 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             </form>
           )}
 
-          {lines.length === 0 && activeLine === null && (
+          {threads.length === 0 && activeLine === null && (
             <p className="rounded-xl border border-dashed border-line-strong p-4 text-center leading-relaxed text-muted">
               아직 댓글이 없어요. 궁금하거나 칭찬하고 싶은 줄의 번호를 눌러 첫 댓글을 남겨보세요.
             </p>
           )}
-          {lines.map((n) => (
-            <div key={n}>
+          {threads.map((t) => (
+            // 말풍선을 눌렀을 때 이동해 올 자리 (tabIndex=-1: 코드로만 포커스를 받는다)
+            <div
+              key={t.line}
+              id={`line-comments-${t.line}`}
+              tabIndex={-1}
+              className={`scroll-mt-4 rounded-xl outline-none transition ${activeLine === t.line ? "ring-2 ring-accent/40 ring-offset-4 ring-offset-background" : ""}`}
+            >
               <button
                 type="button"
-                onClick={() => setActiveLine(n)}
+                onClick={() => setActiveLine(t.line)}
                 className="mb-1.5 text-xs font-semibold text-muted transition hover:text-accent"
               >
-                {n}번 줄
+                {t.line}번 줄 · 댓글 {t.comments.length}개
               </button>
               <ul className="flex flex-col gap-2">
-                {byLine.get(n)!.map((c) => (
+                {t.comments.map((c) => (
                   <li key={c.id} className={`${card} p-3`}>
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                       <span className={`${badge} ${TAG_STYLE[c.tag]}`}>{emojiOf(c.tag)} {labelOf(c.tag)}</span>
