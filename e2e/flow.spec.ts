@@ -131,11 +131,24 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await expect(leader.getByText("다른 변경이 먼저 병합됐어요")).toBeVisible();
   await shot(leader, testInfo, "15-stale");
 
-  // --- 재제출: 충돌 난 코드를 에디터로 불러와 다시 Comit ---
-  await leader.getByRole("button", { name: /에디터로 불러와 다시 Comit하기/ }).click();
+  // --- 재제출: 최신 원본 위에 내 변경을 다시 얹는다. 1~2번 줄은 양쪽이 고쳐서 겹치고, 팀원이 추가한 주석 줄은 자동으로 합쳐진다 ---
+  await leader.getByRole("button", { name: "최신 원본에 내 변경 다시 얹기" }).click();
+  const rebase = leader.getByRole("dialog");
+  await expect(rebase).toContainText("겹치는 부분이 1곳 있어요");
+  await expect(rebase.getByRole("button", { name: "겹친 부분을 모두 골라주세요" })).toBeDisabled();
+  await shot(leader, testInfo, "15b-rebase-conflict");
+  await rebase.getByLabel("내 변경 쓰기").check();
+  await rebase.getByRole("button", { name: "에디터로 가져가기" }).click();
   await leader.waitForURL(/\/project\/[0-9a-f]{24}$/);
   await leader.locator(".monaco-editor").first().waitFor();
-  await expect(leader.getByText("충돌했던 제출의 코드를 불러왔어요")).toBeVisible();
+  await expect(leader.getByText("최신 원본 위에 내 변경을 다시 얹었어요")).toBeVisible();
+  // 겹친 부분은 내 코드로, 겹치지 않은 팀원의 주석 줄은 그대로 살아 있어야 한다
+  const rebased = await leader.evaluate(() =>
+    (window as unknown as { monaco: { editor: { getModels: () => { getValue: () => string }[] } } }).monaco.editor.getModels()[0].getValue()
+  );
+  expect(rebased).toBe(
+    'function greet(name, punctuation) {\n  return "Hello, " + name + punctuation;\n}\n\n// 인사 출력\nconsole.log(greet("Comit"));\n'
+  );
   await shot(leader, testInfo, "16-stale-loaded");
   await comit(leader, "문장 부호 추가 (다시)");
   await leader.getByRole("tab", { name: /내 제안/ }).click();

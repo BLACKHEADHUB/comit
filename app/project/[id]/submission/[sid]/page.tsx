@@ -53,6 +53,7 @@ export default async function SubmissionPage({
           projectId={id}
           submissionId={sid}
           canMerge={me.role === "LEADER"}
+          beforeCode={submission.beforeCode}
           afterCode={submission.afterCode}
           latestMainCode={project.mainCode}
         />

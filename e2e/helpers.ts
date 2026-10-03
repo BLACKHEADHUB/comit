@@ -53,7 +53,8 @@ export async function comit(page: Page, title: string) {
 // 사이드바에서 탭을 고르고 제목으로 제출을 연다
 export async function openSubmission(page: Page, tab: RegExp, title: string) {
   await page.getByRole("tab", { name: tab }).click();
-  await page.getByRole("link", { name: new RegExp(title) }).click();
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // 제목의 괄호 등을 글자 그대로 찾는다
+  await page.getByRole("link", { name: new RegExp(escaped) }).click();
   await page.waitForURL(/\/submission\//);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
 }

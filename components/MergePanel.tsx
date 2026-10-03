@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
+import RebaseHelper from "@/components/RebaseHelper";
 import { useReview } from "@/components/ReviewProvider";
 import { countOpen, countRoots } from "@/lib/comments";
 import { writeDraft } from "@/lib/draft";
@@ -33,11 +34,12 @@ type Props = {
   projectId: string;
   submissionId: string;
   canMerge: boolean; // LEADER일 때만 true (서버 액션에서도 다시 검증한다)
+  beforeCode: string; // 제출 당시의 원본 (다시 얹기의 기준)
   afterCode: string; // STALE일 때 에디터로 불러올 코드
   latestMainCode: string; // 지금 시점의 최신 mainCode (에디터 초안의 기준값)
 };
 
-export default function MergePanel({ projectId, submissionId, canMerge, afterCode, latestMainCode }: Props) {
+export default function MergePanel({ projectId, submissionId, canMerge, beforeCode, afterCode, latestMainCode }: Props) {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -98,9 +100,13 @@ export default function MergePanel({ projectId, submissionId, canMerge, afterCod
         )}
       </div>
       {status === "STALE" && (
-        <button type="button" onClick={loadIntoEditor} className={btnSecondary}>
-          이 코드를 에디터로 불러와 다시 Comit하기
-        </button>
+        <>
+          {/* 추천: 최신 원본을 바탕으로 내 변경만 다시 얹는다 (먼저 병합된 변경을 지우지 않는다) */}
+          <RebaseHelper projectId={projectId} beforeCode={beforeCode} afterCode={afterCode} latestMainCode={latestMainCode} />
+          <button type="button" onClick={loadIntoEditor} className={`${btnSecondary} !text-xs`}>
+            내 코드 그대로 에디터로 불러오기
+          </button>
+        </>
       )}
       {canMerge && status === "PENDING" && !message && (
         <p className="text-xs leading-relaxed text-muted sm:text-right">

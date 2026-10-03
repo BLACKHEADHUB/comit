@@ -106,6 +106,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     () => readDraft(projectId, initialCode)?.fromStale ?? false,
     () => false
   );
+  // "다시 얹기"로 만든 코드인지 (안내 문구가 달라진다)
+  const rebased = useSyncExternalStore(
+    () => () => {},
+    () => readDraft(projectId, initialCode)?.rebased ?? false,
+    () => false
+  );
   const [staleDismissed, setStaleDismissed] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false); // "원본으로 되돌리기" 확인 단계
   // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
@@ -162,7 +168,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
 
   function handleCodeChange(value: string) {
     setCode(value);
-    writeDraft(projectId, { code: value, base: initialCode, fromStale: fromStale && !staleDismissed });
+    const keepStale = fromStale && !staleDismissed;
+    writeDraft(projectId, { code: value, base: initialCode, fromStale: keepStale, rebased: keepStale && rebased });
   }
 
   // 최신 mainCode로 되돌리기: 초안을 지우고 에디터를 서버가 준 최신 코드로 되돌린다
@@ -371,7 +378,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
         {fromStale && !staleDismissed && (
           <div className={`${noticeWarn} m-3 flex flex-wrap items-center gap-2 !rounded-lg`}>
             <span className="flex-1">
-              충돌했던 제출의 코드를 불러왔어요. 다른 사람이 먼저 바꾼 내용이 있을 수 있으니, 확인하고 고친 뒤 다시 Comit하세요.
+              {rebased
+                ? "최신 원본 위에 내 변경을 다시 얹었어요. 아래 코드를 확인하고, 괜찮으면 다시 Comit하세요."
+                : "충돌했던 제출의 코드를 불러왔어요. 다른 사람이 먼저 바꾼 내용이 있을 수 있으니, 확인하고 고친 뒤 다시 Comit하세요."}
             </span>
             <button type="button" onClick={resetToMain} className={`${btnSecondary} !px-2.5 !py-1 !text-xs`}>
               최신 코드로 되돌리기

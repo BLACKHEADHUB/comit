@@ -5,6 +5,7 @@ export type Draft = {
   code: string;
   base: string; // 초안을 만들 당시의 mainCode. 지금 mainCode와 다르면 초안은 오래된 것으로 보고 버린다
   fromStale?: boolean; // STALE 제출에서 불러온 코드인지
+  rebased?: boolean; // 최신 원본 위에 내 변경을 다시 얹어 만든 코드인지 (안내 문구가 달라진다)
 };
 
 const key = (projectId: string) => `comit_draft_${projectId}`;
