@@ -10,7 +10,7 @@
 
 ## 백로그
 - [x] 1. 안전망: Vitest 도입 + lib/validation.ts, lib/ai.ts, lib/draft.ts 단위 테스트
-- [ ] 2. DESIGN_NOTES.md 작성: 현재 화면 문제점 + 서비스별 패턴 매핑
+- [x] 2. DESIGN_NOTES.md 작성: 현재 화면 문제점 + 서비스별 패턴 매핑
 - [ ] 3. Comit 전 변경 미리보기 (미니 Diff + "원본에서 N줄 바뀜", 변경 없으면 제출 비활성)
 - [ ] 4. 에디터에 원본과 달라진 줄 표시 (Monaco 색 띠 + 상단 요약)
 - [ ] 5. 목록 카드 배지 (💬 댓글 수, 🐞 BUG 수, ⚠ AI 경고) — 서버 집계 쿼리 한 번
@@ -31,3 +31,8 @@
 - 확인 방법: `npm test`.
 - 결과: 테스트 36개 통과. 최신 vitest 5.x는 `@types/node@^20`과 peer 충돌이 나서 호환되는 `vitest@^3`으로 설치했다(@types/node를 올리지 않기 위해).
 - 검증: lint / tsc / test / build 모두 통과.
+
+### 2. DESIGN_NOTES.md
+- 계획: ProjectWorkspace / SubmissionDiff / MergePanel / LandingModal을 읽고 문제점과 서비스별 패턴 매핑을 문서로 정리. 코드 변경 없음.
+- 결과: `DESIGN_NOTES.md` 작성(문제점, 패턴 매핑 표, 공통 원칙). LandingModal은 문제 없어 범위에서 제외.
+- 참고: 시작 시점에 수정 중이던 `app/invite/[token]/page.tsx`는 그 사이 사용자가 직접 커밋(`844a459 d`)한 것으로 보인다. 내가 건드린 것은 없다.
