@@ -24,6 +24,7 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
 
   const steps = onboardingSteps({ hasChanges, hasSubmitted, hasReviewed });
   const allDone = steps.every((s) => s.done);
+  const doneCount = steps.filter((s) => s.done).length;
 
   return (
     <section aria-label="시작 안내" className="m-3 mb-0 animate-fade-in rounded-2xl border border-line bg-background p-3 shadow-soft">
@@ -31,7 +32,11 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
         {/* 코밋이: 처음엔 손을 흔들고, 세 가지를 다 하면 만세한다 */}
         <Mascot mood={allDone ? "cheer" : "hello"} size={40} className={allDone ? "comit-bounce-in" : ""} />
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold">{allDone ? "잘했어요! 세 가지를 모두 해봤어요 🎉" : "처음이라면 이 세 가지만 해보세요"}</h2>
+          <h2 className="text-sm font-semibold">
+            {allDone ? "잘했어요! 세 가지를 모두 해봤어요 🎉" : "처음이라면 이 세 가지만 해보세요"}
+            {/* 좁은 화면에서는 단계를 접어 두므로 얼마나 했는지 숫자로 알려준다 */}
+            {!allDone && <span className="ml-1.5 text-xs font-medium text-accent-ink sm:hidden">{doneCount}/3 완료</span>}
+          </h2>
           <p className="mt-0.5 text-xs text-muted">
             {allDone ? "이제 같은 순서로 팀원과 코드를 주고받으면 돼요. 이 안내는 닫아도 좋아요." : "직접 해보면 자동으로 체크돼요. 틀려도 괜찮아요!"}
           </p>
@@ -52,7 +57,8 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
           <li
             key={step.title}
             aria-current={step.current ? "step" : undefined}
-            className={`flex items-start gap-2 rounded-xl border p-2 text-xs ${
+            // 좁은 화면에서는 "지금 할 단계"만 보여 에디터 자리를 지킨다 (넓은 화면에서는 세 단계 모두)
+            className={`${step.current ? "flex" : "hidden sm:flex"} items-start gap-2 rounded-xl border p-2 text-xs ${
               step.current ? "border-accent bg-accent-soft" : "border-line bg-surface"
             }`}
           >
