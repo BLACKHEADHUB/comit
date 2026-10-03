@@ -75,3 +75,11 @@ export type SubmissionStatus = "PENDING" | "MERGED" | "STALE";
 
 // 병합 결과: error는 권한/입력 오류, status는 병합 시도 후의 최종 상태
 export type MergeResult = { error?: string; status?: SubmissionStatus; message?: string };
+
+// AI에게 질문하기 입력 검증 (질문은 짧게, 줄 번호는 1 이상의 정수)
+export const askAiSchema = z.object({
+  lineNumber: z.number().int().min(1),
+  question: z.string().trim().min(1, "질문을 입력해주세요.").max(200, "질문은 200자 이하로 입력해주세요."),
+});
+
+export type AskAiResult = { error?: string; answer?: string };

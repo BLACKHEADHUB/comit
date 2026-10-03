@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
+import AskAi from "@/components/AskAi";
 import CommentThread from "@/components/CommentThread";
 import { countOpen, groupByLine } from "@/lib/comments";
 import { markReviewedOnce } from "@/lib/onboarding";
@@ -119,7 +120,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className={`${card} comit-diff ${narrow ? "" : "comit-diff-split"} min-w-0 overflow-x-auto text-xs`}>
+        <div className={`${card} comit-diff ${narrow ? "" : "comit-diff-split"} min-w-0 self-start overflow-x-auto text-xs`}>
           <DiffViewer
             // 이 라이브러리는 alwaysShowLines가 바뀌어도 Diff를 다시 계산하지 않아 표가 통째로 비어 버린다.
             // 댓글이 달린 줄 목록이 바뀔 때마다 key를 바꿔 새로 그리게 한다
@@ -242,6 +243,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
               </div>
             </form>
           )}
+
+          {/* 고른 줄에 대해 AI에게 물어보기 (줄이 바뀌면 이전 답변은 지운다: key) */}
+          {activeLine !== null && <AskAi key={activeLine} projectId={projectId} submissionId={submissionId} line={activeLine} />}
 
           {threads.length === 0 && activeLine === null && (
             <p className="rounded-xl border border-dashed border-line-strong p-4 text-center leading-relaxed text-muted">

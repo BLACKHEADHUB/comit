@@ -8,7 +8,7 @@ vi.mock("@google/genai", () => ({
   },
 }));
 
-import { aiReportSchema, analyzeSubmission, buildDiff, FALLBACK_REPORT } from "@/lib/ai";
+import { aiAnswerSchema, aiReportSchema, analyzeSubmission, askAboutLine, buildAskPrompt, buildDiff, FALLBACK_ANSWER, FALLBACK_REPORT } from "@/lib/ai";
 
 const GOOD = { summary: ["버튼을 추가했어요.", "함수를 고쳤어요.", "주석을 지웠어요."], warning: "", concept: "함수는 코드를 묶어 재사용해요." };
 
@@ -115,5 +115,78 @@ describe("analyzeSubmission", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toBe(FALLBACK_REPORT);
     expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("buildAskPrompt", () => {
+  const before = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n");
+  const after = before.replace("line 20", "line twenty");
+
+  it("diff, 질문 대상 줄, 질문을 담고 전체 코드는 담지 않는다", () => {
+    const prompt = buildAskPrompt(before, after, 20, "이 줄 왜 바뀐 거야?");
+    expect(prompt).toContain("+line twenty");
+    expect(prompt).toContain("[질문 대상: 변경 후 20번 줄]\nline twenty");
+    expect(prompt).toContain("이 줄 왜 바뀐 거야?");
+    expect(prompt).not.toContain("line 40"); // 변경과 먼 줄은 보내지 않는다
+  });
+
+  it("너무 긴 줄은 300자로 자른다", () => {
+    const prompt = buildAskPrompt("", "x".repeat(1000), 1, "q");
+    expect(prompt).toContain(`[질문 대상: 변경 후 1번 줄]\n${"x".repeat(300)}\n`);
+    expect(prompt).not.toContain(`[질문 대상: 변경 후 1번 줄]\n${"x".repeat(301)}`);
+  });
+
+  it("없는 줄 번호여도 에러 없이 빈 줄로 처리한다", () => {
+    expect(() => buildAskPrompt("a", "b", 99, "q")).not.toThrow();
+  });
+});
+
+describe("aiAnswerSchema", () => {
+  it("빈 답변과 너무 긴 답변은 거부", () => {
+    expect(aiAnswerSchema.safeParse({ answer: "  " }).success).toBe(false);
+    expect(aiAnswerSchema.safeParse({ answer: "a".repeat(601) }).success).toBe(false);
+    expect(aiAnswerSchema.safeParse({ answer: "변수 이름을 바꿨어요." }).success).toBe(true);
+  });
+});
+
+describe("askAboutLine", () => {
+  beforeEach(() => {
+    generateContent.mockReset();
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "test-model");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("검증을 통과한 답변을 돌려준다", async () => {
+    generateContent.mockResolvedValue({ text: JSON.stringify({ answer: "인사말을 한국어로 바꿨어요." }) });
+    expect(await askAboutLine("a", "b", 1, "왜 바뀐 거야?")).toBe("인사말을 한국어로 바꿨어요.");
+    const call = generateContent.mock.calls[0][0];
+    expect(call.contents).toContain("왜 바뀐 거야?");
+    expect(call.config.abortSignal).toBeInstanceOf(AbortSignal); // 타임아웃 신호가 걸려 있다
+  });
+
+  it("환경변수가 없으면 호출하지 않고 기본 답변", async () => {
+    vi.stubEnv("GEMINI_MODEL", "");
+    expect(await askAboutLine("a", "b", 1, "q")).toBe(FALLBACK_ANSWER);
+    expect(generateContent).not.toHaveBeenCalled();
+  });
+
+  it("형식이 틀린 응답(JSON 아님, answer 없음, 빈 답변)이면 기본 답변", async () => {
+    generateContent.mockResolvedValueOnce({ text: "그냥 글자" });
+    expect(await askAboutLine("a", "b", 1, "q")).toBe(FALLBACK_ANSWER);
+    generateContent.mockResolvedValueOnce({ text: JSON.stringify({ reply: "x" }) });
+    expect(await askAboutLine("a", "b", 1, "q")).toBe(FALLBACK_ANSWER);
+    generateContent.mockResolvedValueOnce({ text: JSON.stringify({ answer: "" }) });
+    expect(await askAboutLine("a", "b", 1, "q")).toBe(FALLBACK_ANSWER);
+  });
+
+  it("호출이 실패해도 예외를 밖으로 던지지 않는다", async () => {
+    generateContent.mockRejectedValue(new Error("boom"));
+    await expect(askAboutLine("a", "b", 1, "q")).resolves.toBe(FALLBACK_ANSWER);
   });
 });

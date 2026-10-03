@@ -80,6 +80,11 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await expectNoHorizontalScroll(leader);
 
   await leader.getByRole("button", { name: "2번 줄에 댓글 달기" }).click();
+  // AI에게 질문하기: e2e에서는 AI 키가 비어 있으므로 기본 답변이 나오고, 흐름은 끊기지 않아야 한다
+  await leader.getByRole("button", { name: "이 줄 왜 바뀐 거야?" }).click();
+  await expect(leader.getByText("지금은 AI 답변을 불러오지 못했어요.")).toBeVisible();
+  await expect(leader.getByText("Q. 이 줄 왜 바뀐 거야?")).toBeVisible();
+
   await leader.getByRole("button", { name: /버그/ }).click();
   await leader.getByPlaceholder("내용 (선택)").fill("따옴표 안의 쉼표 뒤 공백이 빠진 것 같아요.");
   await shot(leader, testInfo, "11-comment-form");

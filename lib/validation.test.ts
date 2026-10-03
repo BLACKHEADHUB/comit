@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  askAiSchema,
   createCommentSchema,
   createProjectSchema,
   createReplySchema,
@@ -85,5 +86,18 @@ describe("createReplySchema", () => {
 
   it("300자 이하", () => {
     expect(createReplySchema.safeParse({ content: "a".repeat(301) }).success).toBe(false);
+  });
+});
+
+describe("askAiSchema", () => {
+  it("질문은 1~200자", () => {
+    expect(askAiSchema.safeParse({ lineNumber: 1, question: " " }).success).toBe(false);
+    expect(askAiSchema.safeParse({ lineNumber: 1, question: "a".repeat(201) }).success).toBe(false);
+    expect(askAiSchema.parse({ lineNumber: 1, question: " 이 줄 왜 바뀐 거야? " }).question).toBe("이 줄 왜 바뀐 거야?");
+  });
+
+  it("줄 번호는 1 이상의 정수", () => {
+    expect(askAiSchema.safeParse({ lineNumber: 0, question: "q" }).success).toBe(false);
+    expect(askAiSchema.safeParse({ lineNumber: 2.5, question: "q" }).success).toBe(false);
   });
 });
