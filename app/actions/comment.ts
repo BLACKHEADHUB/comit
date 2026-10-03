@@ -7,6 +7,7 @@ import { toCommentItem } from "@/lib/review";
 import { createCommentSchema, createReplySchema, type CommentResult } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
 import { Submission } from "@/models/Submission";
+import { BAD_REQUEST_MESSAGE, COMMENT_GONE_MESSAGE, NOT_MEMBER_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
 // 라인 댓글 작성: lineNumber는 afterCode 기준 줄 번호
 export async function createComment(
@@ -17,14 +18,14 @@ export async function createComment(
   content: string,
 ): Promise<CommentResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: BAD_REQUEST_MESSAGE };
   }
   const parsed = createCommentSchema.safeParse({ lineNumber, tag, content });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   // 이 프로젝트의 멤버만 작성 가능 (멀티테넌시 격리)
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 댓글을 쓸 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
 
   // projectId까지 걸어 조회 → 다른 프로젝트의 제출에는 댓글을 달 수 없다
@@ -34,7 +35,7 @@ export async function createComment(
   })
     .select("afterCode")
     .lean();
-  if (!submission) return { error: "제출을 찾을 수 없어요." };
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
 
   // 존재하지 않는 줄에는 댓글을 달 수 없다
   if (parsed.data.lineNumber > submission.afterCode.split("\n").length) {
@@ -60,23 +61,23 @@ export async function createReply(
   content: string,
 ): Promise<CommentResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId) || !isValidObjectId(parentId)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: BAD_REQUEST_MESSAGE };
   }
   const parsed = createReplySchema.safeParse({ content });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   // 이 프로젝트의 멤버만 작성 가능 (멀티테넌시 격리)
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 답글을 쓸 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
 
   // projectId까지 걸어 조회 → 다른 프로젝트의 제출에는 답글을 달 수 없다
   const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).select("_id").lean();
-  if (!submission) return { error: "제출을 찾을 수 없어요." };
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
 
   // 원댓글은 반드시 이 제출의 댓글이어야 하고, 답글이 아니어야 한다 (1단계까지만)
   const parent = await Comment.findOne({ _id: parentId, submissionId: submission._id }).select("lineNumber parentId").lean();
-  if (!parent) return { error: "댓글을 찾을 수 없어요." };
+  if (!parent) return { error: COMMENT_GONE_MESSAGE };
   if (parent.parentId) return { error: "답글에는 답글을 달 수 없어요." };
 
   const reply = await Comment.create({
@@ -98,20 +99,20 @@ export async function setCommentResolved(
   resolved: boolean,
 ): Promise<CommentResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId) || !isValidObjectId(commentId)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: BAD_REQUEST_MESSAGE };
   }
-  if (typeof resolved !== "boolean") return { error: "잘못된 요청이에요." };
+  if (typeof resolved !== "boolean") return { error: BAD_REQUEST_MESSAGE };
 
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 할 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
 
   // projectId까지 걸어 조회 → 다른 프로젝트의 댓글은 건드릴 수 없다
   const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).select("author").lean();
-  if (!submission) return { error: "제출을 찾을 수 없어요." };
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
 
   const comment = await Comment.findOne({ _id: commentId, submissionId: submission._id }).select("author parentId").lean();
-  if (!comment) return { error: "댓글을 찾을 수 없어요." };
+  if (!comment) return { error: COMMENT_GONE_MESSAGE };
   if (comment.parentId) return { error: "답글은 해결 처리할 수 없어요." };
 
   // 역할과 닉네임은 쿠키가 아니라 DB에서 읽은 값으로 판단한다
@@ -124,7 +125,7 @@ export async function setCommentResolved(
     { resolved },
     { returnDocument: "after" },
   ).lean();
-  if (!updated) return { error: "댓글을 찾을 수 없어요." };
+  if (!updated) return { error: COMMENT_GONE_MESSAGE };
 
   return { comment: toCommentItem(updated) };
 }

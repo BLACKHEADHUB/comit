@@ -4,6 +4,7 @@ import { defineConfig } from "@playwright/test";
 // 직접 `npx playwright test`로 돌리면 서버가 없어서 실패한다 (실수로 다른 서버에 붙지 않게 baseURL을 고정하지 않는다)
 export default defineConfig({
   testDir: ".",
+  testMatch: "*.spec.ts", // e2e 폴더 바로 아래의 시나리오만 (스크린샷 폴더 안의 임시 파일은 테스트로 보지 않는다)
   outputDir: "./test-results",
   fullyParallel: false,
   workers: 1,

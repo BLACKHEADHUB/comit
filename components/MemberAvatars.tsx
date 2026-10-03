@@ -34,7 +34,7 @@ export default function MemberAvatars({ members }: { members: MemberView[] }) {
         {rest > 0 && <span className="ml-1 text-xs text-muted">+{rest}</span>}
         <span className="ml-1.5 text-xs text-muted">{members.length}명</span>
       </summary>
-      <ul className="absolute right-0 z-20 mt-1 max-h-64 w-52 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-background p-1.5 text-sm text-foreground shadow-xl">
+      <ul className="absolute right-0 z-20 mt-1 max-h-64 w-52 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-line bg-background p-1.5 text-sm text-foreground shadow-xl">
         {members.map((m) => (
           <li key={m.nickname} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
             <Avatar member={m} />

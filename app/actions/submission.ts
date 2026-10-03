@@ -8,6 +8,7 @@ import { findMember } from "@/lib/auth";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
 // [Comit하기]: 현재 mainCode를 beforeCode로 고정해 Submission을 만든다
 export async function createSubmission(
@@ -15,14 +16,14 @@ export async function createSubmission(
   title: string,
   afterCode: string
 ): Promise<SubmissionResult> {
-  if (!isValidObjectId(projectId)) return { error: "잘못된 프로젝트예요." };
+  if (!isValidObjectId(projectId)) return { error: BAD_REQUEST_MESSAGE };
 
   const parsed = createSubmissionSchema.safeParse({ title, afterCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   // 이 프로젝트의 멤버만 제출할 수 있다 (멀티테넌시 격리)
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 제출할 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
 
   if (parsed.data.afterCode === project.mainCode) {
@@ -75,18 +76,18 @@ export async function createSubmission(
 // 병합: 제출 당시 mainCode(beforeCode)가 그대로일 때만 mainCode를 덮어쓴다 (조건부 원자적 업데이트)
 export async function mergeSubmission(projectId: string, submissionId: string): Promise<MergeResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: BAD_REQUEST_MESSAGE };
   }
 
   // 역할(LEADER)은 쿠키를 믿지 않고 DB 기준으로 확인한다
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 접근할 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
   if (me.role !== "LEADER") return { error: "팀장만 병합할 수 있어요." };
 
   // projectId 필터로 다른 프로젝트의 제출은 조회되지 않는다
   const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).lean();
-  if (!submission) return { error: "제출을 찾을 수 없어요." };
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
   if (submission.status !== "PENDING") {
     return { status: submission.status, message: "이미 처리된 제출이에요." };
   }

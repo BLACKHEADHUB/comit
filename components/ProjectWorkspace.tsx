@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import Mascot from "@/components/Mascot";
 import Loading from "@/components/Loading";
 import OnboardingCard from "@/components/OnboardingCard";
 import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
@@ -63,9 +64,9 @@ const FILTER_LABEL: Record<StatusFilter, string> = {
 
 // 목록이 비었을 때, 다음에 뭘 하면 되는지 알려주는 문구
 function emptyMessage(tab: TaskTab, filter: StatusFilter) {
-  if (tab === "REVIEW") return "지금 리뷰할 제출이 없어요. 팀원이 [Comit하기]로 코드를 올리면 여기에 나타나요.";
+  if (tab === "REVIEW") return "지금은 리뷰할 제출이 없어요. 팀원이 [Comit하기]로 코드를 올리면 여기에 나타나요.";
   if (tab === "MINE") {
-    if (filter === "ALL") return "아직 올린 제출이 없어요. 코드를 고친 뒤 아래 [Comit하기]를 눌러 팀원에게 보여주세요.";
+    if (filter === "ALL") return "아직 올린 제출이 없어요. 코드를 고친 뒤 [Comit하기]를 눌러 팀원에게 보여줘 볼까요?";
     if (filter === "PENDING") return "리뷰를 기다리는 내 제출이 없어요.";
     if (filter === "MERGED") return "아직 병합된 내 제출이 없어요. 팀장이 병합하면 여기에 모여요.";
     return "다시 제출할 항목이 없어요.";
@@ -267,7 +268,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 aria-selected={active}
                 onClick={() => selectTab(t.tab)}
                 title={t.hint} // 마우스를 올리면 설명이 보인다
-                className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] leading-tight transition ${
+                className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 py-1.5 text-[13px] leading-tight transition ${
                   active ? "bg-background font-medium shadow-sm ring-1 ring-line" : "text-muted hover:text-foreground"
                 }`}
               >
@@ -304,7 +305,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
         )}
         <ul className="flex-1 space-y-1.5 overflow-y-auto p-2">
           {visible.length === 0 && (
-            <li className="rounded-lg border border-dashed border-line-strong p-4 text-center text-sm leading-relaxed text-muted">
+            <li className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong p-4 text-center text-sm leading-relaxed text-muted">
+              {/* 빈 상태: 차분히 기다리는 코밋이 + 다음에 뭘 하면 되는지 */}
+              <Mascot mood="calm" size={44} />
               {emptyMessage(tab, filter)}
             </li>
           )}
@@ -312,7 +315,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             <li key={s.id}>
               <Link
                 href={`/project/${projectId}/submission/${s.id}`}
-                className="block rounded-lg border border-transparent bg-background p-3 shadow-sm ring-1 ring-line transition hover:-translate-y-px hover:shadow-md hover:ring-line-strong"
+                className="block rounded-2xl border border-transparent bg-background p-3 shadow-soft ring-1 ring-line transition hover:-translate-y-px hover:shadow-md hover:ring-line-strong"
               >
                 <p className="flex items-center gap-1.5">
                   {/* 상태가 섞여 보이는 탭이 있어 카드마다 상태를 아이콘+글자로 표시한다 */}
@@ -365,7 +368,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
         <OnboardingCard hasChanges={hasChanges} hasSubmitted={submissions.some((s) => s.author === myNickname)} />
         {/* 다른 변경이 병합돼 원본이 바뀌었을 때: 알려주기만 하고, 작성 중인 코드는 절대 자동으로 바꾸지 않는다 */}
         {originalChanged && (
-          <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-wrap items-center gap-2 !rounded-lg`}>
+          <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-wrap items-center gap-2`}>
             <span className="min-w-0 flex-1 basis-56 leading-relaxed">
               <strong className="font-semibold">원본이 바뀌었어요.</strong> 다른 변경이 병합됐어요. 작성 중인 코드는 그대로 두었으니, 최신 원본을
               확인하고 필요한 부분을 맞춰주세요.
@@ -377,7 +380,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           </div>
         )}
         {fromStale && !staleDismissed && (
-          <div className={`${noticeWarn} m-3 flex flex-wrap items-center gap-2 !rounded-lg`}>
+          <div className={`${noticeWarn} m-3 flex flex-wrap items-center gap-2`}>
             <span className="flex-1">
               {rebased
                 ? "최신 원본 위에 내 변경을 다시 얹었어요. 아래 코드를 확인하고, 괜찮으면 다시 Comit하세요."
@@ -390,7 +393,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface px-4 py-2">
           <p className="min-w-0 flex-1 basis-64 text-xs text-muted">
-            코드를 자유롭게 고쳐보세요. 다 됐다면 아래 [Comit하기]로 팀원에게 리뷰를 요청해요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
+            마음껏 고쳐보세요. 원본은 병합 전까지 바뀌지 않아요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
           </p>
           {/* 원본과 얼마나 달라졌는지 글자로도 알려준다 (색 띠만으로 구분하지 않게) */}
           <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
@@ -501,7 +504,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               label="내가 보던 원본에서"
               emptyText="내용은 같아요. (다른 변경이 병합됐다가 같은 내용으로 돌아왔어요)"
             />
-            <p className="rounded-lg bg-surface p-3 text-xs leading-relaxed text-muted">
+            <p className="rounded-xl bg-surface p-3 text-xs leading-relaxed text-muted">
               지금 그대로 Comit하면 위에 보이는 변경이 지워진 것처럼 제출될 수 있어요. 초록색 줄을 내 코드에도 옮겨 적거나, 페이지를 새로고침해 최신
               원본에서 다시 시작하세요. (새로고침하면 작성 중인 코드는 사라져요)
             </p>

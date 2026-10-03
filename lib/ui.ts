@@ -37,3 +37,9 @@ export const STATUS_META = {
   MERGED: { label: "병합됨", icon: "✓", style: "bg-ok-soft text-ok" },
   STALE: { label: STALE_LABEL, icon: "↻", style: "bg-warn-soft text-warn" },
 } as const;
+
+// 서버 액션이 돌려주는 오류 문구 (탓하지 않는 말투: 무슨 일이 있었는지 + 어떻게 하면 되는지)
+export const BAD_REQUEST_MESSAGE = "요청을 제대로 받지 못했어요. 페이지를 새로고침한 뒤 다시 시도해주세요.";
+export const SUBMISSION_GONE_MESSAGE = "이 제출을 찾지 못했어요. 목록으로 돌아가 다시 열어주세요.";
+export const COMMENT_GONE_MESSAGE = "이 댓글을 찾지 못했어요. 화면을 새로고침한 뒤 다시 시도해주세요.";
+export const NOT_MEMBER_MESSAGE = "이 프로젝트의 멤버만 할 수 있어요. 초대 링크로 다시 들어와 주세요.";

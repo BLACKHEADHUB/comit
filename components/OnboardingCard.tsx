@@ -26,7 +26,7 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
   const allDone = steps.every((s) => s.done);
 
   return (
-    <section aria-label="시작 안내" className="m-3 mb-0 animate-fade-in rounded-xl border border-line bg-background p-3 shadow-sm">
+    <section aria-label="시작 안내" className="m-3 mb-0 animate-fade-in rounded-2xl border border-line bg-background p-3 shadow-soft">
       <div className="flex items-start gap-2">
         {/* 코밋이: 처음엔 손을 흔들고, 세 가지를 다 하면 만세한다 */}
         <Mascot mood={allDone ? "cheer" : "hello"} size={40} className={allDone ? "comit-bounce-in" : ""} />
@@ -40,7 +40,7 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
           type="button"
           onClick={dismissOnboarding}
           aria-label="시작 안내 닫기 (다시 보지 않기)"
-          className="-mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface hover:text-foreground"
+          className="-mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface hover:text-foreground"
         >
           <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M3 3l10 10M13 3L3 13" />
@@ -52,7 +52,7 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
           <li
             key={step.title}
             aria-current={step.current ? "step" : undefined}
-            className={`flex items-start gap-2 rounded-lg border p-2 text-xs ${
+            className={`flex items-start gap-2 rounded-xl border p-2 text-xs ${
               step.current ? "border-accent bg-accent-soft" : "border-line bg-surface"
             }`}
           >
