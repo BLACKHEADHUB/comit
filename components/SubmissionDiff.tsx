@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createComment } from "@/app/actions/comment";
+import { summarizeChanges } from "@/lib/changes";
 import { groupByLine } from "@/lib/comments";
 import { markReviewedOnce } from "@/lib/onboarding";
 import type { CommentTag } from "@/lib/validation";
@@ -57,6 +58,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
   const [pending, setPending] = useState(false);
   const dark = useIsDark();
 
+  const changes = useMemo(() => summarizeChanges(beforeCode, afterCode), [beforeCode, afterCode]);
   // 태그별 개수 요약
   const counts = TAGS.map((t) => ({ ...t, count: comments.filter((c) => c.tag === t.tag).length }));
 
@@ -106,6 +108,12 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <h2 className="mr-1 text-base font-semibold tracking-tight">코드 변경</h2>
+        {/* 얼마나 큰 변경인지 먼저 알려준다 (Comit 모달과 같은 표현) */}
+        <span className="text-muted">
+          원본에서 {changes.changed}줄 바뀜 · <span className="text-ok">+{changes.added} 추가</span> ·{" "}
+          <span className="text-danger">−{changes.removed} 삭제</span>
+        </span>
+        <span aria-hidden className="hidden h-4 w-px bg-line-strong sm:block" />
         {counts.map((c) => (
           <span key={c.tag} className={`${badge} ${TAG_STYLE[c.tag]}`}>
             {c.emoji} {c.label} {c.count}
