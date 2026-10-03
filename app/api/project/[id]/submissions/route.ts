@@ -13,5 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const submissions = await listSubmissions(member.project._id);
   // 원본이 바뀌었는지 화면이 알 수 있도록 버전(해시)만 함께 보낸다 (코드 본문은 보내지 않는다)
   const mainVersion = codeVersion(member.project.mainCode);
-  return Response.json({ submissions, mainVersion }, { headers: { "Cache-Control": "no-store" } });
+  // 멤버 수도 함께 보낸다 (팀원이 들어오면 "아직 혼자예요" 안내가 새로고침 없이 바뀐다)
+  const memberCount = member.project.members.length;
+  return Response.json({ submissions, mainVersion, memberCount }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createSubmission } from "@/app/actions/submission";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
+import InviteLink from "@/components/InviteLink";
 import ModalHeader from "@/components/ModalHeader";
 import Mascot from "@/components/Mascot";
 import Loading from "@/components/Loading";
@@ -66,7 +67,9 @@ const FILTER_LABEL: Record<StatusFilter, string> = {
 };
 
 // 목록이 비었을 때, 다음에 뭘 하면 되는지 알려주는 문구
-function emptyMessage(tab: TaskTab, filter: StatusFilter) {
+function emptyMessage(tab: TaskTab, filter: StatusFilter, alone: boolean) {
+  // 프로젝트에 나 혼자라면 리뷰할 것이 생길 수 없다 → 초대를 먼저 권한다
+  if (tab === "REVIEW" && alone) return "아직 혼자예요. 초대 링크를 보내 팀원을 불러보세요. 팀원이 코드를 올리면 여기에서 리뷰할 수 있어요.";
   if (tab === "REVIEW") return "지금은 리뷰할 제출이 없어요. 팀원이 [Comit하기]로 코드를 올리면 여기에 나타나요.";
   if (tab === "MINE") {
     if (filter === "ALL") return "아직 올린 제출이 없어요. 코드를 고친 뒤 [Comit하기]를 눌러 팀원에게 보여줘 볼까요?";
@@ -97,9 +100,11 @@ type Props = {
   initialCode: string;
   initialVersion: string; // 이 화면이 받은 원본(mainCode)의 버전. 폴링으로 받은 버전과 다르면 원본이 바뀐 것
   initialSubmissions: SubmissionItem[];
+  initialMemberCount: number;
+  inviteUrl: string | null; // 팀장에게만 전달된다 (혼자일 때 빈 상태에서 초대 버튼을 보여주는 용도)
 };
 
-export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions }: Props) {
+export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, inviteUrl }: Props) {
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -127,6 +132,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   // 자동 갱신으로 새 활동(새 제출, 새 댓글)이 생긴 제출 id. 카드와 탭에 작은 점으로 표시한다
   const [unseen, setUnseen] = useState<ReadonlySet<string>>(new Set());
   // 폴링으로 확인한 최신 원본의 버전. 처음 받은 버전과 다르면 "원본이 바뀌었어요" 배너를 띄운다
+  const [memberCount, setMemberCount] = useState(initialMemberCount); // 혼자인지 판단 (폴링으로 갱신)
+  const alone = memberCount <= 1;
   const [latestVersion, setLatestVersion] = useState(initialVersion);
   const originalChanged = latestVersion !== initialVersion;
   // [최신 원본 보기]를 눌렀을 때만 받아 오는 최신 원본 (null이면 창이 닫힌 상태)
@@ -152,7 +159,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string };
+      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string; memberCount: number };
+      setMemberCount(data.memberCount);
       setLatestVersion(data.mainVersion); // 원본이 바뀌었는지 알림용 (에디터의 코드는 건드리지 않는다)
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
@@ -326,8 +334,10 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           {visible.length === 0 && (
             <li className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong p-4 text-center text-sm leading-relaxed text-muted">
               {/* 빈 상태: 차분히 기다리는 코밋이 + 다음에 뭘 하면 되는지 */}
-              <Mascot mood="calm" size={44} />
-              {emptyMessage(tab, filter)}
+              <Mascot mood={alone && tab === "REVIEW" ? "hello" : "calm"} size={44} />
+              {emptyMessage(tab, filter, alone)}
+              {/* 혼자일 때: 다음 행동(초대)을 바로 할 수 있게 버튼을 이 자리에 둔다 (초대 링크는 팀장만 가진다) */}
+              {alone && tab === "REVIEW" && inviteUrl && <InviteLink url={inviteUrl} />}
             </li>
           )}
           {visible.map((s) => (

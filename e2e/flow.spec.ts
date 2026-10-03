@@ -23,6 +23,10 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
 
   const inviteUrl = await createProject(leader, "팀장민수", "첫 팀 프로젝트");
   await leader.locator(".monaco-editor").first().waitFor();
+  // 혼자일 때: 빈 상태가 초대를 권하고, 그 자리에서 링크를 복사할 수 있다
+  const reviewEmpty = leader.getByRole("complementary");
+  await expect(reviewEmpty).toContainText("아직 혼자예요");
+  await expect(reviewEmpty.getByRole("button", { name: /초대 링크 복사/ })).toBeVisible();
   await shot(leader, testInfo, "04-project-empty");
   await expectNoHorizontalScroll(leader);
 
@@ -34,6 +38,12 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await leader.getByRole("dialog").getByRole("button", { name: /병합하기/ }).click();
   await expect(leader.getByText("병합 완료!")).toBeVisible();
 
+  // 팀장은 프로젝트 화면으로 돌아와 있다 (아직 혼자)
+  await leader.getByRole("link", { name: /프로젝트로 돌아가기/ }).click();
+  await leader.locator(".monaco-editor").first().waitFor();
+  await leader.getByRole("tab", { name: /리뷰할 것/ }).click();
+  await expect(leader.getByText("아직 혼자예요")).toBeVisible();
+
   // --- 두 번째 멤버 참여 (다른 브라우저 = 다른 쿠키) ---
   const memberContext = await browser.newContext();
   const member = await memberContext.newPage();
@@ -44,6 +54,11 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await member.locator(".monaco-editor").first().waitFor();
 
   // --- 팀원: 코드 수정 → Comit ---
+  // 팀원이 들어오면 팀장 화면의 "아직 혼자예요"는 새로고침 없이 사라진다
+  await leader.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(leader.getByText("아직 혼자예요")).toBeHidden();
+  await expect(leader.getByText("지금은 리뷰할 제출이 없어요")).toBeVisible();
+
   await setEditorCode(member, BASE_CODE.replace('"Hello, "', '"안녕, "').replace("console.log", "// 인사 출력\nconsole.log"));
   await expect(member.getByText(/원본에서 \d+줄 바뀜/).first()).toBeVisible();
   await shot(member, testInfo, "06-editor-changed");
