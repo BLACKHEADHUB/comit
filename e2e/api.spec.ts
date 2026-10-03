@@ -54,3 +54,40 @@ test("조회 API는 멤버에게만, 자기 프로젝트 것만 보여준다", a
   await other.close();
   await anonymous.close();
 });
+
+// 초대 링크 복사: 클립보드를 쓸 수 없어도 조용히 실패하지 않고 직접 복사할 수 있는 창이 뜬다
+test("초대 링크 복사는 클립보드가 막혀 있어도 대체 수단을 보여준다", async ({ page }) => {
+  // 클립보드가 거부되는 환경을 흉내 낸다
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("NotAllowedError")) },
+      configurable: true,
+    });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const prompts: string[] = [];
+  page.on("dialog", async (dialog) => {
+    prompts.push(dialog.defaultValue());
+    await dialog.dismiss();
+  });
+
+  await page.goto("/project/create");
+  await page.locator('input[name="nickname"]').fill("복사");
+  await page.getByRole("button", { name: "프로젝트 만들기" }).click();
+  const inviteUrl = (await page.locator("code").innerText()).trim();
+
+  // 생성 완료 화면의 [링크 복사]
+  await page.getByRole("button", { name: "링크 복사" }).click();
+  await expect.poll(() => prompts.length).toBe(1);
+  expect(prompts[0]).toBe(inviteUrl);
+
+  // 프로젝트 화면 헤더의 [초대 링크 복사]도 같은 대체 수단을 쓴다
+  await page.getByRole("link", { name: /프로젝트로 이동/ }).click();
+  await page.locator(".monaco-editor").first().waitFor();
+  await page.locator("header").getByRole("button", { name: /초대 링크 복사/ }).click();
+  await expect.poll(() => prompts.length).toBe(2);
+  expect(prompts[1]).toBe(inviteUrl);
+
+  expect(errors).toEqual([]); // 처리되지 않은 오류가 없어야 한다
+});
