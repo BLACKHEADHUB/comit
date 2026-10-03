@@ -6,7 +6,9 @@ import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
 import { Project } from "@/models/Project";
 
-export default async function InvitePage({ params }: PageProps<"/invite/[token]">) {
+export default async function InvitePage({
+  params,
+}: PageProps<"/invite/[token]">) {
   const { token } = await params;
 
   await connectDB();
