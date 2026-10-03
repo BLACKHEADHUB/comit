@@ -57,3 +57,13 @@ export async function openSubmission(page: Page, tab: RegExp, title: string) {
   await page.waitForURL(/\/submission\//);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
 }
+
+// 페이지에서 난 오류(스크립트 예외, 콘솔 error)를 모은다. hydration 불일치는 React 오류(#418 등)로 여기에 잡힌다
+export function collectErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+  });
+  return errors;
+}

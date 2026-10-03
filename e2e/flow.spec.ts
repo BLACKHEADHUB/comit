@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { comit, createProject, expectNoHorizontalScroll, joinProject, openSubmission, setEditorCode, shot } from "./helpers";
+import { collectErrors, comit, createProject, expectNoHorizontalScroll, joinProject, openSubmission, setEditorCode, shot } from "./helpers";
 
 const BASE_CODE = `function greet(name) {
   return "Hello, " + name;
@@ -10,6 +10,7 @@ console.log(greet("Comit"));
 
 // 전체 흐름: 프로젝트 생성 → 초대 참여 → 코드 수정 → Comit → 댓글(BUG) → 병합 → 충돌(STALE) → 재제출
 test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
+  const leaderErrors = collectErrors(leader);
   // --- 랜딩 / 생성 ---
   await leader.goto("/");
   await shot(leader, testInfo, "01-landing");
@@ -36,6 +37,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   // --- 두 번째 멤버 참여 (다른 브라우저 = 다른 쿠키) ---
   const memberContext = await browser.newContext();
   const member = await memberContext.newPage();
+  const memberErrors = collectErrors(member);
   await member.goto(new URL(inviteUrl).pathname);
   await shot(member, testInfo, "05-invite");
   await joinProject(member, inviteUrl, "팀원지수");
@@ -123,6 +125,10 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await member.locator(".monaco-editor").first().waitFor();
   await member.getByRole("tab", { name: /내 제안/ }).click();
   await shot(member, testInfo, "18-member-after-merge");
+  // 여기까지 오는 동안 스크립트 오류나 hydration 불일치가 없어야 한다 (아래 404 이동 전까지)
+  expect(leaderErrors, "팀장 화면 콘솔 오류").toEqual([]);
+  expect(memberErrors, "팀원 화면 콘솔 오류").toEqual([]);
+
   await member.goto("/project/000000000000000000000000");
   await shot(member, testInfo, "19-not-found");
 
