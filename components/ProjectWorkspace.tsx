@@ -106,6 +106,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     () => false
   );
   const [staleDismissed, setStaleDismissed] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false); // "원본으로 되돌리기" 확인 단계
   // 언어 선택은 탭에 저장해 상세 페이지에 다녀와도 유지한다 (서버 렌더에서는 일반 텍스트)
   const language = useSyncExternalStore(subscribeLanguage, () => readLanguage(projectId), () => "plaintext" as Language);
   const [submissions, setSubmissions] = useState(initialSubmissions);
@@ -357,6 +358,30 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 <span className="flex items-center gap-1 text-danger">
                   <span aria-hidden className="inline-block h-0.5 w-2.5 bg-danger" />−{summary.removed} 삭제
                 </span>
+                {/* 망쳤다 싶을 때 되돌릴 길: 작성한 내용이 사라지므로 한 번 더 묻는다 */}
+                {confirmReset ? (
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-warn">고친 내용이 사라져요.</span>
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => {
+                        resetToMain();
+                        setConfirmReset(false);
+                      }}
+                      className={`${btnSecondary} !px-2 !py-0.5 !text-xs`}
+                    >
+                      되돌리기
+                    </button>
+                    <button type="button" onClick={() => setConfirmReset(false)} className={`${btnGhost} !px-2 !py-0.5 !text-xs`}>
+                      취소
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setConfirmReset(true)} className={`${btnGhost} !px-2 !py-0.5 !text-xs`}>
+                    ↩ 원본으로 되돌리기
+                  </button>
+                )}
               </>
             )}
           </p>
