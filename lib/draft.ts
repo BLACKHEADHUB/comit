@@ -5,6 +5,7 @@ export type Draft = {
   code: string;
   base: string; // 초안을 만들 당시의 mainCode. 지금 mainCode와 다르면 초안은 오래된 것으로 보고 버린다
   fromStale?: boolean; // STALE 제출에서 불러온 코드인지
+  rebased?: boolean; // 최신 원본 위에 내 변경을 다시 얹어 만든 코드인지 (안내 문구가 달라진다)
 };
 
 const key = (projectId: string) => `comit_draft_${projectId}`;
@@ -36,6 +37,29 @@ export function writeDraft(projectId: string, draft: Draft) {
 export function clearDraft(projectId: string) {
   try {
     sessionStorage.removeItem(key(projectId));
+  } catch {}
+}
+
+// 방금 Comit한 코드를 기억한다. 에디터의 코드가 이것과 같으면 "이미 보낸 코드"라는 뜻이다
+// (같은 내용을 실수로 두 번 Comit하지 않게 안내하는 용도. 탭을 닫으면 사라진다)
+export type Submitted = { code: string; submissionId: string };
+
+const submittedKey = (projectId: string) => `comit_submitted_${projectId}`;
+
+export function readSubmitted(projectId: string): Submitted | null {
+  try {
+    const raw = sessionStorage.getItem(submittedKey(projectId));
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Submitted;
+    return typeof saved.code === "string" && typeof saved.submissionId === "string" ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSubmitted(projectId: string, submitted: Submitted) {
+  try {
+    sessionStorage.setItem(submittedKey(projectId), JSON.stringify(submitted));
   } catch {}
 }
 

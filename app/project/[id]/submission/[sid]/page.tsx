@@ -5,9 +5,9 @@ import { findMember } from "@/lib/auth";
 import MergePanel from "@/components/MergePanel";
 import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
+import SubmissionFlow from "@/components/SubmissionFlow";
 import { card, noticeError } from "@/lib/ui";
-import type { CommentItem } from "@/lib/validation";
-import { Comment } from "@/models/Comment";
+import { listComments } from "@/lib/review";
 import { Submission } from "@/models/Submission";
 
 export default async function SubmissionPage({
@@ -26,20 +26,18 @@ export default async function SubmissionPage({
   if (!submission) notFound();
 
   // 위에서 projectId로 검증한 제출의 댓글만 조회한다
-  const commentDocs = await Comment.find({ submissionId: submission._id }).sort({ createdAt: 1 }).lean();
-  const comments: CommentItem[] = commentDocs.map((c) => ({
-    id: String(c._id),
-    author: c.author,
-    lineNumber: c.lineNumber,
-    tag: c.tag,
-    content: c.content,
-    createdAt: c.createdAt.toISOString(),
-  }));
+  const comments = await listComments(submission._id);
 
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
 
   return (
-    <ReviewProvider initialComments={comments}>
+    <ReviewProvider
+      projectId={id}
+      submissionId={sid}
+      viewer={{ nickname: me.nickname, isLeader: me.role === "LEADER", submissionAuthor: submission.author }}
+      initialComments={comments}
+      initialStatus={submission.status}
+    >
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
         ← 프로젝트로 돌아가기
@@ -54,19 +52,23 @@ export default async function SubmissionPage({
         <MergePanel
           projectId={id}
           submissionId={sid}
-          initialStatus={submission.status}
           canMerge={me.role === "LEADER"}
+          beforeCode={submission.beforeCode}
           afterCode={submission.afterCode}
           latestMainCode={project.mainCode}
         />
       </div>
 
+      {/* 지금 어느 단계인지 + 다음 할 일 */}
+      <SubmissionFlow isAuthor={submission.author === me.nickname} isLeader={me.role === "LEADER"} />
+
       {/* AI 분석 카드 */}
       <section className={`${card} overflow-hidden`}>
-        <div className="flex items-center gap-2 border-b border-line bg-surface px-5 py-3">
-          <span>🤖</span>
-          <h2 className="text-sm font-semibold">AI 분석</h2>
-          <span className="text-xs text-muted">참고용이에요. 최종 판단은 팀원이 해주세요.</span>
+        {/* 머리 부분은 라벤더 톤 (파스텔 위에는 회색 글자를 쓰지 않고 같은 계열의 진한 색을 쓴다) */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-line bg-lavender-soft px-5 py-3">
+          <span aria-hidden>🤖</span>
+          <h2 className="text-sm font-semibold">AI가 먼저 읽어봤어요</h2>
+          <span className="text-xs text-lavender">참고용이에요. 최종 판단은 팀원이 함께 해주세요.</span>
         </div>
         <div className="grid gap-5 p-5 md:grid-cols-[2fr_1fr]">
           <div>
@@ -75,7 +77,7 @@ export default async function SubmissionPage({
               <ol className="space-y-2">
                 {summary.slice(0, 3).map((line, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-relaxed">
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">
                       {i + 1}
                     </span>
                     {line}
@@ -83,7 +85,7 @@ export default async function SubmissionPage({
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-muted">분석 결과가 없어요.</p>
+              <p className="text-sm text-muted">아직 분석 결과가 없어요.</p>
             )}
           </div>
           <div className="flex flex-col gap-3">
@@ -94,8 +96,8 @@ export default async function SubmissionPage({
               </div>
             )}
             {concept && (
-              <div className="rounded-lg border border-line bg-surface p-3">
-                <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">💡 핵심 개념</h3>
+              <div className="rounded-xl bg-peach-soft p-3">
+                <h3 className="mb-1 text-xs font-semibold tracking-wide text-peach">💡 오늘의 개념</h3>
                 <p className="text-sm leading-relaxed">{concept}</p>
               </div>
             )}

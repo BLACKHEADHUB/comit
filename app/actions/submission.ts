@@ -8,6 +8,7 @@ import { findMember } from "@/lib/auth";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
 // [Comit하기]: 현재 mainCode를 beforeCode로 고정해 Submission을 만든다
 export async function createSubmission(
@@ -15,14 +16,14 @@ export async function createSubmission(
   title: string,
   afterCode: string
 ): Promise<SubmissionResult> {
-  if (!isValidObjectId(projectId)) return { error: "잘못된 프로젝트예요." };
+  if (!isValidObjectId(projectId)) return { error: BAD_REQUEST_MESSAGE };
 
   const parsed = createSubmissionSchema.safeParse({ title, afterCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   // 이 프로젝트의 멤버만 제출할 수 있다 (멀티테넌시 격리)
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 제출할 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
 
   if (parsed.data.afterCode === project.mainCode) {
@@ -63,6 +64,11 @@ export async function createSubmission(
       author: submission.author,
       status: submission.status,
       createdAt: submission.createdAt.toISOString(),
+      // 방금 만든 제출이라 댓글은 아직 없다
+      commentCount: 0,
+      bugCount: 0,
+      hasWarning: Boolean(aiReport.warning),
+      totalComments: 0,
     },
   };
 }
@@ -70,18 +76,18 @@ export async function createSubmission(
 // 병합: 제출 당시 mainCode(beforeCode)가 그대로일 때만 mainCode를 덮어쓴다 (조건부 원자적 업데이트)
 export async function mergeSubmission(projectId: string, submissionId: string): Promise<MergeResult> {
   if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) {
-    return { error: "잘못된 요청이에요." };
+    return { error: BAD_REQUEST_MESSAGE };
   }
 
   // 역할(LEADER)은 쿠키를 믿지 않고 DB 기준으로 확인한다
   const member = await findMember(projectId);
-  if (!member) return { error: "이 프로젝트의 멤버만 접근할 수 있어요." };
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
   const { project, me } = member;
   if (me.role !== "LEADER") return { error: "팀장만 병합할 수 있어요." };
 
   // projectId 필터로 다른 프로젝트의 제출은 조회되지 않는다
   const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).lean();
-  if (!submission) return { error: "제출을 찾을 수 없어요." };
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
   if (submission.status !== "PENDING") {
     return { status: submission.status, message: "이미 처리된 제출이에요." };
   }
@@ -115,7 +121,7 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
   // 병합 결과가 화면(프로젝트 메인/상세)에 바로 반영되도록 캐시를 비운다
   revalidatePath(`/project/${projectId}`, "layout");
 
-  if (outcome === "MERGED") return { status: "MERGED", message: "병합 완료! 메인 코드가 업데이트됐어요." };
+  if (outcome === "MERGED") return { status: "MERGED", message: "병합 완료! 잘했어요, 메인 코드가 업데이트됐어요." };
   if (outcome === "STALE") {
     return { status: "STALE", message: "다른 변경이 먼저 병합됐어요. 최신 코드로 다시 Comit해주세요" };
   }

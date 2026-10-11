@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { createProject } from "@/app/actions/project";
+import { copyText, showForManualCopy } from "@/lib/clipboard";
 import { btnPrimary, btnSecondary, inputClass, noticeError, noticeOk } from "@/lib/ui";
 
 export default function CreateProjectForm() {
@@ -25,8 +26,9 @@ export default function CreateProjectForm() {
           type="button"
           className={btnSecondary}
           onClick={async () => {
-            await navigator.clipboard.writeText(inviteUrl);
-            setCopied(true);
+            // 클립보드를 못 쓰는 환경에서는 직접 복사할 수 있는 창을 띄운다 (조용히 실패하지 않게)
+            if (await copyText(inviteUrl)) setCopied(true);
+            else showForManualCopy(inviteUrl);
           }}
         >
           {copied ? "✓ 복사됨" : "링크 복사"}

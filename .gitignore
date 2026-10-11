@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# e2e 결과물 (스크린샷은 사람이 보는 용도라 커밋하지 않는다)
+/e2e/screenshots/
+/e2e/test-results/
+/e2e/screenshots-before/
