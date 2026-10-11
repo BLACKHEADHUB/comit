@@ -121,9 +121,9 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
   // 병합 결과가 화면(프로젝트 메인/상세)에 바로 반영되도록 캐시를 비운다
   revalidatePath(`/project/${projectId}`, "layout");
 
-  if (outcome === "MERGED") return { status: "MERGED", message: "병합 완료! 잘했어요, 메인 코드가 업데이트됐어요." };
+  if (outcome === "MERGED") return { status: "MERGED", message: "병합 완료! 잘했어요, 원본이 이 코드로 바뀌었어요." };
   if (outcome === "STALE") {
-    return { status: "STALE", message: "다른 변경이 먼저 병합됐어요. 최신 코드로 다시 Comit해주세요" };
+    return { status: "STALE", message: "다른 변경이 먼저 병합됐어요. 최신 원본을 바탕으로 다시 Comit해주세요." };
   }
 
   // 동시 요청으로 다른 요청이 먼저 처리한 경우: 최종 상태를 다시 읽어 알려준다

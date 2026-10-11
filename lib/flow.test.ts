@@ -48,7 +48,7 @@ describe("submissionFlow", () => {
     expect(states(mine)).toEqual(["done", "done", "done", "blocked"]);
     expect(mine.steps[3].label).toBe("원본이 먼저 바뀜");
     expect(mine.tone).toBe("warn");
-    expect(mine.next).toBe("원본이 먼저 바뀌었어요 → 최신 코드로 다시 Comit해주세요.");
+    expect(mine.next).toBe("원본이 먼저 바뀌었어요 → 최신 원본을 바탕으로 다시 Comit해주세요.");
 
     const others = submissionFlow({ ...base, status: "STALE" });
     expect(others.next).toContain("작성자가");

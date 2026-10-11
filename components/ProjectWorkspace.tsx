@@ -79,7 +79,7 @@ function emptyMessage(tab: TaskTab, filter: StatusFilter, alone: boolean) {
   }
   return filter === "MERGED"
     ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
-    : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 코드로 다시 제출해야 하는 제출이 여기에 표시돼요.";
+    : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 원본을 바탕으로 다시 Comit해야 하는 제출이 여기에 표시돼요.";
 }
 
 // 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대를 고정한다 (hydration 불일치 방지)
@@ -416,7 +416,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 : "충돌했던 제출의 코드를 불러왔어요. 다른 사람이 먼저 바꾼 내용이 있을 수 있으니, 확인하고 고친 뒤 다시 Comit하세요."}
             </span>
             <button type="button" onClick={resetToMain} className={`${btnSecondary} !px-2.5 !py-1 !text-xs`}>
-              최신 코드로 되돌리기
+              최신 원본으로 되돌리기
             </button>
           </div>
         )}
@@ -464,7 +464,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               </>
             )}
           </p>
-          <label className="flex items-center gap-2 text-xs text-muted">
+          <label className="flex items-center gap-2 text-xs text-muted" title="언어를 고르면 코드에 색이 입혀져 읽기 쉬워져요">
             언어
             <select
               value={language}
@@ -479,7 +479,30 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             </select>
           </label>
         </div>
-        <div className="min-h-64 flex-1">
+        <div className="relative min-h-64 flex-1">
+          {/* 에디터가 비어 있을 때: 빈 화면 앞에서 멈추지 않게 무엇을 하면 되는지 알려준다 (클릭은 에디터로 그대로 전달) */}
+          {hydrated && code.trim() === "" && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center p-6 pl-16">
+              <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-background/90 p-4 text-sm leading-relaxed">
+                <Mascot mood={initialCode.trim() === "" ? "hello" : "oops"} size={36} />
+                {initialCode.trim() === "" ? (
+                  <p>
+                    <strong className="font-semibold">아직 원본이 비어 있어요.</strong>
+                    <span className="mt-0.5 block text-muted">
+                      여기를 눌러 첫 코드를 적어보세요. Comit하고 팀장이 병합하면 팀 모두의 첫 원본이 돼요.
+                    </span>
+                  </p>
+                ) : (
+                  <p>
+                    <strong className="font-semibold">코드를 모두 지웠어요.</strong>
+                    <span className="mt-0.5 block text-muted">
+                      이대로 Comit하면 원본을 전부 지우자는 제안이 돼요. 실수였다면 위의 [원본으로 되돌리기]를 눌러주세요.
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <Editor
             height="100%"
             language={language}
