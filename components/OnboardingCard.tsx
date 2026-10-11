@@ -6,6 +6,7 @@ import {
   dismissOnboarding,
   hasReviewedOnce,
   isOnboardingDismissed,
+  leaderOnboardingSteps,
   onboardingSteps,
   subscribeOnboarding,
 } from "@/lib/onboarding";
@@ -13,16 +14,19 @@ import {
 type Props = {
   hasChanges: boolean; // 에디터에서 원본과 다르게 고쳤는지
   hasSubmitted: boolean; // 내가 Comit한 제출이 있는지
+  leader?: { hasMerged: boolean; hasTeam: boolean }; // 팀장이면 팀장용 단계(리뷰 → 병합 → 초대)를 보여준다
 };
 
 // 처음 들어온 사람에게 보여주는 3단계 체크리스트. 직접 해보면 체크되고, 닫으면 다시 나오지 않는다
-export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
+export default function OnboardingCard({ hasChanges, hasSubmitted, leader }: Props) {
   // localStorage는 브라우저에만 있으므로, 서버 렌더에서는 "닫힘"으로 가정해 화면 불일치를 막는다
   const dismissed = useSyncExternalStore(subscribeOnboarding, isOnboardingDismissed, () => true);
   const hasReviewed = useSyncExternalStore(subscribeOnboarding, hasReviewedOnce, () => false);
   if (dismissed) return null;
 
-  const steps = onboardingSteps({ hasChanges, hasSubmitted, hasReviewed });
+  const steps = leader
+    ? leaderOnboardingSteps({ hasReviewed, hasMerged: leader.hasMerged, hasTeam: leader.hasTeam })
+    : onboardingSteps({ hasChanges, hasSubmitted, hasReviewed });
   const allDone = steps.every((s) => s.done);
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -33,7 +37,7 @@ export default function OnboardingCard({ hasChanges, hasSubmitted }: Props) {
         <Mascot mood={allDone ? "cheer" : "hello"} size={40} className={allDone ? "comit-bounce-in" : ""} />
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold">
-            {allDone ? "잘했어요! 세 가지를 모두 해봤어요 🎉" : "처음이라면 이 세 가지만 해보세요"}
+            {allDone ? "잘했어요! 세 가지를 모두 해봤어요 🎉" : leader ? "👑 팀장이라면 이 세 가지만 해보세요" : "처음이라면 이 세 가지만 해보세요"}
             {/* 좁은 화면에서는 단계를 접어 두므로 얼마나 했는지 숫자로 알려준다 */}
             {!allDone && <span className="ml-1.5 text-xs font-medium text-accent-ink sm:hidden">{doneCount}/3 완료</span>}
           </h2>

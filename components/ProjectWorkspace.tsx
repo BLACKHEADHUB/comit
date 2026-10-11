@@ -79,7 +79,7 @@ function emptyMessage(tab: TaskTab, filter: StatusFilter, alone: boolean) {
   }
   return filter === "MERGED"
     ? "아직 병합된 제출이 없어요. 팀장이 병합하면 여기에 모여요."
-    : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 코드로 다시 제출해야 하는 제출이 여기에 표시돼요.";
+    : "다시 제출할 항목이 없어요. 다른 변경이 먼저 병합되면, 최신 원본을 바탕으로 다시 Comit해야 하는 제출이 여기에 표시돼요.";
 }
 
 // 서버/브라우저 시간대가 달라도 같은 결과가 나오도록 시간대를 고정한다 (hydration 불일치 방지)
@@ -102,9 +102,10 @@ type Props = {
   initialSubmissions: SubmissionItem[];
   initialMemberCount: number;
   inviteUrl: string | null; // 팀장에게만 전달된다 (혼자일 때 빈 상태에서 초대 버튼을 보여주는 용도)
+  isLeader: boolean; // 팀장이면 첫 진입 안내를 팀장용(리뷰 → 병합 → 초대)으로 보여준다
 };
 
-export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, inviteUrl }: Props) {
+export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, inviteUrl, isLeader }: Props) {
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -175,6 +176,10 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     setTab(next);
     setFilter(nextFilter);
   }
+  // 좁은 화면에서는 목록을 한 줄로 접어 두고 에디터 자리를 넓힌다 (넓은 화면에서는 항상 펼침)
+  const [listOpen, setListOpen] = useState(false);
+  const reviewCount = submissions.filter((s) => inTab(s, "REVIEW", myNickname)).length;
+  const anyUnseen = submissions.some((s) => unseen.has(s.id));
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
@@ -280,6 +285,25 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside className="flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0">
+        {/* 좁은 화면 전용: 목록 접기/펼치기 한 줄 (접혀 있어도 개수와 새 활동은 보인다) */}
+        <button
+          type="button"
+          onClick={() => setListOpen((v) => !v)}
+          aria-expanded={listOpen}
+          aria-controls="submission-list"
+          className="flex shrink-0 items-center gap-2 px-4 py-2.5 text-left text-sm md:hidden"
+        >
+          <span aria-hidden>📋</span>
+          <span className="font-medium">제출 목록 {submissions.length}개</span>
+          {reviewCount > 0 && <span className={`${badge} bg-accent-soft text-accent-ink !px-2 !py-0`}>리뷰할 것 {reviewCount}</span>}
+          {anyUnseen && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-accent-ink">
+              <span aria-hidden className="size-1.5 rounded-full bg-accent" />새 활동
+            </span>
+          )}
+          <span className="ml-auto text-xs text-muted">{listOpen ? "▴ 접기" : "▾ 펼치기"}</span>
+        </button>
+        <div id="submission-list" className={`${listOpen ? "flex" : "hidden"} min-h-0 flex-1 flex-col border-t border-line md:flex md:border-t-0`}>
         {/* 탭은 글자 길이만큼만 차지한다 (똑같이 3등분하면 긴 라벨이 두 줄로 잘린다) */}
         <div role="tablist" aria-label="제출 목록 보기" className="flex justify-between gap-0.5 overflow-x-auto border-b border-line p-2">
           {TABS.map((t) => {
@@ -390,11 +414,16 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             </li>
           ))}
         </ul>
+        </div>
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* 첫 진입 안내 (닫으면 다시 나오지 않는다) */}
-        <OnboardingCard hasChanges={hasChanges} hasSubmitted={submissions.some((s) => s.author === myNickname)} />
+        <OnboardingCard
+          hasChanges={hasChanges}
+          hasSubmitted={submissions.some((s) => s.author === myNickname)}
+          leader={isLeader ? { hasMerged: submissions.some((s) => s.status === "MERGED"), hasTeam: !alone } : undefined}
+        />
         {/* 다른 변경이 병합돼 원본이 바뀌었을 때: 알려주기만 하고, 작성 중인 코드는 절대 자동으로 바꾸지 않는다 */}
         {originalChanged && (
           <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-wrap items-center gap-2`}>
@@ -416,7 +445,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 : "충돌했던 제출의 코드를 불러왔어요. 다른 사람이 먼저 바꾼 내용이 있을 수 있으니, 확인하고 고친 뒤 다시 Comit하세요."}
             </span>
             <button type="button" onClick={resetToMain} className={`${btnSecondary} !px-2.5 !py-1 !text-xs`}>
-              최신 코드로 되돌리기
+              최신 원본으로 되돌리기
             </button>
           </div>
         )}
@@ -464,7 +493,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               </>
             )}
           </p>
-          <label className="flex items-center gap-2 text-xs text-muted">
+          <label className="flex items-center gap-2 text-xs text-muted" title="언어를 고르면 코드에 색이 입혀져 읽기 쉬워져요">
             언어
             <select
               value={language}
@@ -479,7 +508,30 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             </select>
           </label>
         </div>
-        <div className="min-h-64 flex-1">
+        <div className="relative min-h-64 flex-1">
+          {/* 에디터가 비어 있을 때: 빈 화면 앞에서 멈추지 않게 무엇을 하면 되는지 알려준다 (클릭은 에디터로 그대로 전달) */}
+          {hydrated && code.trim() === "" && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center p-6 pl-16">
+              <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-background/90 p-4 text-sm leading-relaxed">
+                <Mascot mood={initialCode.trim() === "" ? "hello" : "oops"} size={36} />
+                {initialCode.trim() === "" ? (
+                  <p>
+                    <strong className="font-semibold">아직 원본이 비어 있어요.</strong>
+                    <span className="mt-0.5 block text-muted">
+                      여기를 눌러 첫 코드를 적어보세요. Comit하고 팀장이 병합하면 팀 모두의 첫 원본이 돼요.
+                    </span>
+                  </p>
+                ) : (
+                  <p>
+                    <strong className="font-semibold">코드를 모두 지웠어요.</strong>
+                    <span className="mt-0.5 block text-muted">
+                      이대로 Comit하면 원본을 전부 지우자는 제안이 돼요. 실수였다면 위의 [원본으로 되돌리기]를 눌러주세요.
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <Editor
             height="100%"
             language={language}

@@ -2,6 +2,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import { createPatch } from "diff";
 import { z } from "zod";
+import { AI_FAILED_LINE, AI_SKIPPED_LINE, CHECK_CHANGES_LINE } from "@/lib/aiReport";
 
 export type AIReport = { summary: string[]; warning: string; concept: string };
 
@@ -17,7 +18,7 @@ export const aiReportSchema = z.object({
 
 // AI가 실패해도 제출 흐름은 계속 진행되도록 하는 기본 리포트
 export const FALLBACK_REPORT: AIReport = {
-  summary: ["코드가 수정되었어요.", "AI 분석을 불러오지 못했어요.", "Diff를 보고 직접 확인해주세요."],
+  summary: ["코드가 수정되었어요.", AI_FAILED_LINE, CHECK_CHANGES_LINE],
   warning: "",
   concept: "",
 };
@@ -70,7 +71,7 @@ export function buildDiff(beforeCode: string, afterCode: string): string {
 // 요청 한도 초과로 AI 분석을 건너뛴 제출에 저장하는 리포트
 export const RATE_LIMIT_MESSAGE = "요청이 많아 잠시 후 다시 시도해주세요.";
 export const RATE_LIMITED_REPORT: AIReport = {
-  summary: [RATE_LIMIT_MESSAGE, "이번 제출은 AI 분석 없이 저장됐어요.", "Diff를 보고 직접 확인해주세요."],
+  summary: [RATE_LIMIT_MESSAGE, AI_SKIPPED_LINE, CHECK_CHANGES_LINE],
   warning: "",
   concept: "",
 };

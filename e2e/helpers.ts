@@ -50,8 +50,22 @@ export async function comit(page: Page, title: string) {
   await expect(dialog).toBeHidden({ timeout: 30_000 });
 }
 
+// 좁은 화면에서는 제출 목록이 접혀 있으므로 펼친다 (넓은 화면에서는 버튼이 숨어 있어 아무것도 하지 않는다)
+export async function showList(page: Page, { keyboard = false } = {}) {
+  const toggle = page.getByRole("button", { name: /제출 목록 \d+개/ });
+  if (!(await toggle.isVisible()) || (await toggle.getAttribute("aria-expanded")) === "true") return;
+  if (keyboard) {
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+  } else {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
 // 사이드바에서 탭을 고르고 제목으로 제출을 연다
 export async function openSubmission(page: Page, tab: RegExp, title: string) {
+  await showList(page);
   await page.getByRole("tab", { name: tab }).click();
   const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // 제목의 괄호 등을 글자 그대로 찾는다
   await page.getByRole("link", { name: new RegExp(escaped) }).click();

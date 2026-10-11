@@ -47,7 +47,7 @@ export function submissionFlow({ status, commentCount, isAuthor, isLeader }: Sub
   if (status === "MERGED") {
     return {
       steps: LABELS.map((label) => ({ label, state: "done" })),
-      next: "원본에 반영됐어요. 이제 이 코드가 프로젝트의 최신 코드예요.",
+      next: "원본에 반영됐어요. 이제 이 코드가 팀 모두의 최신 원본이에요.",
       tone: "ok",
     };
   }
@@ -62,8 +62,8 @@ export function submissionFlow({ status, commentCount, isAuthor, isLeader }: Sub
         { label: "원본이 먼저 바뀜", state: "blocked" },
       ],
       next: isAuthor
-        ? "원본이 먼저 바뀌었어요 → 최신 코드로 다시 Comit해주세요."
-        : "원본이 먼저 바뀌어서 이대로는 반영할 수 없어요. 작성자가 최신 코드로 다시 Comit해야 해요.",
+        ? "원본이 먼저 바뀌었어요 → 최신 원본을 바탕으로 다시 Comit해주세요."
+        : "원본이 먼저 바뀌어서 이대로는 반영할 수 없어요. 작성자가 최신 원본을 바탕으로 다시 Comit해야 해요.",
       tone: "warn",
     };
   }

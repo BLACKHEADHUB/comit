@@ -23,15 +23,8 @@ import {
   noticeWarn,
   RETRY_MESSAGE,
   STALE_HINT,
-  STALE_LABEL,
+  STATUS_META,
 } from "@/lib/ui";
-
-const STATUS_LABEL: Record<SubmissionStatus, string> = { PENDING: "대기", MERGED: "병합됨", STALE: STALE_LABEL };
-const STATUS_STYLE: Record<SubmissionStatus, string> = {
-  PENDING: "bg-surface text-muted ring-1 ring-line-strong",
-  MERGED: "bg-ok-soft text-ok",
-  STALE: "bg-warn-soft text-warn",
-};
 
 type Props = {
   projectId: string;
@@ -95,7 +88,11 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   return (
     <div className="flex max-w-sm flex-col items-start gap-2 sm:items-end">
       <div className="flex items-center gap-3">
-        <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_STYLE[status]} !px-3 !py-1`}>{STATUS_LABEL[status]}</span>
+        {/* 목록 카드와 같은 모양: 아이콘 + 글자 (색만으로 구분하지 않는다) */}
+        <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_META[status].style} !px-3 !py-1`}>
+          <span aria-hidden>{STATUS_META[status].icon}</span>
+          {STATUS_META[status].label}
+        </span>
         {/* 이미 처리된 제출에는 병합 버튼을 보여주지 않는다 (누를 수 없는 버튼이 남아 있으면 헷갈린다) */}
         {canMerge && status === "PENDING" && (
           <button type="button" onClick={() => setConfirmOpen(true)} disabled={pending} className={btnPrimary}>
@@ -115,7 +112,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
       )}
       {canMerge && status === "PENDING" && !message && (
         <p className="text-xs leading-relaxed text-muted sm:text-right">
-          병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.
+          병합하면 이 코드가 팀 모두의 새 원본이 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.
         </p>
       )}
       {message && (
@@ -143,7 +140,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
             className={`${modalCard} flex flex-col gap-4 text-left`}
           >
             <ModalHeader id="merge-confirm-title" mood="hello" title="이 제출을 병합할까요?">
-              병합하면 이 코드가 프로젝트의 새 메인 코드가 돼요.
+              병합하면 이 코드가 팀 모두의 새 원본이 돼요.
             </ModalHeader>
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div className="rounded-2xl border border-line bg-surface p-2">👍 좋아요<p className="mt-0.5 text-lg font-semibold">{likeCount}</p></div>

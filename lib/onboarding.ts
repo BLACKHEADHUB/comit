@@ -20,6 +20,24 @@ export function onboardingSteps({ hasChanges, hasSubmitted, hasReviewed }: Progr
   return steps.map((s, i) => ({ ...s, current: i === firstTodo }));
 }
 
+type LeaderProgress = {
+  hasReviewed: boolean; // 댓글(리뷰)을 남긴 적이 있는지
+  hasMerged: boolean; // 이 프로젝트에 병합된 제출이 있는지 (병합은 팀장만 할 수 있다)
+  hasTeam: boolean; // 나 말고 팀원이 한 명이라도 들어왔는지
+};
+
+// 팀장용 3단계: 팀장의 일은 "고치기"보다 "리뷰하고 병합하기"가 먼저다.
+// 아직 혼자라면 리뷰할 것이 생길 수 없으므로 "초대하기"를 지금 할 일로 둔다
+export function leaderOnboardingSteps({ hasReviewed, hasMerged, hasTeam }: LeaderProgress): OnboardingStep[] {
+  const steps = [
+    { title: "리뷰하기", hint: "'리뷰할 것' 목록에서 제출을 열고 줄 옆의 + 를 눌러 댓글을 달아보세요.", done: hasReviewed },
+    { title: "병합하기", hint: "리뷰가 끝났으면 제출 화면의 [병합하기]로 원본에 반영해요.", done: hasMerged },
+    { title: "초대하기", hint: "오른쪽 위 [초대 링크 복사]로 팀원을 불러요.", done: hasTeam },
+  ];
+  const current = hasTeam ? steps.findIndex((s) => !s.done) : 2;
+  return steps.map((s, i) => ({ ...s, current: i === current }));
+}
+
 const DISMISSED_KEY = "comit_onboarding_dismissed";
 const REVIEWED_KEY = "comit_onboarding_reviewed";
 

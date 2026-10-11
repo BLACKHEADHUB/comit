@@ -6,6 +6,10 @@ import MergePanel from "@/components/MergePanel";
 import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import SubmissionFlow from "@/components/SubmissionFlow";
+import TermsHelp from "@/components/TermsHelp";
+import { aiUnavailableReason } from "@/lib/aiReport";
+import { formatTime } from "@/lib/tags";
+import Mascot from "@/components/Mascot";
 import { card, noticeError } from "@/lib/ui";
 import { listComments } from "@/lib/review";
 import { Submission } from "@/models/Submission";
@@ -29,6 +33,8 @@ export default async function SubmissionPage({
   const comments = await listComments(submission._id);
 
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
+  // AI가 실패하거나 건너뛰었을 때 저장되는 기본 리포트인지 (그렇다면 번호 요약 대신 안내를 보여준다)
+  const aiMissing = aiUnavailableReason(summary);
 
   return (
     <ReviewProvider
@@ -39,14 +45,19 @@ export default async function SubmissionPage({
       initialStatus={submission.status}
     >
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
-      <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
-        ← 프로젝트로 돌아가기
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
+          ← 프로젝트로 돌아가기
+        </Link>
+        <TermsHelp />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{submission.title}</h1>
-          <p className="mt-1 text-sm text-muted">{submission.author}님의 제출</p>
+          <p className="mt-1 text-sm text-muted">
+            {submission.author}님의 제출 · {formatTime(submission.createdAt.toISOString())}
+          </p>
         </div>
         {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
         <MergePanel
@@ -72,8 +83,20 @@ export default async function SubmissionPage({
         </div>
         <div className="grid gap-5 p-5 md:grid-cols-[2fr_1fr]">
           <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">3줄 요약</h3>
-            {summary.length > 0 ? (
+            {!aiMissing && <h3 className="mb-2 text-xs font-medium text-muted">3줄 요약</h3>}
+            {aiMissing ? (
+              // 실패 문구가 "요약"처럼 번호로 보이지 않게, 무슨 일이 있었고 무엇을 하면 되는지 안내한다
+              <div className="flex items-start gap-3 rounded-xl bg-surface p-3 text-sm leading-relaxed">
+                <Mascot mood="oops" size={36} />
+                <div>
+                  <p className="font-medium">{aiMissing}</p>
+                  <p className="mt-0.5 text-muted">
+                    괜찮아요, 제출은 잘 저장됐어요. 아래 &lsquo;코드 변경&rsquo;에서 바뀐 줄을 직접 읽어보고, 궁금한 줄은 줄 옆의{" "}
+                    <strong className="text-foreground">+</strong> 를 눌러 AI에게 따로 물어볼 수 있어요.
+                  </p>
+                </div>
+              </div>
+            ) : summary.length > 0 ? (
               <ol className="space-y-2">
                 {summary.slice(0, 3).map((line, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-relaxed">

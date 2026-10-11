@@ -3,6 +3,7 @@ import {
   dismissOnboarding,
   hasReviewedOnce,
   isOnboardingDismissed,
+  leaderOnboardingSteps,
   markReviewedOnce,
   onboardingSteps,
   subscribeOnboarding,
@@ -38,6 +39,32 @@ describe("onboardingSteps", () => {
   it("전부 끝나면 지금 할 일이 없다", () => {
     const steps = onboardingSteps({ hasChanges: true, hasSubmitted: true, hasReviewed: true });
     expect(steps.every((s) => s.done)).toBe(true);
+    expect(steps.some((s) => s.current)).toBe(false);
+  });
+});
+
+describe("leaderOnboardingSteps", () => {
+  const lead = { hasReviewed: false, hasMerged: false, hasTeam: true };
+
+  it("팀원이 있으면 '리뷰하기'가 지금 할 일", () => {
+    const steps = leaderOnboardingSteps(lead);
+    expect(steps.map((s) => s.title)).toEqual(["리뷰하기", "병합하기", "초대하기"]);
+    expect(steps.map((s) => s.done)).toEqual([false, false, true]);
+    expect(steps.map((s) => s.current)).toEqual([true, false, false]);
+  });
+
+  it("리뷰를 남기면 '병합하기'가 지금 할 일", () => {
+    const steps = leaderOnboardingSteps({ ...lead, hasReviewed: true });
+    expect(steps.map((s) => s.current)).toEqual([false, true, false]);
+  });
+
+  it("아직 혼자면 리뷰할 것이 없으니 '초대하기'가 지금 할 일", () => {
+    const steps = leaderOnboardingSteps({ ...lead, hasTeam: false });
+    expect(steps.map((s) => s.current)).toEqual([false, false, true]);
+  });
+
+  it("전부 끝나면 지금 할 일이 없다", () => {
+    const steps = leaderOnboardingSteps({ hasReviewed: true, hasMerged: true, hasTeam: true });
     expect(steps.some((s) => s.current)).toBe(false);
   });
 });

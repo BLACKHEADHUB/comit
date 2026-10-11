@@ -6,6 +6,7 @@ import { buildInviteUrl } from "@/lib/invite";
 import InviteLink from "@/components/InviteLink";
 import MemberAvatars from "@/components/MemberAvatars";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
+import TermsHelp from "@/components/TermsHelp";
 import { badge } from "@/lib/ui";
 import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
@@ -46,12 +47,15 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
           <MemberAvatars members={orderMembers(project.members, me.nickname)} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
+          {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
+          <TermsHelp />
         </div>
       </header>
       <ProjectWorkspace
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}
         initialMemberCount={project.members.length}
         inviteUrl={inviteUrl}
+        isLeader={me.role === "LEADER"}
       />
     </main>
   );

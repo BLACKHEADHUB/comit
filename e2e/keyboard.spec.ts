@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { createProject } from "./helpers";
+import { createProject, showList } from "./helpers";
 
 // Tab(또는 Shift+Tab)만 눌러 원하는 요소에 포커스가 갈 때까지 이동한다. 마우스는 쓰지 않는다
 async function tabTo(page: Page, target: Locator, { back = false, max = 80 } = {}) {
@@ -33,6 +33,7 @@ test("키보드만으로 Comit → 댓글 → 병합", async ({ page }) => {
   await expect(dialog).toBeHidden({ timeout: 30_000 });
 
   // 3) "내 제안" 탭 → 방금 올린 제출 열기
+  await showList(page, { keyboard: true });
   await expect(page.getByRole("link", { name: /키보드로 올린 제출/ })).toBeVisible();
   await tabTo(page, page.getByRole("link", { name: /키보드로 올린 제출/ }));
   await page.keyboard.press("Enter");
@@ -71,6 +72,7 @@ test("병합 축하 효과는 움직임 줄이기 설정에서 꺼진다", async
     await page.keyboard.press("ControlOrMeta+Enter");
     await page.getByRole("dialog").getByLabel("제출 제목").fill("축하 테스트");
     await page.keyboard.press("Enter");
+    await showList(page);
     await page.getByRole("link", { name: /축하 테스트/ }).click();
     await page.getByRole("button", { name: "병합하기" }).click();
     await page.getByRole("dialog").getByRole("button", { name: /병합하기/ }).click();
