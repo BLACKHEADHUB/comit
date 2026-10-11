@@ -55,6 +55,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}
         initialMemberCount={project.members.length}
         inviteUrl={inviteUrl}
+        isLeader={me.role === "LEADER"}
       />
     </main>
   );

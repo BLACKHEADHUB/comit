@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { collectErrors, comit, createProject, expectNoHorizontalScroll, joinProject, openSubmission, setEditorCode, shot } from "./helpers";
+import { collectErrors, comit, createProject, expectNoHorizontalScroll, joinProject, openSubmission, setEditorCode, shot, showList } from "./helpers";
 
 const BASE_CODE = `function greet(name) {
   return "Hello, " + name;
@@ -24,6 +24,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   const inviteUrl = await createProject(leader, "팀장민수", "첫 팀 프로젝트");
   await leader.locator(".monaco-editor").first().waitFor();
   // 혼자일 때: 빈 상태가 초대를 권하고, 그 자리에서 링크를 복사할 수 있다
+  await showList(leader);
   const reviewEmpty = leader.getByRole("complementary");
   await expect(reviewEmpty).toContainText("아직 혼자예요");
   await expect(reviewEmpty.getByRole("button", { name: /초대 링크 복사/ })).toBeVisible();
@@ -41,6 +42,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   // 팀장은 프로젝트 화면으로 돌아와 있다 (아직 혼자)
   await leader.getByRole("link", { name: /프로젝트로 돌아가기/ }).click();
   await leader.locator(".monaco-editor").first().waitFor();
+  await showList(leader);
   await leader.getByRole("tab", { name: /리뷰할 것/ }).click();
   await expect(leader.getByText("아직 혼자예요")).toBeVisible();
 
@@ -83,6 +85,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
 
   // --- 자동 갱신: 팀원 화면은 새로고침 없이(창에 포커스가 돌아오면) 팀장의 새 제출을 "새 활동" 점과 함께 보여준다 ---
   await member.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await showList(member);
   await member.getByRole("tab", { name: /리뷰할 것/ }).click();
   const fresh = member.getByRole("link", { name: /문장 부호 추가/ });
   await expect(fresh).toBeVisible();
@@ -175,6 +178,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   );
   await shot(leader, testInfo, "16-stale-loaded");
   await comit(leader, "문장 부호 추가 (다시)");
+  await showList(leader);
   await leader.getByRole("tab", { name: /내 제안/ }).click();
   await expect(leader.getByRole("link", { name: /문장 부호 추가 \(다시\)/ })).toBeVisible();
   await shot(leader, testInfo, "17-resubmitted");
@@ -183,6 +187,7 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   // --- 팀원 화면: 병합된 뒤의 목록 / 404 ---
   await member.getByRole("link", { name: /프로젝트로 돌아가기/ }).click();
   await member.locator(".monaco-editor").first().waitFor();
+  await showList(member);
   await member.getByRole("tab", { name: /내 제안/ }).click();
   await shot(member, testInfo, "18-member-after-merge");
   // 여기까지 오는 동안 스크립트 오류나 hydration 불일치가 없어야 한다 (아래 404 이동 전까지)
