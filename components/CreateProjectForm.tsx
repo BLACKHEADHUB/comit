@@ -45,7 +45,7 @@ export default function CreateProjectForm() {
     <form action={formAction} className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         내 닉네임
-        <input name="nickname" required maxLength={20} placeholder="예) 지영" aria-describedby="nickname-hint" className={inputClass} />
+        <input name="nickname" required maxLength={20} placeholder="예) 코밋" aria-describedby="nickname-hint" className={inputClass} />
         {/* 회원가입이 없다는 걸 먼저 알려 망설이지 않게 한다 */}
         <span id="nickname-hint" className="text-xs font-normal text-muted">
           팀원에게 보이는 이름이에요. 회원가입은 필요 없어요.
@@ -53,7 +53,7 @@ export default function CreateProjectForm() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         <span>프로젝트 이름 <span className="font-normal text-muted">(선택)</span></span>
-        <input name="title" maxLength={50} placeholder="예) 계산기 만들기" className={inputClass} />
+        <input name="title" maxLength={50} placeholder="예) 코밋 팀 프로젝트" className={inputClass} />
       </label>
       {state.error && <p role="alert" className={noticeError}>{state.error}</p>}
       <button type="submit" disabled={pending} className={btnPrimary}>
