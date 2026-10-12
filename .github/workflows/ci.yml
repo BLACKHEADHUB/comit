@@ -14,6 +14,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # PageProps/LayoutProps는 next가 만들어 주는 타입이라 먼저 생성해야 한다
+      - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build
