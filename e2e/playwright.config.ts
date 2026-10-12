@@ -16,6 +16,10 @@ export default defineConfig({
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
     actionTimeout: 15_000, // 못 찾는 요소를 2분씩 기다리지 않게
+    // 첫 방문에 자동으로 펼쳐지는 용어 설명이 버튼을 가리지 않게, "이미 본 브라우저"로 시작한다
+    storageState: process.env.E2E_BASE_URL
+      ? { cookies: [], origins: [{ origin: new URL(process.env.E2E_BASE_URL).origin, localStorage: [{ name: "comit_terms_seen", value: "1" }] }] }
+      : undefined,
   },
   projects: [
     // 가장 먼저: 실제 서비스가 아니라 메모리 DB/빈 AI 키로 돌고 있는지 확인. 실패하면 나머지는 실행되지 않는다

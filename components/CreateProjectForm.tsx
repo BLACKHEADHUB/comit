@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { createProject } from "@/app/actions/project";
+import { STARTER_TEMPLATES, DEFAULT_TEMPLATE_ID } from "@/lib/templates";
 import { copyText, showForManualCopy } from "@/lib/clipboard";
 import { btnPrimary, btnSecondary, inputClass, noticeError, noticeOk } from "@/lib/ui";
 
@@ -55,6 +56,24 @@ export default function CreateProjectForm() {
         <span>프로젝트 이름 <span className="font-normal text-muted">(선택)</span></span>
         <input name="title" maxLength={50} placeholder="예) 우리 팀 프로젝트" className={inputClass} />
       </label>
+      {/* 빈 에디터 앞에서 막막하지 않게, 바로 고쳐볼 수 있는 예제 코드로 시작할 수 있다 */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-medium">
+          어떤 코드로 시작할까요? <span className="font-normal text-muted">(선택)</span>
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {STARTER_TEMPLATES.map((t) => (
+            <label
+              key={t.id}
+              className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-strong px-3 py-1.5 text-sm text-muted transition hover:bg-surface has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:font-semibold has-[:checked]:text-accent-ink has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent"
+            >
+              <input type="radio" name="template" value={t.id} defaultChecked={t.id === DEFAULT_TEMPLATE_ID} className="sr-only" />
+              {t.label}
+            </label>
+          ))}
+        </div>
+        <span className="text-xs text-muted">고른 예제가 팀의 첫 원본이 돼요. 나중에 에디터에서 자유롭게 고칠 수 있어요.</span>
+      </fieldset>
       {state.error && <p role="alert" className={noticeError}>{state.error}</p>}
       <button type="submit" disabled={pending} className={btnPrimary}>
         {pending ? "만드는 중..." : "프로젝트 만들기"}

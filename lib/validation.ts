@@ -12,6 +12,8 @@ export const createProjectSchema = z.object({
   title: z.string().trim().max(50, "이름은 50자 이하로 입력해주세요."),
   description: z.string().trim().max(200, "설명은 200자 이하로 입력해주세요."),
   nickname: nicknameSchema,
+  // 시작 코드 템플릿 id (없거나 모르는 값이면 서버에서 빈 코드로 처리)
+  template: z.string().max(20).optional(),
 });
 
 export const joinProjectSchema = z.object({

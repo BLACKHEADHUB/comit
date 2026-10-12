@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
+import RetryAiButton from "@/components/RetryAiButton";
 import MergePanel from "@/components/MergePanel";
 import { ReviewProvider } from "@/components/ReviewProvider";
 import SubmissionDiff from "@/components/SubmissionDiff";
@@ -94,6 +95,7 @@ export default async function SubmissionPage({
                     괜찮아요, 제출은 잘 저장됐어요. 아래 &lsquo;코드 변경&rsquo;에서 바뀐 줄을 직접 읽어보고, 궁금한 줄은 줄 옆의{" "}
                     <strong className="text-foreground">+</strong> 를 눌러 AI에게 따로 물어볼 수 있어요.
                   </p>
+                  <RetryAiButton projectId={id} submissionId={sid} />
                 </div>
               </div>
             ) : summary.length > 0 ? (
