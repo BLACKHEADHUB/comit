@@ -8,7 +8,7 @@ import { findMember } from "@/lib/auth";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
-import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
 // [Comit하기]: 현재 mainCode를 beforeCode로 고정해 Submission을 만든다
 export async function createSubmission(
@@ -21,56 +21,69 @@ export async function createSubmission(
   const parsed = createSubmissionSchema.safeParse({ title, afterCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  // 이 프로젝트의 멤버만 제출할 수 있다 (멀티테넌시 격리)
-  const member = await findMember(projectId);
-  if (!member) return { error: NOT_MEMBER_MESSAGE };
-  const { project, me } = member;
+  // 어느 단계에서 실패했는지 알 수 있도록 단계를 기록한다 (운영 중 "문제가 생겼어요"의 원인을 찾기 위해)
+  let stage = "시작";
+  try {
+    // 이 프로젝트의 멤버만 제출할 수 있다 (멀티테넌시 격리)
+    stage = "멤버 확인";
+    const member = await findMember(projectId);
+    if (!member) return { error: NOT_MEMBER_MESSAGE };
+    const { project, me } = member;
 
-  if (parsed.data.afterCode === project.mainCode) {
-    return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
-  }
-
-  // beforeCode는 클라이언트 값이 아니라 서버가 조회한 최신 mainCode, 작성자도 DB의 닉네임을 쓴다
-  const submission = await Submission.create({
-    projectId: project._id,
-    author: me.nickname,
-    title: parsed.data.title,
-    beforeCode: project.mainCode,
-    afterCode: parsed.data.afterCode,
-    status: "PENDING",
-  });
-
-  // 제출은 이미 저장됐으므로, AI가 실패해도(fallback 반환) 흐름은 계속된다
-  let notice: string | undefined;
-  const cacheKey = cacheKeyForDiff(buildDiff(project.mainCode, parsed.data.afterCode));
-  let aiReport = await getCachedReport(cacheKey); // 같은 diff는 24시간 동안 캐시 결과를 재사용
-  if (!aiReport) {
-    if (await allowAiCall(String(project._id), me.nickname)) {
-      aiReport = await analyzeSubmission(project.mainCode, parsed.data.afterCode);
-      // 성공한 결과만 캐싱한다. 실패(fallback)를 캐싱하면 같은 코드가 계속 분석 없이 저장되기 때문
-      if (aiReport !== FALLBACK_REPORT) await setCachedReport(cacheKey, aiReport);
-    } else {
-      aiReport = RATE_LIMITED_REPORT; // 한도 초과: 제출은 만들되 AI 분석은 생략
-      notice = RATE_LIMIT_MESSAGE;
+    if (parsed.data.afterCode === project.mainCode) {
+      return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
     }
-  }
-  await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
 
-  return {
-    notice,
-    submission: {
-      id: String(submission._id),
-      title: submission.title,
-      author: submission.author,
-      status: submission.status,
-      createdAt: submission.createdAt.toISOString(),
-      // 방금 만든 제출이라 댓글은 아직 없다
-      commentCount: 0,
-      bugCount: 0,
-      hasWarning: Boolean(aiReport.warning),
-      totalComments: 0,
-    },
-  };
+    stage = "제출 저장";
+    // beforeCode는 클라이언트 값이 아니라 서버가 조회한 최신 mainCode, 작성자도 DB의 닉네임을 쓴다
+    const submission = await Submission.create({
+      projectId: project._id,
+      author: me.nickname,
+      title: parsed.data.title,
+      beforeCode: project.mainCode,
+      afterCode: parsed.data.afterCode,
+      status: "PENDING",
+    });
+
+    // 제출은 이미 저장됐으므로, AI가 실패해도(fallback 반환) 흐름은 계속된다
+    stage = "AI 분석";
+    let notice: string | undefined;
+    const cacheKey = cacheKeyForDiff(buildDiff(project.mainCode, parsed.data.afterCode));
+    let aiReport = await getCachedReport(cacheKey); // 같은 diff는 24시간 동안 캐시 결과를 재사용
+    if (!aiReport) {
+      if (await allowAiCall(String(project._id), me.nickname)) {
+        aiReport = await analyzeSubmission(project.mainCode, parsed.data.afterCode);
+        // 성공한 결과만 캐싱한다. 실패(fallback)를 캐싱하면 같은 코드가 계속 분석 없이 저장되기 때문
+        if (aiReport !== FALLBACK_REPORT) await setCachedReport(cacheKey, aiReport);
+      } else {
+        aiReport = RATE_LIMITED_REPORT; // 한도 초과: 제출은 만들되 AI 분석은 생략
+        notice = RATE_LIMIT_MESSAGE;
+      }
+    }
+    stage = "분석 결과 저장";
+    await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
+
+    return {
+      notice,
+      submission: {
+        id: String(submission._id),
+        title: submission.title,
+        author: submission.author,
+        status: submission.status,
+        createdAt: submission.createdAt.toISOString(),
+        // 방금 만든 제출이라 댓글은 아직 없다
+        commentCount: 0,
+        bugCount: 0,
+        hasWarning: Boolean(aiReport.warning),
+        totalComments: 0,
+      },
+    };
+  } catch (error) {
+    // 비밀값이 섞일 수 있는 상세 메시지는 서버 로그에만, 화면에는 단계와 오류 종류만 보여준다
+    const name = error instanceof Error ? error.name : "UnknownError";
+    console.error(`[제출] "${stage}" 단계 실패:`, error instanceof Error ? `${name}: ${error.message}`.slice(0, 300) : "unknown");
+    return { error: `${RETRY_MESSAGE} (오류 코드: ${stage} / ${name})` };
+  }
 }
 
 // 병합: 제출 당시 mainCode(beforeCode)가 그대로일 때만 mainCode를 덮어쓴다 (조건부 원자적 업데이트)
