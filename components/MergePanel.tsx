@@ -103,6 +103,9 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
       </div>
       {status === "STALE" && (
         <>
+          <p className="text-xs leading-relaxed text-muted sm:text-right">
+            내 수정은 사라지지 않았어요. 다른 변경이 먼저 병합돼서, 최신 원본 위에 다시 얹어야 해요.
+          </p>
           {/* 추천: 최신 원본을 바탕으로 내 변경만 다시 얹는다 (먼저 병합된 변경을 지우지 않는다) */}
           <RebaseHelper projectId={projectId} beforeCode={beforeCode} afterCode={afterCode} latestMainCode={latestMainCode} />
           <button type="button" onClick={loadIntoEditor} className={`${btnSecondary} !text-xs`}>

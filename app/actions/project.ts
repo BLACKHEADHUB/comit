@@ -6,6 +6,7 @@ import { connectDB } from "@/lib/db";
 import { buildInviteUrl } from "@/lib/invite";
 import { RETRY_MESSAGE } from "@/lib/ui";
 import { setMemberCookie } from "@/lib/session";
+import { starterCode } from "@/lib/templates";
 import { createProjectSchema, joinProjectSchema, type FormState } from "@/lib/validation";
 import { Project } from "@/models/Project";
 
@@ -15,6 +16,7 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
     title: formData.get("title"),
     description: formData.get("description") ?? "",
     nickname: formData.get("nickname"),
+    template: formData.get("template") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
@@ -30,6 +32,7 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
     title: parsed.data.title || `${parsed.data.nickname}의 프로젝트`,
     description: parsed.data.description,
     members: [{ nickname: parsed.data.nickname, role: "LEADER" }],
+    mainCode: starterCode(parsed.data.template), // 고른 시작 코드가 첫 원본이 된다
     inviteToken,
   });
 

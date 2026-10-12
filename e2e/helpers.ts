@@ -17,6 +17,7 @@ export async function createProject(page: Page, nickname: string, title: string)
   await page.goto("/project/create");
   await page.locator('input[name="nickname"]').fill(nickname);
   await page.locator('input[name="title"]').fill(title);
+  await page.getByText("빈 코드", { exact: true }).click(); // 테스트는 빈 원본에서 시작한다
   await page.getByRole("button", { name: "프로젝트 만들기" }).click();
   const inviteUrl = (await page.locator("code").innerText()).trim();
   await page.getByRole("link", { name: /프로젝트로 이동/ }).click();

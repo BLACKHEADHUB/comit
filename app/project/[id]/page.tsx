@@ -48,7 +48,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           <MemberAvatars members={orderMembers(project.members, me.nickname)} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
-          <TermsHelp />
+          <TermsHelp openFirstVisit />
         </div>
       </header>
       <ProjectWorkspace

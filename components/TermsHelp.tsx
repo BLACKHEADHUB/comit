@@ -1,3 +1,9 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
+const SEEN_KEY = "comit_terms_seen";
+
 // 화면에 나오는 낯선 말을 한곳에서 풀어 주는 작은 용어 사전.
 // <details>라 JS 없이 열리고 키보드(Enter/Space)로도 동작한다 (MemberAvatars와 같은 방식)
 const TERMS = [
@@ -5,12 +11,26 @@ const TERMS = [
   { term: "Comit하기", desc: "내가 고친 코드를 팀원에게 \"이렇게 바꾸면 어때요?\" 하고 보내는 거예요. 보내도 원본은 아직 그대로예요." },
   { term: "리뷰", desc: "바뀐 줄에 👍 좋아요 / ❓ 질문 / 🐞 버그 댓글을 남기는 거예요. 칭찬 한마디도 좋은 리뷰예요." },
   { term: "병합", desc: "팀장이 Comit된 코드를 원본에 반영하는 거예요. 병합되면 그 코드가 새 원본이 돼요." },
-  { term: "다시 제출 필요", desc: "내 Comit보다 다른 변경이 먼저 병합된 상태예요. 최신 원본을 바탕으로 다시 Comit하면 돼요." },
+  { term: "다시 제출 필요", desc: "내 Comit보다 다른 변경이 먼저 병합된 상태예요. 내 수정은 사라지지 않아요. 최신 원본 위에 다시 얹어서 Comit하면 돼요." },
 ];
 
-export default function TermsHelp({ align = "right" }: { align?: "left" | "right" }) {
+export default function TermsHelp({ align = "right", openFirstVisit = false }: { align?: "left" | "right"; openFirstVisit?: boolean }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+
+  // 처음 온 브라우저에서는 한 번만 펼쳐서 보여준다 (이후엔 [용어 설명]을 눌러야 열린다)
+  useEffect(() => {
+    if (!openFirstVisit) return;
+    try {
+      if (localStorage.getItem(SEEN_KEY)) return;
+      localStorage.setItem(SEEN_KEY, "1");
+    } catch {
+      return; // 저장소를 못 쓰면 펼치지 않는다 (매번 뜨는 것보다 낫다)
+    }
+    if (ref.current) ref.current.open = true;
+  }, [openFirstVisit]);
+
   return (
-    <details className="relative">
+    <details ref={ref} className="relative">
       <summary
         aria-label="용어 설명 보기"
         className="flex cursor-pointer list-none items-center gap-1 rounded-full px-2 py-1 text-xs text-muted transition hover:bg-surface hover:text-foreground [&::-webkit-details-marker]:hidden"
