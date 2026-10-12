@@ -23,6 +23,8 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "Comit (코밋)",
   description: "터미널 없이 웹에서 하는 초보자용 코드 협업 샌드박스",
+  // 프로젝트/초대 페이지는 비공개 링크라 검색에 노출하지 않는다
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

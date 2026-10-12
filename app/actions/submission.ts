@@ -112,6 +112,15 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
       // 이미 다른 요청이 처리한 제출 → 방금 한 mainCode 변경도 취소(롤백)
       throw new AlreadyHandledError();
     }
+    // 병합이 성공하면 원본이 바뀌었으니, 옛 원본 기준의 다른 대기 제출도 바로 "다시 제출 필요"로 바꾼다
+    // (안 그러면 목록에 PENDING으로 남아 있다가 병합 버튼을 눌러야만 STALE이 된다)
+    if (merged) {
+      await Submission.updateMany(
+        { projectId: project._id, status: "PENDING", beforeCode: { $ne: submission.afterCode } },
+        { status: "STALE" },
+        { session }
+      );
+    }
     return merged ? ("MERGED" as const) : ("STALE" as const);
   }).catch(async (error) => {
     if (!(error instanceof AlreadyHandledError)) throw error;
