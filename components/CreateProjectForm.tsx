@@ -53,7 +53,7 @@ export default function CreateProjectForm() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         <span>프로젝트 이름 <span className="font-normal text-muted">(선택)</span></span>
-        <input name="title" maxLength={50} placeholder="예) 코밋 팀 프로젝트" className={inputClass} />
+        <input name="title" maxLength={50} placeholder="예) 우리 팀 프로젝트" className={inputClass} />
       </label>
       {state.error && <p role="alert" className={noticeError}>{state.error}</p>}
       <button type="submit" disabled={pending} className={btnPrimary}>
