@@ -24,13 +24,14 @@ const DiffViewer = dynamic(() => import("react-diff-viewer-continued"), {
 });
 
 type Props = {
+  aiPanel?: React.ReactNode; // 서버에서 만든 AI 분석 카드 (넓은 화면에서는 댓글 위, 오른쪽 열에 놓는다)
   projectId: string;
   submissionId: string;
   beforeCode: string;
   afterCode: string;
 };
 
-export default function SubmissionDiff({ projectId, submissionId, beforeCode, afterCode }: Props) {
+export default function SubmissionDiff({ aiPanel, projectId, submissionId, beforeCode, afterCode }: Props) {
   const { comments, addComment, newIds, markSeen } = useReview();
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [tag, setTag] = useState<CommentTag>("LIKE");
@@ -121,8 +122,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
         <span className="text-xs text-muted">변경 후 줄 옆의 + 를 누르면 댓글을 달 수 있어요. 💬 표시는 댓글이 달린 줄이에요.</span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className={`${card} comit-diff ${narrow ? "" : "comit-diff-split"} min-w-0 self-start overflow-x-auto text-xs`}>
+      {/* 넓은 화면: 코드는 왼쪽에 크게, AI 분석과 댓글은 오른쪽 열. 좁은 화면: AI 분석 → 코드 → 댓글 순서 (order) */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className={`${card} comit-diff ${narrow ? "" : "comit-diff-split"} order-2 min-w-0 self-start overflow-x-auto text-sm lg:col-start-1 lg:row-start-1`}>
           <DiffViewer
             // 이 라이브러리는 alwaysShowLines가 바뀌어도 Diff를 다시 계산하지 않아 표가 통째로 비어 버린다.
             // 댓글이 달린 줄 목록이 바뀔 때마다 key를 바꿔 새로 그리게 한다
@@ -189,6 +191,9 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
               );
             }}
             styles={{
+              // 코드 글자는 작성 화면의 에디터(14px)와 비슷한 크기로 키운다
+              contentText: { fontSize: "14px", lineHeight: "24px" },
+              lineNumber: { fontSize: "13px" },
               variables: {
                 light: { highlightBackground: "#e0e7ff", highlightGutterBackground: "#c7d2fe" },
                 dark: { highlightBackground: "#312e81", highlightGutterBackground: "#3730a3" },
@@ -205,7 +210,10 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
           />
         </div>
 
-        <aside className="flex flex-col gap-4 text-sm lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
+        {/* 좁은 화면에서는 contents로 풀어서 자식들이 위 grid의 order를 따르고, 넓은 화면에서는 따라다니는 오른쪽 열이 된다 */}
+        <div className="contents lg:col-start-2 lg:row-start-1 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col lg:gap-4 lg:self-start lg:overflow-y-auto lg:sticky lg:top-4">
+        {aiPanel && <div className="order-1">{aiPanel}</div>}
+        <aside className="order-3 flex flex-col gap-4 text-sm">
           {activeLine !== null && (
             <form ref={formRef} onSubmit={handleSubmit} className={`${card} flex animate-pop-in flex-col gap-3 p-4`}>
               <p className="font-semibold">{activeLine}번 줄에 댓글</p>
@@ -282,6 +290,7 @@ export default function SubmissionDiff({ projectId, submissionId, beforeCode, af
             </div>
           ))}
         </aside>
+        </div>
       </div>
     </section>
   );

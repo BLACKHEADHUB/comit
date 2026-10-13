@@ -85,8 +85,11 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
     router.push(`/project/${projectId}`);
   }
 
+  // 병합 안내 문구는 한 줄로 보여준다 (그래서 이때만 폭 제한을 푼다)
+  const hintOnOneLine = canMerge && status === "PENDING" && !message;
+
   return (
-    <div className="flex max-w-sm flex-col items-start gap-2 sm:items-end">
+    <div className={`flex flex-col items-start gap-2 sm:items-end ${hintOnOneLine ? "" : "max-w-sm"}`}>
       <div className="flex items-center gap-3">
         {/* 목록 카드와 같은 모양: 아이콘 + 글자 (색만으로 구분하지 않는다) */}
         <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_META[status].style} !px-3 !py-1`}>
@@ -113,8 +116,8 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
           </button>
         </>
       )}
-      {canMerge && status === "PENDING" && !message && (
-        <p className="text-xs leading-relaxed text-muted sm:text-right">
+      {hintOnOneLine && (
+        <p className="text-xs leading-relaxed text-muted sm:whitespace-nowrap sm:text-right">
           병합하면 이 코드가 팀 모두의 새 원본이 돼요. 리뷰를 충분히 확인한 뒤 눌러주세요.
         </p>
       )}
