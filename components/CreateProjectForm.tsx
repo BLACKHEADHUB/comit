@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { createProject } from "@/app/actions/project";
+import RecoveryCodeCard from "@/components/RecoveryCodeCard";
 import { copyText, showForManualCopy } from "@/lib/clipboard";
 import { btnPrimary, btnSecondary, inputClass, noticeError, noticeOk } from "@/lib/ui";
 
@@ -33,6 +34,7 @@ export default function CreateProjectForm() {
         >
           {copied ? "✓ 복사됨" : "링크 복사"}
         </button>
+        {state.recoveryCode && <RecoveryCodeCard code={state.recoveryCode} />}
         <Link href={`/project/${state.projectId}`} className={btnPrimary}>
           프로젝트로 이동 →
         </Link>

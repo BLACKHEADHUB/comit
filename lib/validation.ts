@@ -20,8 +20,8 @@ export const joinProjectSchema = z.object({
   nickname: nicknameSchema,
 });
 
-// 생성 성공 시에는 이동할 projectId와 초대 링크를 함께 돌려준다
-export type FormState = { error?: string; projectId?: string; inviteUrl?: string };
+// 생성/합류 성공 시에는 이동할 projectId와 초대 링크, 내 복구 코드를 함께 돌려준다
+export type FormState = { error?: string; projectId?: string; inviteUrl?: string; recoveryCode?: string };
 
 // 제출 입력 검증: 제목/코드 길이 제한 (코드는 실행하지 않고 텍스트로만 저장)
 export const createSubmissionSchema = z.object({

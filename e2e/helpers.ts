@@ -18,7 +18,7 @@ export async function createProject(page: Page, nickname: string, title: string)
   await page.locator('input[name="nickname"]').fill(nickname);
   await page.locator('input[name="title"]').fill(title);
   await page.getByRole("button", { name: "프로젝트 만들기" }).click();
-  const inviteUrl = (await page.locator("code").innerText()).trim();
+  const inviteUrl = (await page.locator("code").first().innerText()).trim();
   await page.getByRole("link", { name: /프로젝트로 이동/ }).click();
   await page.waitForURL(/\/project\/[0-9a-f]{24}$/);
   return inviteUrl;

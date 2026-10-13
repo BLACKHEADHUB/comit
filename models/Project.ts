@@ -5,6 +5,8 @@ const memberSchema = new Schema(
   {
     nickname: { type: String, required: true, trim: true, maxlength: 20 },
     role: { type: String, enum: ["LEADER", "MEMBER"], required: true },
+    // 복구 코드의 해시 (원문은 저장하지 않는다). 예전 멤버는 없을 수 있다
+    recoveryHash: { type: String },
   },
   { _id: true }
 );
@@ -18,6 +20,9 @@ const projectSchema = new Schema({
   inviteToken: { type: String, required: true, unique: true },
   createdAt: { type: Date, default: Date.now },
 });
+
+// 복구 코드로 멤버를 찾는 조회용 (값이 없는 멤버는 인덱스에서 뺀다)
+projectSchema.index({ "members.recoveryHash": 1 }, { sparse: true });
 
 export type ProjectDoc = InferSchemaType<typeof projectSchema>;
 
