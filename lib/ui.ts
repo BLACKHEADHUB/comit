@@ -12,8 +12,9 @@ export const inputClass =
 
 export const card = "rounded-2xl border border-line bg-background shadow-soft";
 
+// 배경 흐림(backdrop-blur)은 쓰지 않는다: Safari에서 모달 안의 글자가 바뀔 때 옛 글자가 남는 화면 깨짐이 생긴다
 export const modalOverlay =
-  "fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/50 p-4 backdrop-blur-sm";
+  "fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60 p-4";
 export const modalCard = "w-full max-w-sm animate-pop-in rounded-3xl border border-line bg-background p-6 shadow-xl";
 
 // 상태/태그 배지 (작은 알약 모양)
