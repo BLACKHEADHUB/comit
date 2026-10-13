@@ -40,16 +40,32 @@ export default function TermsHelp({ align = "right", openFirstVisit = false }: {
         </span>
         용어 설명
       </summary>
-      <dl
-        className={`absolute ${align === "right" ? "right-0" : "left-0"} z-20 mt-1 w-72 max-w-[calc(100vw-2rem)] space-y-2.5 rounded-2xl border border-line bg-background p-3.5 text-left text-xs text-foreground shadow-xl`}
+      <div
+        className={`absolute ${align === "right" ? "right-0" : "left-0"} z-20 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-line bg-background p-3.5 text-left text-xs text-foreground shadow-xl`}
       >
-        {TERMS.map((t) => (
-          <div key={t.term}>
-            <dt className="font-semibold">{t.term}</dt>
-            <dd className="mt-0.5 leading-relaxed text-muted">{t.desc}</dd>
-          </div>
-        ))}
-      </dl>
+        <div className="mb-2.5 flex items-center justify-between">
+          <span className="text-sm font-semibold">용어 설명</span>
+          {/* 창을 닫는 버튼 (summary를 다시 눌러도 닫히지만, 눈에 보이는 닫기 버튼이 있으면 더 쉽다) */}
+          <button
+            type="button"
+            aria-label="용어 설명 닫기"
+            onClick={() => {
+              if (ref.current) ref.current.open = false;
+            }}
+            className="flex size-6 items-center justify-center rounded-full text-muted transition hover:bg-surface hover:text-foreground"
+          >
+            <span aria-hidden>✕</span>
+          </button>
+        </div>
+        <dl className="space-y-2.5">
+          {TERMS.map((t) => (
+            <div key={t.term}>
+              <dt className="font-semibold">{t.term}</dt>
+              <dd className="mt-0.5 leading-relaxed text-muted">{t.desc}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
     </details>
   );
 }

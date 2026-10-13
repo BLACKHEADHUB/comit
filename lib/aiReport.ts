@@ -10,3 +10,6 @@ export function aiUnavailableReason(summary: readonly string[]): string | null {
   if (summary.includes(AI_SKIPPED_LINE)) return AI_SKIPPED_LINE;
   return null;
 }
+
+// AI 분석을 못 했을 때 저장하는 3줄 요약 (AI 모듈 자체를 못 불러온 경우에도 쓸 수 있게 가벼운 이 파일에 둔다)
+export const FALLBACK_SUMMARY = ["코드가 수정되었어요.", AI_FAILED_LINE, CHECK_CHANGES_LINE];
