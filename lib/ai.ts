@@ -2,7 +2,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import { createPatch } from "diff";
 import { z } from "zod";
-import { AI_FAILED_LINE, AI_SKIPPED_LINE, CHECK_CHANGES_LINE } from "@/lib/aiReport";
+import { AI_SKIPPED_LINE, CHECK_CHANGES_LINE, FALLBACK_SUMMARY } from "@/lib/aiReport";
 
 export type AIReport = { summary: string[]; warning: string; concept: string };
 
@@ -18,7 +18,7 @@ export const aiReportSchema = z.object({
 
 // AI가 실패해도 제출 흐름은 계속 진행되도록 하는 기본 리포트
 export const FALLBACK_REPORT: AIReport = {
-  summary: ["코드가 수정되었어요.", AI_FAILED_LINE, CHECK_CHANGES_LINE],
+  summary: [...FALLBACK_SUMMARY],
   warning: "",
   concept: "",
 };

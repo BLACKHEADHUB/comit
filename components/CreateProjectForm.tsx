@@ -72,7 +72,7 @@ export default function CreateProjectForm() {
             </label>
           ))}
         </div>
-        <span className="text-xs text-muted">고른 예제가 팀의 첫 원본이 돼요. 나중에 에디터에서 자유롭게 고칠 수 있어요.</span>
+        <span className="text-xs text-muted">예제를 고르면 그 코드가 팀의 첫 원본이 돼요. 나중에 에디터에서 자유롭게 고칠 수 있어요.</span>
       </fieldset>
       {state.error && <p role="alert" className={noticeError}>{state.error}</p>}
       <button type="submit" disabled={pending} className={btnPrimary}>

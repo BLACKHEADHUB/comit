@@ -3,6 +3,7 @@
 export type StarterTemplate = { id: string; label: string; code: string };
 
 export const STARTER_TEMPLATES: StarterTemplate[] = [
+  { id: "empty", label: "빈 코드", code: "" },
   {
     id: "python",
     label: "Python",
@@ -38,10 +39,10 @@ console.log(greet("코밋"));
 </html>
 `,
   },
-  { id: "empty", label: "빈 코드", code: "" },
 ];
 
-export const DEFAULT_TEMPLATE_ID = "python";
+// 처음엔 빈 에디터로 시작하고, 예제가 필요하면 직접 고른다
+export const DEFAULT_TEMPLATE_ID = "empty";
 
 // 알 수 없는 id(조작된 값 포함)는 빈 코드로 취급한다
 export function starterCode(id: string | null | undefined): string {
