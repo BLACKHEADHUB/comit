@@ -25,12 +25,14 @@ export const metadata: Metadata = {
   description: "터미널 없이 웹에서 하는 초보자용 코드 협업 샌드박스",
   // 프로젝트/초대 페이지는 비공개 링크라 검색에 노출하지 않는다
   robots: { index: false, follow: false },
+  other: { google: "notranslate" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
+      translate="no" // 브라우저 자동 번역이 화면 글자를 겹쳐 보이게 하는 것을 막는다
       className={`${geistSans.variable} ${geistMono.variable} ${notoSansKr.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
