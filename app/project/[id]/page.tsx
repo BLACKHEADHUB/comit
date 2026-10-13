@@ -2,6 +2,8 @@ import { isValidObjectId } from "mongoose";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
+import { getNewCodeCookie } from "@/lib/session";
+import RecoveryNotice from "@/components/RecoveryNotice";
 import { buildInviteUrl } from "@/lib/invite";
 import InviteLink from "@/components/InviteLink";
 import MemberAvatars from "@/components/MemberAvatars";
@@ -29,6 +31,9 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   let inviteUrl: string | null = null;
   if (me.role === "LEADER") inviteUrl = await buildInviteUrl(project.inviteToken);
 
+  // 방금 합류했다면 복구 코드를 한 번 보여준다
+  const newRecoveryCode = await getNewCodeCookie(id);
+
   // 항상 projectId로 필터링하고, 목록에는 코드 본문을 싣지 않는다 (댓글 수 등 배지용 집계도 같은 쿼리에서 계산)
   const submissions = await listSubmissions(project._id);
 
@@ -45,12 +50,13 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
             {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
-          <MemberAvatars members={orderMembers(project.members, me.nickname)} />
+          <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} isLeader={me.role === "LEADER"} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
           <TermsHelp openFirstVisit />
         </div>
       </header>
+      {newRecoveryCode && <RecoveryNotice projectId={id} code={newRecoveryCode} />}
       <ProjectWorkspace
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}
         initialMemberCount={project.members.length}

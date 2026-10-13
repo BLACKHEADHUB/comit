@@ -21,3 +21,27 @@ export async function getMemberId(projectId: string): Promise<string | undefined
   const store = await cookies();
   return store.get(cookieName(projectId))?.value;
 }
+
+// 합류한 직후에만 한 번 보여줄 복구 코드 (원문은 DB에 없으므로 잠깐 쿠키에 둔다. 확인하면 지운다)
+const codeCookieName = (projectId: string) => `comit_new_code_${projectId}`;
+
+export async function setNewCodeCookie(projectId: string, code: string) {
+  const store = await cookies();
+  store.set(codeCookieName(projectId), code, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 10, // 10분 안에 확인하지 않으면 사라진다 (그 뒤에는 멤버 메뉴에서 새로 받는다)
+  });
+}
+
+export async function getNewCodeCookie(projectId: string): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get(codeCookieName(projectId))?.value;
+}
+
+export async function clearNewCodeCookie(projectId: string) {
+  const store = await cookies();
+  store.delete(codeCookieName(projectId));
+}

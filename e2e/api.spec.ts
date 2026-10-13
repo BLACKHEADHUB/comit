@@ -75,7 +75,7 @@ test("초대 링크 복사는 클립보드가 막혀 있어도 대체 수단을 
   await page.goto("/project/create");
   await page.locator('input[name="nickname"]').fill("복사");
   await page.getByRole("button", { name: "프로젝트 만들기" }).click();
-  const inviteUrl = (await page.locator("code").innerText()).trim();
+  const inviteUrl = (await page.locator("code").first().innerText()).trim();
 
   // 생성 완료 화면의 [링크 복사]
   await page.getByRole("button", { name: "링크 복사" }).click();

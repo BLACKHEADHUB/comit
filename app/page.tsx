@@ -1,3 +1,4 @@
+import EnterForm from "@/components/EnterForm";
 import LandingModal from "@/components/LandingModal";
 import Mascot from "@/components/Mascot";
 import { card } from "@/lib/ui";
@@ -69,10 +70,7 @@ export default function Home() {
           </p>
           <div className="mt-1 flex flex-col items-center gap-3">
             <LandingModal />
-            <p className="text-xs text-muted">
-              초대 링크를 받았다면, 링크를 열고 닉네임만 정하면 바로 함께할 수
-              있어요.
-            </p>
+            <EnterForm />
           </div>
         </section>
 
