@@ -15,7 +15,6 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await leader.goto("/");
   await shot(leader, testInfo, "01-landing");
   await expectNoHorizontalScroll(leader);
-  await leader.getByText("빈 코드", { exact: true }).click(); // 테스트는 빈 원본에서 시작한다
   await leader.getByRole("button", { name: "프로젝트 만들기" }).click();
   await shot(leader, testInfo, "02-landing-modal");
   await leader.getByRole("link", { name: "시작하기" }).click();

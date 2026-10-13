@@ -7,7 +7,19 @@ import { aiReportSchema, type AIReport } from "@/lib/ai";
 // UPSTASH 환경변수가 비어 있으면 redis는 null → 캐시와 제한을 건너뛰고 앱은 정상 동작한다
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-const redis = url && token ? new Redis({ url, token }) : null;
+
+// 주소 형식이 잘못되면(예: https://가 빠짐) Redis 생성이 UrlError를 던져 이 모듈을 못 불러온다.
+// 그래도 앱이 멈추지 않게 에러는 로그만 남기고 Redis 없이 계속 진행한다
+function createRedis(): Redis | null {
+  if (!url || !token) return null;
+  try {
+    return new Redis({ url, token });
+  } catch (error) {
+    console.error("[Redis] 연결 설정 실패 — UPSTASH_REDIS_REST_URL 값을 확인하세요:", error instanceof Error ? error.name : "unknown");
+    return null;
+  }
+}
+const redis = createRedis();
 
 // 프로젝트+작성자 기준 분당 5회 (sliding window)
 const aiRateLimit = redis
