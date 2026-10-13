@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterSubmissions, inTab, TAB_FILTERS, type TaskTab } from "@/lib/tasks";
+import { countByFilter, filterSubmissions, inTab, TAB_FILTERS, type TaskTab } from "@/lib/tasks";
 import type { SubmissionStatus } from "@/lib/validation";
 
 const s = (author: string, status: SubmissionStatus) => ({ author, status });
@@ -52,5 +52,15 @@ describe("filterSubmissions", () => {
 
   it("빈 목록이면 빈 결과", () => {
     expect(filterSubmissions([], "REVIEW", "민수", "PENDING")).toEqual([]);
+  });
+});
+
+describe("countByFilter", () => {
+  const list = [s("민수", "PENDING"), s("지수", "PENDING"), s("민수", "MERGED"), s("지수", "STALE"), s("민수", "STALE")];
+
+  it("탭 안에서 상태별 개수를 센다", () => {
+    expect(countByFilter(list, "MINE", "민수")).toEqual({ ALL: 3, PENDING: 1, MERGED: 1, STALE: 1 });
+    expect(countByFilter(list, "HISTORY", "민수")).toEqual({ ALL: 3, PENDING: 0, MERGED: 1, STALE: 2 });
+    expect(countByFilter(list, "REVIEW", "민수")).toEqual({ ALL: 1, PENDING: 1, MERGED: 0, STALE: 0 });
   });
 });
