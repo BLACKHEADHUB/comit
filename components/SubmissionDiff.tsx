@@ -191,9 +191,9 @@ export default function SubmissionDiff({ aiPanel, projectId, submissionId, befor
               );
             }}
             styles={{
-              // 코드 글자는 작성 화면의 에디터(14px)와 비슷한 크기로 키운다
-              contentText: { fontSize: "14px", lineHeight: "24px" },
-              lineNumber: { fontSize: "13px" },
+              // 코드 글자는 작성 화면의 에디터(16px)와 같은 크기로 맞춘다
+              contentText: { fontSize: "16px", lineHeight: "26px" },
+              lineNumber: { fontSize: "14px" },
               variables: {
                 light: { highlightBackground: "#e0e7ff", highlightGutterBackground: "#c7d2fe" },
                 dark: { highlightBackground: "#312e81", highlightGutterBackground: "#3730a3" },

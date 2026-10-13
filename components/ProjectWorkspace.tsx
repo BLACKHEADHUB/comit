@@ -305,8 +305,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           <span className="ml-auto text-xs text-muted">{listOpen ? "▴ 접기" : "▾ 펼치기"}</span>
         </button>
         <div id="submission-list" className={`${listOpen ? "flex" : "hidden"} min-h-0 flex-1 flex-col border-t border-line md:flex md:border-t-0`}>
-        {/* 탭은 글자 길이만큼만 차지한다 (똑같이 3등분하면 긴 라벨이 두 줄로 잘린다) */}
-        <div role="tablist" aria-label="제출 목록 보기" className="flex justify-between gap-0.5 overflow-x-auto border-b border-line p-2">
+        {/* 탭은 글자 길이만큼만 차지한다 (똑같이 3등분하면 긴 라벨이 두 줄로 잘린다). 좁으면 스크롤 대신 줄바꿈한다 */}
+        <div role="tablist" aria-label="제출 목록 보기" className="flex flex-wrap justify-between gap-0.5 border-b border-line p-2">
           {TABS.map((t) => {
             const inThisTab = submissions.filter((s) => inTab(s, t.tab, myNickname));
             const count = inThisTab.length;
@@ -320,7 +320,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 aria-selected={active}
                 onClick={() => selectTab(t.tab)}
                 title={t.hint} // 마우스를 올리면 설명이 보인다
-                className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 py-1.5 text-[13px] leading-tight transition ${
+                className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-1.5 py-1.5 text-[13px] leading-tight transition ${
                   active ? "bg-background font-medium shadow-sm ring-1 ring-line" : "text-muted hover:text-foreground"
                 }`}
               >
@@ -544,7 +544,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               // 에디터 안에서는 Tab이 들여쓰기라 키보드로 빠져나오기 어렵다 → Ctrl/⌘+Enter로 바로 Comit 창을 연다
               mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => openComitRef.current());
             }}
-            options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 12 }, scrollBeyondLastLine: false }}
+            options={{ minimap: { enabled: false }, fontSize: 16, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-3">

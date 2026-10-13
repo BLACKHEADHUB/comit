@@ -47,7 +47,7 @@ export default function ChangePreview({
         tabIndex={0}
         role="region"
         aria-label="원본과 달라진 부분 미리보기"
-        className="max-h-64 overflow-auto rounded-lg border border-line text-xs"
+        className="max-h-80 overflow-auto rounded-lg border border-line text-xs"
       >
         <DiffViewer
           oldValue={before}
@@ -57,6 +57,8 @@ export default function ChangePreview({
           extraLinesSurroundingDiff={1}
           hideSummary
           useDarkTheme={dark}
+          // 코드 글자는 에디터와 같은 16px로 (작으면 무엇이 바뀌었는지 읽기 어렵다)
+          styles={{ contentText: { fontSize: "16px", lineHeight: "26px" }, lineNumber: { fontSize: "14px" } }}
           codeFoldMessageRenderer={(total) => <span className="text-xs">변경 없는 {total}줄 펼치기</span>}
         />
       </div>
