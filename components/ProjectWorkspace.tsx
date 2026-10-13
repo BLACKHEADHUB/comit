@@ -641,7 +641,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               {/* 원본과 같으면 보낼 것이 없으므로 제출을 막는다 (서버에서도 다시 확인한다) */}
               <button type="submit" disabled={pending || !hasChanges} className={btnPrimary}>
                 {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-                {pending ? "AI가 읽는 중..." : error ? "다시 시도" : "제출하기"}
+                {/* key를 바꿔 글자를 통째로 교체한다: 브라우저 번역 기능이 남긴 옛 글자가 겹쳐 보이는 것을 막는다 */}
+                <span key={pending ? "pending" : error ? "retry" : "idle"}>{pending ? "AI가 읽는 중..." : error ? "다시 시도" : "제출하기"}</span>
               </button>
             </div>
           </form>
