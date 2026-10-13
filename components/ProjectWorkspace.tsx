@@ -639,7 +639,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 취소
               </button>
               {/* 원본과 같으면 보낼 것이 없으므로 제출을 막는다 (서버에서도 다시 확인한다) */}
-              <button type="submit" disabled={pending || !hasChanges} className={btnPrimary}>
+              {/* 글자가 바뀌어도 버튼 너비가 같게 고정한다: 너비가 변하면 옆의 취소 버튼이 밀리면서 Safari가 옛 글자를 지우지 못해 잔상이 남는다 */}
+              <button type="submit" disabled={pending || !hasChanges} className={`${btnPrimary} min-w-44`}>
                 {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                 {/* key를 바꿔 글자를 통째로 교체한다: 브라우저 번역 기능이 남긴 옛 글자가 겹쳐 보이는 것을 막는다 */}
                 <span key={pending ? "pending" : error ? "retry" : "idle"}>{pending ? "AI가 읽는 중..." : error ? "다시 시도" : "제출하기"}</span>
