@@ -584,7 +584,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             aria-modal="true"
             aria-labelledby="latest-main-title"
             onClick={(e) => e.stopPropagation()}
-            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
+            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-4xl flex-col gap-4 overflow-y-auto`}
           >
             <ModalHeader id="latest-main-title" mood="oops" title="원본이 이렇게 바뀌었어요">
               이 화면을 열었을 때의 원본과 지금 원본의 차이예요. 내 에디터의 코드는 그대로니 걱정 마세요.
@@ -616,7 +616,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             role="dialog"
             aria-modal="true"
             aria-labelledby="comit-modal-title"
-            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-xl flex-col gap-4 overflow-y-auto`}
+            className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-4xl flex-col gap-4 overflow-y-auto`}
           >
             <ModalHeader id="comit-modal-title" mood="happy" title="무엇을 바꿨나요?">
               보내기 전에 바뀐 부분을 한 번 확인하고, 팀원이 알아보기 쉽게 한 줄로 적어주세요.

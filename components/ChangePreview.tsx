@@ -47,7 +47,7 @@ export default function ChangePreview({
         tabIndex={0}
         role="region"
         aria-label="원본과 달라진 부분 미리보기"
-        className="max-h-80 overflow-auto rounded-lg border border-line text-xs"
+        className="max-h-[55dvh] overflow-auto rounded-lg border border-line text-xs"
       >
         <DiffViewer
           oldValue={before}
