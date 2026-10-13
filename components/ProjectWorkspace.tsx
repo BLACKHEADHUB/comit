@@ -44,7 +44,7 @@ import {
   STALE_HINT,
   STATUS_META,
 } from "@/lib/ui";
-import { filterSubmissions, inTab, TAB_FILTERS, type StatusFilter, type TaskTab } from "@/lib/tasks";
+import { countByFilter, filterSubmissions, inTab, TAB_FILTERS, type StatusFilter, type TaskTab } from "@/lib/tasks";
 
 // Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
 const Editor = dynamic(() => import("@monaco-editor/react"), {
@@ -241,6 +241,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   }, [anyModalOpen]);
 
   const visible = filterSubmissions(submissions, tab, myNickname, filter);
+  const filterCounts = countByFilter(submissions, tab, myNickname); // 상태 칩마다 보여줄 개수
   const hasChanges = summary.changed > 0;
   // 브라우저 저장소 값이라 hydration이 끝난 뒤에만 반영한다
   const alreadySubmitted = hydrated && hasChanges && submitted?.code === code;
@@ -349,7 +350,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                   filter === f ? "bg-accent-soft font-medium text-accent-ink" : "text-muted hover:bg-background hover:text-foreground"
                 }`}
               >
-                {FILTER_LABEL[f]}
+                {FILTER_LABEL[f]} <span className="tabular-nums">{filterCounts[f]}</span>
               </button>
             ))}
           </div>

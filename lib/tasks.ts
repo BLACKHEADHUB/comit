@@ -24,3 +24,14 @@ export function inTab(s: TabInput, tab: TaskTab, me: string): boolean {
 export function filterSubmissions<T extends TabInput>(list: T[], tab: TaskTab, me: string, status: StatusFilter): T[] {
   return list.filter((s) => inTab(s, tab, me) && (status === "ALL" || s.status === status));
 }
+
+// 탭 안의 상태 칩마다 보여줄 개수 (예: 병합됨 3, 다시 제출 필요 1)
+export function countByFilter<T extends TabInput>(list: T[], tab: TaskTab, me: string): Record<StatusFilter, number> {
+  const counts: Record<StatusFilter, number> = { ALL: 0, PENDING: 0, MERGED: 0, STALE: 0 };
+  for (const s of list) {
+    if (!inTab(s, tab, me)) continue;
+    counts.ALL += 1;
+    counts[s.status] += 1;
+  }
+  return counts;
+}
