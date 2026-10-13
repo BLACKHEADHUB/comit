@@ -2,13 +2,11 @@
 
 import { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
-import { analyzeSubmission, askAboutLine, buildDiff, FALLBACK_REPORT, RATE_LIMIT_MESSAGE } from "@/lib/ai";
 import { AI_FAILED_LINE, AI_SKIPPED_LINE, aiUnavailableReason } from "@/lib/aiReport";
 import { findMember } from "@/lib/auth";
-import { allowAiCall, cacheKeyForDiff, getCachedReport, setCachedReport } from "@/lib/redis";
 import { askAiSchema, type AskAiResult } from "@/lib/validation";
 import { Submission } from "@/models/Submission";
-import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
 // AI에게 질문하기: Diff의 한 줄에 대해 짧은 답을 받는다. 답변은 DB에 저장하지 않고 화면에만 돌려준다
 export async function askAi(projectId: string, submissionId: string, lineNumber: number, question: string): Promise<AskAiResult> {
@@ -27,12 +25,27 @@ export async function askAi(projectId: string, submissionId: string, lineNumber:
   if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
   if (parsed.data.lineNumber > submission.afterCode.split("\n").length) return { error: "존재하지 않는 줄이에요." };
 
-  // 제출 분석과 같은 한도(프로젝트+작성자 기준 분당 5회)를 함께 쓴다
-  if (!(await allowAiCall(String(project._id), me.nickname))) return { error: RATE_LIMIT_MESSAGE };
+  // AI/Redis 모듈은 여기서 불러온다: 못 불러오는 환경이어도 화면이 에러로 무너지지 않게 한다
+  try {
+    const { askAboutLine, RATE_LIMIT_MESSAGE } = await import("@/lib/ai");
+    const { allowAiCall } = await import("@/lib/redis");
 
-  // askAboutLine은 실패해도 예외 대신 기본 답변을 돌려준다 (try-catch + 타임아웃 + zod 검증은 그 안에 있다)
-  const answer = await askAboutLine(submission.beforeCode, submission.afterCode, parsed.data.lineNumber, parsed.data.question);
-  return { answer };
+    // 제출 분석과 같은 한도(프로젝트+작성자 기준 분당 5회)를 함께 쓴다
+    if (!(await allowAiCall(String(project._id), me.nickname))) return { error: RATE_LIMIT_MESSAGE };
+
+    // askAboutLine은 실패해도 예외 대신 기본 답변을 돌려준다 (try-catch + 타임아웃 + zod 검증은 그 안에 있다)
+    const answer = await askAboutLine(submission.beforeCode, submission.afterCode, parsed.data.lineNumber, parsed.data.question);
+    return { answer };
+  } catch (error) {
+    return { error: failureMessage("질문", error) };
+  }
+}
+
+// 비밀값이 섞일 수 있는 상세 메시지는 서버 로그에만 남기고, 화면에는 단계와 오류 종류만 보여준다
+function failureMessage(stage: string, error: unknown): string {
+  const name = error instanceof Error ? error.name : "UnknownError";
+  console.error(`[AI] ${stage} 단계 예외: ${error instanceof Error ? `${name}: ${error.message}`.slice(0, 300) : "unknown"}`);
+  return `${RETRY_MESSAGE} (오류 코드: ${stage} / ${name})`;
 }
 
 export type RetryAiResult = { error?: string };
@@ -52,14 +65,22 @@ export async function retryAiReport(projectId: string, submissionId: string): Pr
   if (!aiUnavailableReason(submission.aiReport?.summary ?? [])) return {};
 
   // 같은 diff를 성공한 적이 있으면 캐시를 쓰고, 아니면 제출 때와 같은 한도(분당 5회)를 거쳐 AI를 부른다
-  const cacheKey = cacheKeyForDiff(buildDiff(submission.beforeCode, submission.afterCode));
-  let aiReport = await getCachedReport(cacheKey);
-  if (!aiReport) {
-    if (!(await allowAiCall(String(project._id), me.nickname))) return { error: RATE_LIMIT_MESSAGE };
-    aiReport = await analyzeSubmission(submission.beforeCode, submission.afterCode);
-    // 또 실패하면 저장하지 않고 알려준다 (실패 리포트로 덮어써 봐야 달라지는 게 없다)
-    if (aiReport === FALLBACK_REPORT) return { error: "AI가 아직 응답하지 않아요. 잠시 뒤에 다시 눌러주세요." };
-    await setCachedReport(cacheKey, aiReport);
+  let aiReport;
+  try {
+    const { analyzeSubmission, buildDiff, FALLBACK_REPORT, RATE_LIMIT_MESSAGE } = await import("@/lib/ai");
+    const { allowAiCall, cacheKeyForDiff, getCachedReport, setCachedReport } = await import("@/lib/redis");
+
+    const cacheKey = cacheKeyForDiff(buildDiff(submission.beforeCode, submission.afterCode));
+    aiReport = await getCachedReport(cacheKey);
+    if (!aiReport) {
+      if (!(await allowAiCall(String(project._id), me.nickname))) return { error: RATE_LIMIT_MESSAGE };
+      aiReport = await analyzeSubmission(submission.beforeCode, submission.afterCode);
+      // 또 실패하면 저장하지 않고 알려준다 (실패 리포트로 덮어써 봐야 달라지는 게 없다)
+      if (aiReport === FALLBACK_REPORT) return { error: "AI가 아직 응답하지 않아요. 잠시 뒤에 다시 눌러주세요." };
+      await setCachedReport(cacheKey, aiReport);
+    }
+  } catch (error) {
+    return { error: failureMessage("재분석", error) };
   }
 
   // 아직 "분석 못 함" 상태일 때만 바꾼다 (조건부 업데이트)
