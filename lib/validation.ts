@@ -27,6 +27,8 @@ export type FormState = { error?: string; projectId?: string; inviteUrl?: string
 export const createSubmissionSchema = z.object({
   title: z.string().trim().min(1, "제목을 입력해주세요.").max(80, "제목은 80자 이하로 입력해주세요."),
   afterCode: z.string().max(100_000, "코드가 너무 길어요. (최대 10만 자)"),
+  // 에디터를 열었을 때 받은 원본. 그 사이 원본이 바뀌었는지 서버가 비교하는 데 쓴다
+  baseCode: z.string().max(100_000, "코드가 너무 길어요. (최대 10만 자)"),
 });
 
 // 사이드바에 보여줄 제출 요약 (코드 본문은 제외해 가볍게 유지)

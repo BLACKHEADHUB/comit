@@ -261,7 +261,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     setError("");
     let result;
     try {
-      result = await createSubmission(projectId, title, code);
+      result = await createSubmission(projectId, title, code, initialCode);
     } catch {
       result = { error: RETRY_MESSAGE }; // 네트워크 오류 등: 모달을 유지해 바로 다시 시도할 수 있게 한다
     } finally {

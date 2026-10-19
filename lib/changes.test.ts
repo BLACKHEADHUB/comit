@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changedLineMarks, summarizeChanges } from "@/lib/changes";
+import { changedLineMarks, initialStatusFor, summarizeChanges } from "@/lib/changes";
 
 describe("summarizeChanges", () => {
   it("같은 코드면 모두 0", () => {
@@ -65,5 +65,15 @@ describe("changedLineMarks", () => {
 
   it("빈 원본에 처음 코드를 쓰면 전부 added", () => {
     expect(changedLineMarks("", "x\ny")).toEqual({ added: [1, 2], modified: [], deletedAt: [] });
+  });
+});
+
+describe("initialStatusFor", () => {
+  it("에디터를 연 뒤 원본이 그대로면 대기로 시작한다", () => {
+    expect(initialStatusFor("A", "A")).toBe("PENDING");
+  });
+
+  it("그 사이 원본이 바뀌었다면(B가 먼저 병합) 옛 원본(A) 기준의 제출은 바로 다시 제출 필요로 시작한다", () => {
+    expect(initialStatusFor("A", "B")).toBe("STALE");
   });
 });
