@@ -77,3 +77,9 @@ export function changedLineMarks(before: string, after: string): LineMarks {
 
   return marks;
 }
+
+// 새 제출의 시작 상태. 에디터를 연 뒤 원본이 바뀌었다면(baseCode가 지금 mainCode와 다르면)
+// 내 코드는 옛 원본 기준이라 바로 "다시 제출 필요"로 올린다
+export function initialStatusFor(baseCode: string, mainCode: string): "PENDING" | "STALE" {
+  return baseCode === mainCode ? "PENDING" : "STALE";
+}

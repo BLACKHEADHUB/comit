@@ -29,6 +29,10 @@ export const noticeOk = "rounded-xl border border-ok/20 bg-ok-soft px-3 py-2 tex
 export const STALE_LABEL = "다시 제출 필요";
 export const STALE_HINT = "다른 변경이 먼저 병합돼서, 내 수정은 그대로 두고 최신 원본 위에 다시 얹어 Comit해야 해요";
 
+// 에디터를 연 뒤 원본이 바뀐 상태로 제출했을 때 알려주는 안내 (내 수정은 사라지지 않는다는 말을 먼저 한다)
+export const STALE_ON_SUBMIT_MESSAGE =
+  "내 수정은 저장됐어요. 코드를 연 뒤에 다른 변경이 먼저 병합돼서 '다시 제출 필요'로 올렸어요. 목록에서 열어 최신 원본 위에 다시 얹어주세요.";
+
 // 예상하지 못한 오류(네트워크 끊김 등)일 때 보여줄 공통 안내
 export const RETRY_MESSAGE = "문제가 생겨 처리하지 못했어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.";
 

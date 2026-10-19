@@ -4,21 +4,24 @@ import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
 import { FALLBACK_SUMMARY } from "@/lib/aiReport";
 import { findMember } from "@/lib/auth";
+import { initialStatusFor } from "@/lib/changes";
 import type { AIReport } from "@/lib/ai";
 import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
-import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, STALE_ON_SUBMIT_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
 
-// [Comit하기]: 현재 mainCode를 beforeCode로 고정해 Submission을 만든다
+// [Comit하기]: 에디터를 열었을 때의 원본을 beforeCode로 고정해 Submission을 만든다
+// baseCode: 에디터가 처음 받은 원본. 그 사이 원본이 바뀌었다면 이 코드는 옛 원본 기준이라, 병합하지 못하게 "다시 제출 필요"로 올린다
 export async function createSubmission(
   projectId: string,
   title: string,
-  afterCode: string
+  afterCode: string,
+  baseCode: string
 ): Promise<SubmissionResult> {
   if (!isValidObjectId(projectId)) return { error: BAD_REQUEST_MESSAGE };
 
-  const parsed = createSubmissionSchema.safeParse({ title, afterCode });
+  const parsed = createSubmissionSchema.safeParse({ title, afterCode, baseCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   // 어느 단계에서 실패했는지 알 수 있도록 단계를 기록한다 (운영 중 "문제가 생겼어요"의 원인을 찾기 위해)
@@ -30,29 +33,35 @@ export async function createSubmission(
     if (!member) return { error: NOT_MEMBER_MESSAGE };
     const { project, me } = member;
 
-    if (parsed.data.afterCode === project.mainCode) {
+    // 내가 연 원본과도, 지금 원본과도 같다면 바뀐 게 없는 제출이다
+    if (parsed.data.afterCode === project.mainCode || parsed.data.afterCode === parsed.data.baseCode) {
       return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
     }
 
+    // 에디터를 연 뒤 다른 변경이 먼저 병합됐다면, 내 코드는 옛 원본 기준이다.
+    // 이걸 지금 원본에 그대로 두면 병합 때 먼저 병합된 변경이 지워지므로, 처음부터 "다시 제출 필요"로 올린다
+    // (beforeCode는 내가 실제로 고친 기준 원본. 병합은 beforeCode가 지금 원본과 같을 때만 되므로 여기서 덮어쓰기는 일어나지 않는다)
+    const status = initialStatusFor(parsed.data.baseCode, project.mainCode);
+
     stage = "제출 저장";
-    // beforeCode는 클라이언트 값이 아니라 서버가 조회한 최신 mainCode, 작성자도 DB의 닉네임을 쓴다
+    // 작성자는 DB의 닉네임을 쓴다
     const submission = await Submission.create({
       projectId: project._id,
       author: me.nickname,
       title: parsed.data.title,
-      beforeCode: project.mainCode,
+      beforeCode: parsed.data.baseCode,
       afterCode: parsed.data.afterCode,
-      status: "PENDING",
+      status,
     });
 
     // 제출은 이미 저장됐으므로, AI 분석이 어떻게 실패하든 제출 흐름은 계속된다
     stage = "AI 분석";
-    const { aiReport, notice } = await analyzeForSubmission(String(project._id), me.nickname, project.mainCode, parsed.data.afterCode);
+    const { aiReport, notice } = await analyzeForSubmission(String(project._id), me.nickname, parsed.data.baseCode, parsed.data.afterCode);
     stage = "분석 결과 저장";
     await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
 
     return {
-      notice,
+      notice: status === "STALE" ? [STALE_ON_SUBMIT_MESSAGE, notice].filter(Boolean).join(" ") : notice,
       submission: {
         id: String(submission._id),
         title: submission.title,
