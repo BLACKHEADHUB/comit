@@ -1,6 +1,7 @@
 "use server";
 
 import { isValidObjectId } from "mongoose";
+import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
 import { canResolve } from "@/lib/comments";
 import { toCommentItem } from "@/lib/review";
@@ -50,6 +51,7 @@ export async function createComment(
     content: parsed.data.content,
   });
 
+  await touchProject(project._id); // 마지막 활동 기록
   return { comment: toCommentItem(comment) };
 }
 

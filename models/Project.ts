@@ -19,9 +19,11 @@ const projectSchema = new Schema({
   // 초대 링크용 추측 불가능한 토큰 (조회가 잦으므로 unique 인덱스)
   inviteToken: { type: String, required: true, unique: true },
   createdAt: { type: Date, default: Date.now },
+  lastActivityAt: { type: Date, default: Date.now }, // 마지막 활동(제출·병합·댓글). 오래 안 쓰면 정리 대상이 된다
 });
 
 // 복구 코드로 멤버를 찾는 조회용 (값이 없는 멤버는 인덱스에서 뺀다)
+projectSchema.index({ lastActivityAt: 1 }); // 정리 대상 조회용
 projectSchema.index({ "members.recoveryHash": 1 }, { sparse: true });
 
 export type ProjectDoc = InferSchemaType<typeof projectSchema>;

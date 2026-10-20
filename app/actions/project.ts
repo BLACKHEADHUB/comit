@@ -9,7 +9,12 @@ import { generateRecoveryCode, hashRecoveryCode } from "@/lib/recovery";
 import { RETRY_MESSAGE } from "@/lib/ui";
 import { setMemberCookie, setNewCodeCookie } from "@/lib/session";
 import { createProjectSchema, joinProjectSchema, type FormState } from "@/lib/validation";
+import { Comment } from "@/models/Comment";
 import { Project } from "@/models/Project";
+import { Submission } from "@/models/Submission";
+import { findMember } from "@/lib/auth";
+import { deleteMemberCookie } from "@/lib/session";
+import { NOT_MEMBER_MESSAGE } from "@/lib/ui";
 
 // 프로젝트 생성: 생성자는 LEADER로 저장
 export async function createProject(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -81,4 +86,27 @@ export async function joinProject(_prev: FormState, formData: FormData): Promise
   // 복구 코드는 프로젝트 화면 맨 위 안내로 한 번 보여준다 (그래서 쿠키에 잠깐 두고 이동한다)
   await setNewCodeCookie(String(project._id), recoveryCode);
   redirect(`/project/${project._id}`); // redirect는 예외를 던지므로 try-catch 밖에서 호출
+}
+
+// 프로젝트 삭제: 팀장만 할 수 있다. 제출·댓글까지 모두 지우며 되돌릴 수 없다
+export async function deleteProject(projectId: string, confirmTitle: string): Promise<{ error?: string; ok?: boolean }> {
+  try {
+    const found = await findMember(projectId);
+    if (!found) return { error: NOT_MEMBER_MESSAGE };
+    if (found.me.role !== "LEADER") return { error: "팀장만 프로젝트를 삭제할 수 있어요." };
+    // 실수 방지: 프로젝트 이름을 똑같이 입력해야 지운다
+    if (confirmTitle.trim() !== found.project.title) return { error: "프로젝트 이름이 달라요. 이름을 똑같이 입력해주세요." };
+
+    await connectDB();
+    // 댓글 → 제출 → 프로젝트 순서로 지운다 (중간에 실패해도 고아 데이터가 남지 않게 아래부터)
+    const ids = (await Submission.find({ projectId: found.project._id }).select("_id").lean()).map((s) => s._id);
+    await Comment.deleteMany({ submissionId: { $in: ids } });
+    await Submission.deleteMany({ projectId: found.project._id });
+    await Project.deleteOne({ _id: found.project._id });
+    await deleteMemberCookie(projectId);
+    return { ok: true };
+  } catch (error) {
+    console.error("[project] 삭제 실패", error);
+    return { error: RETRY_MESSAGE };
+  }
 }

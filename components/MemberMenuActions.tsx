@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { reissueRecoveryCode, transferLeader } from "@/app/actions/member";
+import { deleteProject } from "@/app/actions/project";
 import { copyText, showForManualCopy } from "@/lib/clipboard";
 import { btnGhost, noticeError } from "@/lib/ui";
 
@@ -80,6 +81,46 @@ export function ReissueCodeButton({ projectId }: { projectId: string }) {
       <button type="button" disabled={pending} onClick={run} className={`${btnGhost} !px-2 !py-1 !text-xs`}>
         {pending ? "만드는 중..." : "🔑 내 복구 코드 새로 받기"}
       </button>
+      {error && <p role="alert" className={`${noticeError} !px-2 !py-1 !text-xs`}>{error}</p>}
+    </div>
+  );
+}
+
+// 프로젝트 삭제 (팀장에게만 보인다). 이름을 똑같이 입력해야 지워지고, 되돌릴 수 없다
+export function DeleteProjectButton({ projectId, title }: { projectId: string; title: string }) {
+  const router = useRouter();
+  const [asking, setAsking] = useState(false);
+  const [name, setName] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    setPending(true);
+    const result = await deleteProject(projectId, name);
+    setPending(false);
+    if (result.error) setError(result.error);
+    else router.push("/"); // 지운 프로젝트 화면에는 더 머물 수 없으니 첫 화면으로 간다
+  }
+
+  if (!asking) {
+    return (
+      <button type="button" onClick={() => setAsking(true)} className={`${btnGhost} !px-2 !py-1 !text-xs !text-danger`}>
+        🗑 프로젝트 삭제
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1 text-xs">
+      <span>제출과 댓글까지 모두 지워지고 되돌릴 수 없어요. 계속하려면 프로젝트 이름 “{title}”을 입력하세요.</span>
+      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} className="rounded-lg border border-line-strong bg-background px-2 py-1" aria-label="프로젝트 이름 확인" />
+      <div className="flex gap-1">
+        <button type="button" disabled={pending || !name.trim()} onClick={run} className={`${btnGhost} !px-2 !py-1 !text-xs !text-danger`}>
+          {pending ? "삭제 중..." : "영구 삭제"}
+        </button>
+        <button type="button" disabled={pending} onClick={() => setAsking(false)} className={`${btnGhost} !px-2 !py-1 !text-xs`}>
+          취소
+        </button>
+      </div>
       {error && <p role="alert" className={`${noticeError} !px-2 !py-1 !text-xs`}>{error}</p>}
     </div>
   );

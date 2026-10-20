@@ -45,3 +45,10 @@ export async function clearNewCodeCookie(projectId: string) {
   const store = await cookies();
   store.delete(codeCookieName(projectId));
 }
+
+// 프로젝트를 지운 뒤 그 프로젝트의 내 쿠키를 비운다
+export async function deleteMemberCookie(projectId: string) {
+  const store = await cookies();
+  store.delete(cookieName(projectId));
+  store.delete(codeCookieName(projectId));
+}

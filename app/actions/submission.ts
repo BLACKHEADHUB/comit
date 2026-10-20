@@ -4,6 +4,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { FALLBACK_SUMMARY } from "@/lib/aiReport";
+import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
 import { initialStatusFor } from "@/lib/changes";
 import type { AIReport } from "@/lib/ai";
@@ -78,6 +79,8 @@ export async function createSubmission(
       afterCode: parsed.data.afterCode,
       status,
     });
+
+    await touchProject(project._id); // 마지막 활동 기록 (정리 대상에서 제외되는 기준)
 
     // 제출은 이미 저장됐으므로, AI 분석이 어떻게 실패하든 제출 흐름은 계속된다
     stage = "AI 분석";
@@ -192,6 +195,8 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
     if (!(error instanceof AlreadyHandledError)) throw error;
     return null;
   });
+
+  if (outcome === "MERGED") await touchProject(project._id); // 마지막 활동 기록
 
   // 병합 결과가 화면(프로젝트 메인/상세)에 바로 반영되도록 캐시를 비운다
   revalidatePath(`/project/${projectId}`, "layout");
