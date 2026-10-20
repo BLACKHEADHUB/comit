@@ -23,6 +23,10 @@
 | `GEMINI_MODEL` | ✅ | 위 1번 참고. 비어 있으면 AI 분석은 항상 기본 문구로 대체됩니다 |
 | `UPSTASH_REDIS_REST_URL` | 선택 | 비어 있으면 캐싱과 요청 제한이 꺼진 채로 정상 동작합니다 |
 | `UPSTASH_REDIS_REST_TOKEN` | 선택 | 위와 같이 둘 다 있어야 켜집니다 |
+| `CRON_SECRET` | 선택 | 임의의 긴 문자열. 설정하면 Vercel이 하루 한 번 `/api/cron/cleanup`을 호출해 오래 안 쓴 프로젝트를 점검합니다 |
+| `CLEANUP_ENABLED` | 선택 | `true`일 때만 실제로 지웁니다. 비어 있으면 대상 개수만 로그에 남깁니다(먼저 로그로 확인하세요) |
+| `PROJECT_EXPIRE_DAYS` | 선택 | 마지막 활동 후 정리까지의 일 수 (기본 90) |
+| `AI_DAILY_LIMIT` | 선택 | 프로젝트당 하루 AI 호출 한도 (기본 100). Upstash가 켜져 있어야 적용됩니다 |
 
 - Production / Preview / Development 중 어디에 적용할지 선택하세요. Preview에는 운영 DB 대신 별도 DB를 쓰는 것을 권장합니다.
 - 값을 바꾼 뒤에는 **다시 배포(Redeploy)** 해야 반영됩니다.

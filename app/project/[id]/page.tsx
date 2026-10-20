@@ -9,9 +9,10 @@ import InviteLink from "@/components/InviteLink";
 import MemberAvatars from "@/components/MemberAvatars";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import TermsHelp from "@/components/TermsHelp";
-import { badge } from "@/lib/ui";
+import { badge, noticeWarn } from "@/lib/ui";
 import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
+import { daysUntilExpiry, shouldWarnExpiry } from "@/lib/retention";
 import { codeVersion } from "@/lib/version";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
@@ -37,6 +38,9 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   // 항상 projectId로 필터링하고, 목록에는 코드 본문을 싣지 않는다 (댓글 수 등 배지용 집계도 같은 쿼리에서 계산)
   const submissions = await listSubmissions(project._id);
 
+  // 오래 안 쓰면 정리된다는 안내 (만료 30일 전부터). 제출·댓글을 하면 기간이 새로 시작된다
+  const daysLeft = daysUntilExpiry(project.lastActivityAt, project.createdAt);
+
   return (
     <main className="flex h-dvh w-full flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2.5">
@@ -50,12 +54,17 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
             {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
-          <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} isLeader={me.role === "LEADER"} />
+          <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} projectTitle={project.title} isLeader={me.role === "LEADER"} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
           <TermsHelp openFirstVisit />
         </div>
       </header>
+      {shouldWarnExpiry(daysLeft) && (
+        <p role="status" className={`${noticeWarn} mx-4 mt-2 !py-1.5 !text-xs`}>
+          오래 사용하지 않아 {Math.max(daysLeft, 0)}일 뒤 이 프로젝트가 정리돼요. 제출하거나 댓글을 남기면 기간이 다시 시작되고, 멤버 메뉴에서 원본 코드를 내려받을 수 있어요.
+        </p>
+      )}
       {newRecoveryCode && <RecoveryNotice projectId={id} code={newRecoveryCode} />}
       <ProjectWorkspace
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}

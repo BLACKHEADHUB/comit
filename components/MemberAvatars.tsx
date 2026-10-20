@@ -1,4 +1,4 @@
-import { ReissueCodeButton, TransferLeaderButton } from "@/components/MemberMenuActions";
+import { DeleteProjectButton, RegenerateInviteButton, ReissueCodeButton, RemoveMemberButton, TransferLeaderButton } from "@/components/MemberMenuActions";
 import { initialOf, type MemberView } from "@/lib/members";
 
 const MAX_SHOWN = 4; // 헤더에 겹쳐 보여줄 최대 아바타 수 (나머지는 +N)
@@ -19,7 +19,7 @@ function Avatar({ member, overlap = false }: { member: MemberView; overlap?: boo
 }
 
 // 헤더의 팀 표시: 이니셜 아바타 묶음. 누르면 전체 멤버 목록이 펼쳐진다 (<details>라 JS 없이 키보드로도 동작)
-export default function MemberAvatars({ members, projectId, isLeader }: { members: MemberView[]; projectId: string; isLeader: boolean }) {
+export default function MemberAvatars({ members, projectId, projectTitle, isLeader }: { members: MemberView[]; projectId: string; projectTitle: string; isLeader: boolean }) {
   const shown = members.slice(0, MAX_SHOWN);
   const rest = members.length - shown.length;
 
@@ -48,8 +48,9 @@ export default function MemberAvatars({ members, projectId, isLeader }: { member
             </div>
             {/* 팀장만, 자기가 아닌 멤버에게 팀장을 넘길 수 있다 */}
             {isLeader && !m.isMe && (
-              <div className="mt-1 pl-8">
+              <div className="mt-1 flex flex-col gap-1 pl-8">
                 <TransferLeaderButton projectId={projectId} nickname={m.nickname} />
+                <RemoveMemberButton projectId={projectId} nickname={m.nickname} />
               </div>
             )}
           </li>
@@ -57,6 +58,22 @@ export default function MemberAvatars({ members, projectId, isLeader }: { member
         <li className="mt-1 border-t border-line px-2 pt-1.5 pb-0.5">
           <ReissueCodeButton projectId={projectId} />
         </li>
+        {/* 원본 코드를 파일로 보관 (정리·삭제되기 전에) */}
+        <li className="px-2 py-0.5">
+          <a href={`/api/project/${projectId}/export`} download className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline">
+            ⬇ 원본 코드 내려받기
+          </a>
+        </li>
+        {isLeader && (
+          <li className="px-2 py-0.5">
+            <RegenerateInviteButton projectId={projectId} />
+          </li>
+        )}
+        {isLeader && (
+          <li className="px-2 py-0.5">
+            <DeleteProjectButton projectId={projectId} title={projectTitle} />
+          </li>
+        )}
       </ul>
     </details>
   );

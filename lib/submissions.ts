@@ -24,10 +24,14 @@ const OPEN_ROOT = {
 
 // 목록 + 카드 배지용 집계를 쿼리 한 번으로 가져오는 파이프라인.
 // 첫 단계에서 반드시 projectId로 거른다 (멀티테넌시 격리). 코드 본문은 싣지 않는다
+export const MAX_LIST_ITEMS = 100;
+
 export function submissionListPipeline(projectId: Types.ObjectId, commentCollection: string): PipelineStage[] {
   return [
     { $match: { projectId } },
     { $sort: { createdAt: -1 } },
+    // 목록은 최근 100개까지만 (제출이 아주 많아져도 화면·쿼리가 느려지지 않게)
+    { $limit: MAX_LIST_ITEMS },
     // 이 프로젝트의 제출에 달린 댓글만 붙인다 (제출마다 따로 조회하지 않는다 = N+1 방지)
     {
       $lookup: {

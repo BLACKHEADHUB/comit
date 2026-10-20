@@ -1,12 +1,21 @@
 import { Types } from "mongoose";
 import { describe, expect, it } from "vitest";
-import { submissionListPipeline, toSubmissionItem } from "@/lib/submissions";
+import { MAX_LIST_ITEMS, submissionListPipeline, toSubmissionItem } from "@/lib/submissions";
 
 describe("submissionListPipeline", () => {
   it("첫 단계에서 projectId로 거른다 (다른 프로젝트 데이터 차단)", () => {
     const projectId = new Types.ObjectId();
     const pipeline = submissionListPipeline(projectId, "comments");
     expect(pipeline[0]).toEqual({ $match: { projectId } });
+  });
+
+  it("최근 제출만 가져오도록 $lookup 전에 개수를 제한한다", () => {
+    const pipeline = submissionListPipeline(new Types.ObjectId(), "comments");
+    const limitAt = pipeline.findIndex((stage) => "$limit" in stage);
+    const lookupAt = pipeline.findIndex((stage) => "$lookup" in stage);
+    expect(pipeline[limitAt]).toEqual({ $limit: MAX_LIST_ITEMS });
+    expect(limitAt).toBeGreaterThan(0);
+    expect(limitAt).toBeLessThan(lookupAt);
   });
 
   it("댓글은 $lookup 한 번으로 붙이고, 코드 본문은 결과에 싣지 않는다", () => {

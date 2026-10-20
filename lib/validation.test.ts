@@ -52,16 +52,16 @@ describe("createSubmissionSchema", () => {
     expect(createSubmissionSchema.parse({ title: " 버튼 추가 ", afterCode: "x", baseCode: "" }).title).toBe("버튼 추가");
   });
 
-  it("코드는 잘라내지 않고 그대로 두며 10만 자까지 허용한다", () => {
+  it("코드는 잘라내지 않고 그대로 두며 3만 자까지 허용한다", () => {
     expect(createSubmissionSchema.parse({ title: "t", afterCode: "  x\n", baseCode: "" }).afterCode).toBe("  x\n");
-    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "a".repeat(100_000), baseCode: "" }).success).toBe(true);
-    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "a".repeat(100_001), baseCode: "" }).success).toBe(false);
+    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "a".repeat(30_000), baseCode: "" }).success).toBe(true);
+    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "a".repeat(30_001), baseCode: "" }).success).toBe(false);
   });
 
-  it("에디터를 연 시점의 원본(baseCode)은 필수이고 10만 자까지 허용한다", () => {
+  it("에디터를 연 시점의 원본(baseCode)은 필수이고 3만 자까지 허용한다", () => {
     expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "x" }).success).toBe(false);
-    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "x", baseCode: "a".repeat(100_000) }).success).toBe(true);
-    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "x", baseCode: "a".repeat(100_001) }).success).toBe(false);
+    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "x", baseCode: "a".repeat(30_000) }).success).toBe(true);
+    expect(createSubmissionSchema.safeParse({ title: "t", afterCode: "x", baseCode: "a".repeat(30_001) }).success).toBe(false);
   });
 });
 

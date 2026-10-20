@@ -2,11 +2,13 @@
 
 import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { FALLBACK_SUMMARY } from "@/lib/aiReport";
+import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
 import { initialStatusFor } from "@/lib/changes";
 import type { AIReport } from "@/lib/ai";
-import { createSubmissionSchema, type MergeResult, type SubmissionResult } from "@/lib/validation";
+import { createSubmissionSchema, MAX_SUBMISSIONS_PER_PROJECT, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
 import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, STALE_ON_SUBMIT_MESSAGE, SUBMISSION_GONE_MESSAGE } from "@/lib/ui";
@@ -43,6 +45,30 @@ export async function createSubmission(
     // (beforeCode는 내가 실제로 고친 기준 원본. 병합은 beforeCode가 지금 원본과 같을 때만 되므로 여기서 덮어쓰기는 일어나지 않는다)
     const status = initialStatusFor(parsed.data.baseCode, project.mainCode);
 
+    // 도배 방지: 프로젝트+작성자 기준 분당 10회, IP 기준 하루 100회까지 (Redis가 없으면 건너뛴다)
+    const { allowSubmit, allowSubmitFromIp } = await import("@/lib/redis");
+    if (!(await allowSubmit(String(project._id), me.nickname))) {
+      return { error: "제출이 너무 잦아요. 잠시 후 다시 시도해주세요." };
+    }
+    const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+    if (!(await allowSubmitFromIp(ip))) return { error: "오늘 제출할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해주세요." };
+
+    // 프로젝트당 제출 개수 상한 (저장 공간 보호). 쓰지 않는 제출은 정리 기능이 생기기 전까지 쌓인다
+    stage = "제출 개수 확인";
+    if ((await Submission.countDocuments({ projectId: project._id })) >= MAX_SUBMISSIONS_PER_PROJECT) {
+      return { error: `이 프로젝트에는 제출을 ${MAX_SUBMISSIONS_PER_PROJECT}개까지 쌓을 수 있어요. 새 프로젝트를 만들어 이어가 주세요.` };
+    }
+
+    // 같은 사람이 똑같은 코드를 아직 대기 중으로 올려뒀다면 또 만들지 않는다
+    const duplicate = await Submission.exists({
+      projectId: project._id,
+      author: me.nickname,
+      status: "PENDING",
+      beforeCode: parsed.data.baseCode,
+      afterCode: parsed.data.afterCode,
+    });
+    if (duplicate) return { error: "같은 내용의 제출이 이미 있어요." };
+
     stage = "제출 저장";
     // 작성자는 DB의 닉네임을 쓴다
     const submission = await Submission.create({
@@ -53,6 +79,8 @@ export async function createSubmission(
       afterCode: parsed.data.afterCode,
       status,
     });
+
+    await touchProject(project._id); // 마지막 활동 기록 (정리 대상에서 제외되는 기준)
 
     // 제출은 이미 저장됐으므로, AI 분석이 어떻게 실패하든 제출 흐름은 계속된다
     stage = "AI 분석";
@@ -167,6 +195,8 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
     if (!(error instanceof AlreadyHandledError)) throw error;
     return null;
   });
+
+  if (outcome === "MERGED") await touchProject(project._id); // 마지막 활동 기록
 
   // 병합 결과가 화면(프로젝트 메인/상세)에 바로 반영되도록 캐시를 비운다
   revalidatePath(`/project/${projectId}`, "layout");
