@@ -26,6 +26,9 @@ export type FormState = { error?: string; projectId?: string; inviteUrl?: string
 // 코드 최대 길이: 3만 자(보통 800~1,500줄). DB 용량과 AI 비용을 지키기 위한 한도다
 export const MAX_CODE_CHARS = 30_000;
 
+// 프로젝트 하나에 들어올 수 있는 멤버 수 (초대 링크가 퍼져도 무한히 늘지 않게)
+export const MAX_MEMBERS_PER_PROJECT = 30;
+
 // 프로젝트 하나에 쌓을 수 있는 제출 개수 (DB가 한 프로젝트 때문에 차지 않도록)
 export const MAX_SUBMISSIONS_PER_PROJECT = 200;
 

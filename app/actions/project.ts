@@ -8,7 +8,7 @@ import { buildInviteUrl } from "@/lib/invite";
 import { generateRecoveryCode, hashRecoveryCode } from "@/lib/recovery";
 import { RETRY_MESSAGE } from "@/lib/ui";
 import { setMemberCookie, setNewCodeCookie } from "@/lib/session";
-import { createProjectSchema, joinProjectSchema, type FormState } from "@/lib/validation";
+import { createProjectSchema, joinProjectSchema, MAX_MEMBERS_PER_PROJECT, type FormState } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
@@ -70,14 +70,19 @@ export async function joinProject(_prev: FormState, formData: FormData): Promise
   // 같은 닉네임이 없을 때만 추가 (조건부 원자적 업데이트로 동시 합류 시 중복 방지)
   const recoveryCode = generateRecoveryCode();
   const project = await Project.findOneAndUpdate(
-    { inviteToken: parsed.data.token, "members.nickname": { $ne: parsed.data.nickname } },
+    {
+      inviteToken: parsed.data.token,
+      "members.nickname": { $ne: parsed.data.nickname },
+      [`members.${MAX_MEMBERS_PER_PROJECT - 1}`]: { $exists: false }, // 멤버 수 상한
+    },
     { $push: { members: { nickname: parsed.data.nickname, role: "MEMBER", recoveryHash: hashRecoveryCode(recoveryCode) } } },
     { returnDocument: "after" } // 갱신된 문서를 돌려받는다 (예전 옵션 `new: true`는 mongoose에서 더 이상 권장하지 않는다)
   );
 
   if (!project) {
-    const exists = await Project.exists({ inviteToken: parsed.data.token });
-    return { error: exists ? "이미 사용 중인 닉네임이에요. 다른 닉네임을 입력해주세요." : "유효하지 않은 초대 링크예요." };
+    const found = await Project.findOne({ inviteToken: parsed.data.token }).select("members").lean();
+    if (found && found.members.length >= MAX_MEMBERS_PER_PROJECT) return { error: `이 프로젝트는 멤버가 가득 찼어요. (최대 ${MAX_MEMBERS_PER_PROJECT}명)` };
+    return { error: found ? "이미 사용 중인 닉네임이에요. 다른 닉네임을 입력해주세요." : "유효하지 않은 초대 링크예요." };
   }
 
   // 방금 추가된 멤버는 배열 마지막

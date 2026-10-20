@@ -1,4 +1,4 @@
-import { DeleteProjectButton, ReissueCodeButton, TransferLeaderButton } from "@/components/MemberMenuActions";
+import { DeleteProjectButton, RegenerateInviteButton, ReissueCodeButton, RemoveMemberButton, TransferLeaderButton } from "@/components/MemberMenuActions";
 import { initialOf, type MemberView } from "@/lib/members";
 
 const MAX_SHOWN = 4; // 헤더에 겹쳐 보여줄 최대 아바타 수 (나머지는 +N)
@@ -48,8 +48,9 @@ export default function MemberAvatars({ members, projectId, projectTitle, isLead
             </div>
             {/* 팀장만, 자기가 아닌 멤버에게 팀장을 넘길 수 있다 */}
             {isLeader && !m.isMe && (
-              <div className="mt-1 pl-8">
+              <div className="mt-1 flex flex-col gap-1 pl-8">
                 <TransferLeaderButton projectId={projectId} nickname={m.nickname} />
+                <RemoveMemberButton projectId={projectId} nickname={m.nickname} />
               </div>
             )}
           </li>
@@ -63,6 +64,11 @@ export default function MemberAvatars({ members, projectId, projectTitle, isLead
             ⬇ 원본 코드 내려받기
           </a>
         </li>
+        {isLeader && (
+          <li className="px-2 py-0.5">
+            <RegenerateInviteButton projectId={projectId} />
+          </li>
+        )}
         {isLeader && (
           <li className="px-2 py-0.5">
             <DeleteProjectButton projectId={projectId} title={projectTitle} />
