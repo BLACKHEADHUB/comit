@@ -40,6 +40,11 @@ const submitRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "comit:submit" })
   : null;
 
+// 제출: IP 기준 하루 100회 → 프로젝트를 바꿔가며 도배해도 합산해서 막는다
+const submitIpRateLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(100, "1 d"), prefix: "comit:submit-ip" })
+  : null;
+
 // 프로젝트 생성: IP 기준 시간당 10개
 const createProjectRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 h"), prefix: "comit:create" })
@@ -77,6 +82,7 @@ async function checkLimit(limiter: Ratelimit | null, key: string, what: string):
 }
 
 export const allowSubmit = (projectId: string, author: string) => checkLimit(submitRateLimit, `${projectId}:${author}`, "제출 제한");
+export const allowSubmitFromIp = (ip: string) => checkLimit(submitIpRateLimit, ip, "IP별 제출 제한");
 export const allowCreateProject = (ip: string) => checkLimit(createProjectRateLimit, ip, "프로젝트 생성 제한");
 
 // 캐시 키: diff 내용의 SHA-256 (같은 변경이면 같은 키)

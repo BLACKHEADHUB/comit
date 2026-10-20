@@ -26,6 +26,9 @@ export type FormState = { error?: string; projectId?: string; inviteUrl?: string
 // 코드 최대 길이: 3만 자(보통 800~1,500줄). DB 용량과 AI 비용을 지키기 위한 한도다
 export const MAX_CODE_CHARS = 30_000;
 
+// 프로젝트 하나에 쌓을 수 있는 제출 개수 (DB가 한 프로젝트 때문에 차지 않도록)
+export const MAX_SUBMISSIONS_PER_PROJECT = 200;
+
 // 제출 입력 검증: 제목/코드 길이 제한 (코드는 실행하지 않고 텍스트로만 저장)
 export const createSubmissionSchema = z.object({
   title: z.string().trim().min(1, "제목을 입력해주세요.").max(80, "제목은 80자 이하로 입력해주세요."),
