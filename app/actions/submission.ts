@@ -43,6 +43,12 @@ export async function createSubmission(
     // (beforeCode는 내가 실제로 고친 기준 원본. 병합은 beforeCode가 지금 원본과 같을 때만 되므로 여기서 덮어쓰기는 일어나지 않는다)
     const status = initialStatusFor(parsed.data.baseCode, project.mainCode);
 
+    // 도배 방지: 프로젝트+작성자 기준 분당 10회까지 (Redis가 없으면 건너뛴다)
+    const { allowSubmit } = await import("@/lib/redis");
+    if (!(await allowSubmit(String(project._id), me.nickname))) {
+      return { error: "제출이 너무 잦아요. 잠시 후 다시 시도해주세요." };
+    }
+
     stage = "제출 저장";
     // 작성자는 DB의 닉네임을 쓴다
     const submission = await Submission.create({

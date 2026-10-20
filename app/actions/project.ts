@@ -1,6 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { buildInviteUrl } from "@/lib/invite";
@@ -18,6 +19,11 @@ export async function createProject(_prev: FormState, formData: FormData): Promi
     nickname: formData.get("nickname"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  // 프로젝트 도배 방지: IP 기준 시간당 10개 (Redis가 없으면 건너뛴다)
+  const { allowCreateProject } = await import("@/lib/redis");
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  if (!(await allowCreateProject(ip))) return { error: "프로젝트를 너무 많이 만들었어요. 잠시 후 다시 시도해주세요." };
 
   try {
     await connectDB();

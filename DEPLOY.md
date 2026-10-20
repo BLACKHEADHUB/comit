@@ -23,6 +23,7 @@
 | `GEMINI_MODEL` | ✅ | 위 1번 참고. 비어 있으면 AI 분석은 항상 기본 문구로 대체됩니다 |
 | `UPSTASH_REDIS_REST_URL` | 선택 | 비어 있으면 캐싱과 요청 제한이 꺼진 채로 정상 동작합니다 |
 | `UPSTASH_REDIS_REST_TOKEN` | 선택 | 위와 같이 둘 다 있어야 켜집니다 |
+| `AI_DAILY_LIMIT` | 선택 | 프로젝트당 하루 AI 호출 한도 (기본 100). Upstash가 켜져 있어야 적용됩니다 |
 
 - Production / Preview / Development 중 어디에 적용할지 선택하세요. Preview에는 운영 DB 대신 별도 DB를 쓰는 것을 권장합니다.
 - 값을 바꾼 뒤에는 **다시 배포(Redeploy)** 해야 반영됩니다.

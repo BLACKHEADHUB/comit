@@ -23,12 +23,15 @@ export const joinProjectSchema = z.object({
 // 생성/합류 성공 시에는 이동할 projectId와 초대 링크, 내 복구 코드를 함께 돌려준다
 export type FormState = { error?: string; projectId?: string; inviteUrl?: string; recoveryCode?: string };
 
+// 코드 최대 길이: 3만 자(보통 800~1,500줄). DB 용량과 AI 비용을 지키기 위한 한도다
+export const MAX_CODE_CHARS = 30_000;
+
 // 제출 입력 검증: 제목/코드 길이 제한 (코드는 실행하지 않고 텍스트로만 저장)
 export const createSubmissionSchema = z.object({
   title: z.string().trim().min(1, "제목을 입력해주세요.").max(80, "제목은 80자 이하로 입력해주세요."),
-  afterCode: z.string().max(100_000, "코드가 너무 길어요. (최대 10만 자)"),
+  afterCode: z.string().max(MAX_CODE_CHARS, "코드가 너무 길어요. (최대 3만 자)"),
   // 에디터를 열었을 때 받은 원본. 그 사이 원본이 바뀌었는지 서버가 비교하는 데 쓴다
-  baseCode: z.string().max(100_000, "코드가 너무 길어요. (최대 10만 자)"),
+  baseCode: z.string().max(MAX_CODE_CHARS, "코드가 너무 길어요. (최대 3만 자)"),
 });
 
 // 사이드바에 보여줄 제출 요약 (코드 본문은 제외해 가볍게 유지)
