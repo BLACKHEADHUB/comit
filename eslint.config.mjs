@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 설치 때 복사되는 Monaco 에디터 파일 (우리 코드가 아님)
+    "public/monaco/**",
   ]),
 ]);
 

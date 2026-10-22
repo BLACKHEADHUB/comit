@@ -46,11 +46,19 @@ import {
 } from "@/lib/ui";
 import { countByFilter, filterSubmissions, inTab, TAB_FILTERS, type StatusFilter, type TaskTab } from "@/lib/tasks";
 
-// Monaco는 브라우저 전용이라 SSR을 끄고 불러온다
-const Editor = dynamic(() => import("@monaco-editor/react"), {
+// Monaco는 브라우저 전용이라 SSR을 끄고 불러온다.
+// 에디터 파일은 외부 CDN 대신 우리 사이트(/monaco/vs, 설치 때 복사됨)에서 받는다: CDN이 막힌 네트워크에서도 동작하게
+const Editor = dynamic(
+  () =>
+    import("@monaco-editor/react").then((mod) => {
+      mod.loader.config({ paths: { vs: "/monaco/vs" } });
+      return mod;
+    }),
+  {
   ssr: false,
   loading: () => <Loading text="에디터를 준비하고 있어요..." />,
-});
+  }
+);
 
 // 사이드바 탭: "내가 할 일" 기준 (탭 안에서 상태 칩으로 한 번 더 거를 수 있다)
 const TABS: { tab: TaskTab; label: string; hint: string }[] = [

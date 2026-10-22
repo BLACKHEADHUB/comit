@@ -45,3 +45,4 @@ next-env.d.ts
 /e2e/screenshots/
 /e2e/test-results/
 /e2e/screenshots-before/
+/public/monaco/
