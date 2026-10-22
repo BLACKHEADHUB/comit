@@ -12,6 +12,15 @@ describe("mergeById", () => {
     expect(merged.map((x) => x.id).sort()).toEqual(["a", "b", "new"]);
   });
 
+  it("서버에 없는데 오래된 항목은 누군가 지운 것이라 뺀다", () => {
+    const now = Date.parse("2026-10-22T12:00:00Z");
+    const local = [
+      { id: "old", createdAt: "2026-10-22T11:00:00Z" },
+      { id: "just", createdAt: "2026-10-22T11:59:50Z" },
+    ];
+    expect(mergeById(local, [], now).map((x) => x.id)).toEqual(["just"]);
+  });
+
   it("빈 목록끼리도 동작한다", () => {
     expect(mergeById([], [])).toEqual([]);
   });

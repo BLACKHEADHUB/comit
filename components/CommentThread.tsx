@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createReply, setCommentResolved } from "@/app/actions/comment";
+import { createReply, deleteComment, setCommentResolved } from "@/app/actions/comment";
 import { useReview } from "@/components/ReviewProvider";
-import { canResolve, type Thread } from "@/lib/comments";
+import { canDeleteComment, canResolve, type Thread } from "@/lib/comments";
 import { formatTime, TAG_STYLE, tagMeta } from "@/lib/tags";
 import { badge, btnGhost, btnPrimary, card, inputClass, noticeError, RETRY_MESSAGE } from "@/lib/ui";
 import type { CommentItem } from "@/lib/validation";
@@ -25,7 +25,8 @@ type Props = { projectId: string; submissionId: string; thread: Thread<CommentIt
 // 원댓글 하나 + 답글들 + [답글] / [해결] 버튼
 export default function CommentThread({ projectId, submissionId, thread }: Props) {
   const { root, replies } = thread;
-  const { viewer, addComment, updateComment, newIds } = useReview();
+  const { viewer, addComment, updateComment, removeComments, newIds } = useReview();
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null); // 지우기 확인 중인 댓글 id
   const [replyOpen, setReplyOpen] = useState(false);
   const [content, setContent] = useState("");
   const [pending, setPending] = useState(false);
@@ -73,6 +74,49 @@ export default function CommentThread({ projectId, submissionId, thread }: Props
     updateComment(result.comment);
   }
 
+  // 지우기: 원댓글이면 답글까지 함께 사라진다 (서버에서 권한을 다시 확인한다)
+  async function handleDelete(commentId: string) {
+    setPending(true);
+    setError("");
+    let result: { error?: string; deletedIds?: string[] };
+    try {
+      result = await deleteComment(projectId, submissionId, commentId);
+    } catch {
+      result = { error: RETRY_MESSAGE };
+    } finally {
+      setPending(false);
+      setConfirmDelete(null);
+    }
+    if (result.error || !result.deletedIds) {
+      setError(result.error ?? RETRY_MESSAGE);
+      return;
+    }
+    removeComments(result.deletedIds);
+  }
+
+  // 작은 "지우기" 버튼 + 한 번 더 묻기 (실수로 눌러도 바로 지워지지 않게)
+  function deleteControl(id: string, author: string, label: "댓글" | "답글") {
+    if (!canDeleteComment(viewer, author)) return null;
+    if (confirmDelete !== id) {
+      return (
+        <button type="button" onClick={() => setConfirmDelete(id)} className={`${smallBtn} ml-auto`} aria-label={`${author}님의 ${label} 지우기`}>
+          🗑 지우기
+        </button>
+      );
+    }
+    return (
+      <span className="ml-auto flex items-center gap-1 text-xs">
+        <span className="text-danger">{label === "댓글" && replies.length > 0 ? "답글까지 지울까요?" : "지울까요?"}</span>
+        <button type="button" disabled={pending} onClick={() => handleDelete(id)} className={`${smallBtn} !text-danger`}>
+          지우기
+        </button>
+        <button type="button" onClick={() => setConfirmDelete(null)} className={smallBtn}>
+          취소
+        </button>
+      </span>
+    );
+  }
+
   return (
     <li className={`${card} p-3 ${root.resolved ? "bg-surface" : ""}`}>
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
@@ -86,6 +130,7 @@ export default function CommentThread({ projectId, submissionId, thread }: Props
         {/* 해결 여부는 색이 아니라 ✓ 기호와 글자로 알려준다 */}
         {root.resolved && <span className={`${badge} bg-ok-soft text-ok`}>✓ 해결됨</span>}
         {newIds.has(root.id) && <NewMark label="새 댓글" />}
+        {deleteControl(root.id, root.author, "댓글")}
       </p>
       {/* 댓글은 텍스트로만 렌더링 (React가 자동 이스케이프) */}
       {root.content && (
@@ -101,6 +146,7 @@ export default function CommentThread({ projectId, submissionId, thread }: Props
                 <span className="font-medium text-foreground">{r.author}</span>
                 <span>{formatTime(r.createdAt)}</span>
                 {newIds.has(r.id) && <NewMark label="새 답글" />}
+                {deleteControl(r.id, r.author, "답글")}
               </p>
               <p className="mt-0.5 whitespace-pre-wrap break-words leading-relaxed">{r.content}</p>
             </li>

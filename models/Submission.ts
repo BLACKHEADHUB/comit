@@ -14,7 +14,12 @@ const submissionSchema = new Schema({
   },
   status: { type: String, enum: ["PENDING", "MERGED", "STALE"], default: "PENDING" },
   createdAt: { type: Date, default: Date.now },
+  // 병합된 시각 (나중에 추가된 선택 필드라 예전 병합에는 없다). "가장 최근 병합"을 찾아 되돌릴 때 쓴다
+  mergedAt: { type: Date },
 });
+
+// 목록(최신순)과 "가장 최근 병합" 조회용
+submissionSchema.index({ projectId: 1, createdAt: -1 });
 
 export type SubmissionDoc = InferSchemaType<typeof submissionSchema>;
 
