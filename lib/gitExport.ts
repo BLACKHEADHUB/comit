@@ -93,7 +93,6 @@ export function buildGitRepo(merges: MergedRecord[], mainCode: string, fileName:
   files.set(".git/HEAD", Buffer.from("ref: refs/heads/main\n"));
   files.set(".git/config", Buffer.from("[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n\tbare = false\n\tlogallrefupdates = true\n"));
   files.set(".git/refs/heads/main", Buffer.from(`${head}\n`));
-  files.set(".git/refs/tags/.keep", Buffer.alloc(0));
   const blobSha = gitObject("blob", Buffer.from(mainCode)).sha;
   files.set(".git/index", indexFile(fileName, blobSha, Buffer.byteLength(mainCode)));
   files.set(fileName, Buffer.from(mainCode));
