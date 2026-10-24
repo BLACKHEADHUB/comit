@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { OnMount } from "@monaco-editor/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
+import CodeRunner from "@/components/CodeRunner";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
 import InviteLink from "@/components/InviteLink";
@@ -15,6 +16,7 @@ import OnboardingCard from "@/components/OnboardingCard";
 import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
+import { setOnline } from "@/lib/onlineStore";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
   clearDraft,
@@ -101,11 +103,12 @@ type Props = {
   initialVersion: string; // 이 화면이 받은 원본(mainCode)의 버전. 폴링으로 받은 버전과 다르면 원본이 바뀐 것
   initialSubmissions: SubmissionItem[];
   initialMemberCount: number;
+  initialOnline: string[]; // 처음 화면을 그릴 때 접속 중이던 팀원
   inviteUrl: string | null; // 팀장에게만 전달된다 (혼자일 때 빈 상태에서 초대 버튼을 보여주는 용도)
   isLeader: boolean; // 팀장이면 첫 진입 안내를 팀장용(리뷰 → 병합 → 초대)으로 보여준다
 };
 
-export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, inviteUrl, isLeader }: Props) {
+export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, initialOnline, inviteUrl, isLeader }: Props) {
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -156,12 +159,18 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   }, [submissions]);
 
   // 자동 갱신: 창에 포커스가 돌아올 때 + 15초마다 목록을 다시 가져온다 (숨은 탭에서는 멈춤)
+  // 접속 중 표시: 처음 값으로 저장소를 채운다 (이후에는 아래 자동 갱신이 바꾼다)
+  useEffect(() => {
+    setOnline(initialOnline);
+  }, [initialOnline]);
+
   useEffect(() => {
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string; memberCount: number };
+      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string; memberCount: number; online?: string[] };
       setMemberCount(data.memberCount);
+      if (data.online) setOnline(data.online);
       setLatestVersion(data.mainVersion); // 원본이 바뀌었는지 알림용 (에디터의 코드는 건드리지 않는다)
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
@@ -547,6 +556,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             options={{ minimap: { enabled: false }, fontSize: 16, padding: { top: 12 }, scrollBeyondLastLine: false }}
           />
         </div>
+        {/* 코드 실행/미리보기: 내 브라우저 안의 격리된 공간에서만 돈다 (서버에서는 실행하지 않는다) */}
+        <CodeRunner key={language} code={code} language={language} />
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-3">
           {/* 협업 흐름에서 지금은 "작성" 단계라는 것과 다음 할 일을 알려준다 */}
           <div className="min-w-0 flex-1 basis-64">
