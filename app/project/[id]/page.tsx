@@ -56,6 +56,10 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
           <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} projectTitle={project.title} isLeader={me.role === "LEADER"} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
+          {/* 팀원별 기여도 리포트 (팀플 발표·평가 자료로 인쇄할 수 있다) */}
+          <Link href={`/project/${id}/report`} className="rounded-full px-2 py-1 transition hover:bg-surface hover:text-foreground">
+            📊 기여도
+          </Link>
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
           <TermsHelp openFirstVisit />
         </div>
