@@ -50,6 +50,11 @@ const createProjectRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 h"), prefix: "comit:create" })
   : null;
 
+// 수업(반) 만들기: IP 기준 시간당 5개
+const createClassRateLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "1 h"), prefix: "comit:create-class" })
+  : null;
+
 const CACHE_TTL_SECONDS = 60 * 60 * 24; // 24시간
 
 // Redis 장애가 제출 흐름을 막지 않도록 에러는 로그만 남기고 계속 진행한다 (비밀값이 섞이지 않게 메시지만 기록)
@@ -84,6 +89,7 @@ async function checkLimit(limiter: Ratelimit | null, key: string, what: string):
 export const allowSubmit = (projectId: string, author: string) => checkLimit(submitRateLimit, `${projectId}:${author}`, "제출 제한");
 export const allowSubmitFromIp = (ip: string) => checkLimit(submitIpRateLimit, ip, "IP별 제출 제한");
 export const allowCreateProject = (ip: string) => checkLimit(createProjectRateLimit, ip, "프로젝트 생성 제한");
+export const allowCreateClass = (ip: string) => checkLimit(createClassRateLimit, ip, "수업 생성 제한");
 
 // 캐시 키: diff 내용의 SHA-256 (같은 변경이면 같은 키)
 // v2: 프롬프트를 바꿨을 때 이전 프롬프트로 만든 캐시가 재사용되지 않도록 버전을 키에 포함한다

@@ -1,34 +1,12 @@
 import { isValidObjectId } from "mongoose";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import ClassLinkForm from "@/components/ClassLinkForm";
+import ContributionReport from "@/components/ContributionReport";
 import { findMember } from "@/lib/auth";
-import PrintButton from "@/components/PrintButton";
-import { buildContribution, REPORT_WEEKS, teamTotals, type ContributionRow } from "@/lib/contribution";
-import { formatTime } from "@/lib/tags";
-import { badge, card } from "@/lib/ui";
-import { Comment } from "@/models/Comment";
-import { Submission } from "@/models/Submission";
+import { loadContribution } from "@/lib/contributionData";
+import { Classroom } from "@/models/Classroom";
 
 export const metadata = { title: "팀 기여도 · Comit" };
-
-const ROLE_LABEL: Record<ContributionRow["role"], string> = { LEADER: "👑 팀장", MEMBER: "팀원", LEFT: "나간 팀원" };
-
-// 주별 활동 칸: 활동이 많을수록 진하게 (색만으로 구분하지 않게 숫자를 title로도 준다)
-function WeekCells({ weekly }: { weekly: number[] }) {
-  const max = Math.max(1, ...weekly);
-  return (
-    <div className="flex gap-0.5" aria-label={`최근 ${REPORT_WEEKS}주 활동: ${weekly.join(", ")}`}>
-      {weekly.map((n, i) => (
-        <span
-          key={i}
-          title={`${REPORT_WEEKS - 1 - i === 0 ? "이번 주" : `${REPORT_WEEKS - 1 - i}주 전`}: ${n}번`}
-          className="size-4 rounded-[4px] ring-1 ring-line print:ring-line-strong"
-          style={{ background: n === 0 ? "transparent" : `color-mix(in srgb, var(--accent) ${25 + (n / max) * 75}%, transparent)` }}
-        />
-      ))}
-    </div>
-  );
-}
 
 // 팀원별 기여도 리포트: 누가 무엇을 올리고, 얼마나 반영되고, 누구 코드를 리뷰했는지 한 장으로 본다
 export default async function ReportPage({ params }: PageProps<"/project/[id]/report">) {
@@ -38,128 +16,21 @@ export default async function ReportPage({ params }: PageProps<"/project/[id]/re
   // 이 프로젝트의 멤버만 볼 수 있다 (멀티테넌시 격리)
   const member = await findMember(id);
   if (!member) notFound();
-  const { project } = member;
-
-  // 항상 projectId로 거른 제출만, 그 제출에 달린 댓글만 가져온다
-  const submissions = await Submission.find({ projectId: project._id })
-    .select({ author: 1, status: 1, beforeCode: 1, afterCode: 1, createdAt: 1 })
-    .lean();
-  const authorOf = new Map(submissions.map((s) => [String(s._id), s.author]));
-  const comments = await Comment.find({ submissionId: { $in: submissions.map((s) => s._id) } })
-    .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, createdAt: 1 })
-    .lean();
+  const { project, me } = member;
 
   const now = new Date();
-  const rows = buildContribution(
-    project.members,
-    submissions.map((s) => ({ author: s.author, status: s.status, beforeCode: s.beforeCode ?? "", afterCode: s.afterCode ?? "", createdAt: s.createdAt })),
-    comments.map((c) => ({
-      author: c.author,
-      submissionAuthor: authorOf.get(String(c.submissionId)) ?? "",
-      isReply: Boolean(c.parentId),
-      tag: c.tag,
-      createdAt: c.createdAt,
-    })),
-    now
-  );
-  const totals = teamTotals(rows);
+  const rows = await loadContribution(project, now);
+
+  // 연결된 수업이 있으면 이름을 보여준다 (반 코드나 강사 링크는 보여주지 않는다)
+  const classroom = project.classroomId ? await Classroom.findById(project.classroomId).select({ title: 1, instructorName: 1 }).lean() : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 print:max-w-none print:py-0">
-      <div className="flex flex-wrap items-center gap-3 print:hidden">
-        <Link href={`/project/${id}`} className="text-sm text-muted transition hover:text-foreground">
-          ← 프로젝트로 돌아가기
-        </Link>
-        <div className="ml-auto">
-          <PrintButton />
-        </div>
-      </div>
-
-      <header>
-        <p className="text-xs text-muted">Comit 팀 기여도 리포트 · {formatTime(now.toISOString())} 기준</p>
-        <h1 className="mt-1 text-xl font-bold tracking-tight">{project.title}</h1>
-        <p className="mt-1 text-sm text-muted">
-          누가 코드를 올리고, 얼마나 반영되고, 누구의 코드를 리뷰했는지 기록으로 보여줘요. 숫자는 참고 자료예요. 설계·회의·자료 조사처럼 여기 남지 않는 기여도 있으니 팀원끼리 함께 읽어주세요.
-        </p>
-      </header>
-
-      <section className="grid grid-cols-3 gap-3">
-        {[
-          { label: "올린 제출", value: totals.submitted },
-          { label: "원본에 반영", value: totals.merged },
-          { label: "리뷰 댓글", value: totals.reviews },
-        ].map((t) => (
-          <div key={t.label} className={`${card} px-4 py-3`}>
-            <p className="text-xs text-muted">{t.label}</p>
-            <p className="mt-0.5 text-2xl font-semibold tabular-nums">{t.value}</p>
-          </div>
-        ))}
-      </section>
-
-      {totals.quiet.length > 0 && totals.submitted > 0 && (
-        <p role="status" className="rounded-xl bg-surface px-3 py-2 text-sm print:hidden">
-          💬 최근 2주 동안 {totals.quiet.join(", ")} 님의 활동이 없어요. 막힌 부분이 없는지 먼저 말을 걸어보면 어때요?
-        </p>
-      )}
-
-      <section className={`${card} overflow-x-auto`}>
-        <table className="w-full min-w-[640px] whitespace-nowrap text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-muted">
-              <th scope="col" className="px-4 py-2.5 font-medium">이름</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-medium" title="올린 제출 중 원본에 반영된 수">반영 / 제출</th>
-              <th scope="col" className="px-2 py-2.5 font-medium" title="반영된 제출에서 바뀐 줄 (한 줄 수정 = 1줄)">반영된 줄</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-medium" title="팀원 제출에 남긴 댓글 (답글 제외)">리뷰</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-medium">🐞 버그 발견</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-medium">답글</th>
-              <th scope="col" className="px-2 py-2.5 font-medium">최근 {REPORT_WEEKS}주</th>
-              <th scope="col" className="px-4 py-2.5 font-medium">마지막 활동</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.nickname} className="border-b border-line last:border-0">
-                <th scope="row" className="px-4 py-3 text-left font-medium">
-                  <span className="block">{r.nickname}</span>
-                  <span className={`${badge} mt-0.5 !px-1.5 ${r.role === "LEADER" ? "bg-accent-soft text-accent-ink" : "bg-surface text-muted ring-1 ring-line"}`}>
-                    {ROLE_LABEL[r.role]}
-                  </span>
-                </th>
-                <td className="px-2 py-3 text-right tabular-nums">
-                  {r.merged} / {r.submitted}
-                </td>
-                <td className="px-2 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-20 overflow-hidden rounded-full bg-surface ring-1 ring-line" aria-hidden>
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${r.lineShare}%` }} />
-                    </div>
-                    <span className="tabular-nums">
-                      {r.linesChanged}줄 <span className="text-xs text-muted">({r.lineShare}%)</span>
-                    </span>
-                  </div>
-                </td>
-                <td className="px-2 py-3 text-right tabular-nums">{r.reviews}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{r.bugsFound}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{r.replies}</td>
-                <td className="px-2 py-3">
-                  <WeekCells weekly={r.weekly} />
-                </td>
-                <td className="px-4 py-3 text-xs text-muted">{r.lastActiveAt ? formatTime(r.lastActiveAt.toISOString()) : "아직 없음"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <details className="text-xs text-muted">
-        <summary className="cursor-pointer">숫자는 이렇게 세요</summary>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>반영된 줄: 팀장이 병합한 제출에서 원본과 달라진 줄 수예요. 한 줄을 고치면 1줄로 세요. 아직 대기 중이거나 다시 제출이 필요한 제출은 넣지 않아요.</li>
-          <li>리뷰: 다른 팀원의 제출에 남긴 댓글이에요. 내 제출에 단 댓글과 답글은 따로 세요.</li>
-          <li>최근 {REPORT_WEEKS}주: 한 칸이 일주일이고, 오른쪽 끝이 이번 주예요. 제출과 댓글을 합친 횟수가 많을수록 진해요.</li>
-          <li>지운 제출·댓글과 정리된 기록은 세지 않아요.</li>
-        </ul>
-      </details>
-    </main>
+    <ContributionReport title={project.title} rows={rows} now={now} backHref={`/project/${id}`} backLabel="프로젝트로 돌아가기">
+      <ClassLinkForm
+        projectId={id}
+        isLeader={me.role === "LEADER"}
+        linked={classroom ? { title: classroom.title, instructorName: classroom.instructorName } : null}
+      />
+    </ContributionReport>
   );
 }

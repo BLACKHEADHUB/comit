@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { connectDB } from "@/lib/db";
 import { expiryCutoff } from "@/lib/retention";
+import { Classroom } from "@/models/Classroom";
 import { Comment } from "@/models/Comment";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
@@ -26,9 +27,18 @@ export async function GET(req: Request) {
     .limit(BATCH)
     .lean();
 
+  // 강사가 오래 열어보지 않은 수업도 같은 기준으로 정리한다
+  const classes = await Classroom.find({ lastActivityAt: { $lt: cutoff } }).select("_id").limit(BATCH).lean();
+
   if (process.env.CLEANUP_ENABLED !== "true") {
-    console.log(`[cleanup] 미리보기: 정리 대상 ${targets.length}개 (CLEANUP_ENABLED=true일 때만 실제로 지웁니다)`);
-    return Response.json({ dryRun: true, count: targets.length });
+    console.log(`[cleanup] 미리보기: 정리 대상 프로젝트 ${targets.length}개, 수업 ${classes.length}개 (CLEANUP_ENABLED=true일 때만 실제로 지웁니다)`);
+    return Response.json({ dryRun: true, count: targets.length, classes: classes.length });
+  }
+
+  for (const { _id } of classes) {
+    // 수업을 지우기 전에 연결된 프로젝트의 연결만 끊는다 (프로젝트는 그대로 둔다)
+    await Project.updateMany({ classroomId: _id }, { $set: { classroomId: null } });
+    await Classroom.deleteOne({ _id });
   }
 
   for (const { _id } of targets) {
@@ -37,6 +47,6 @@ export async function GET(req: Request) {
     await Submission.deleteMany({ projectId: _id });
     await Project.deleteOne({ _id });
   }
-  console.log(`[cleanup] ${targets.length}개 프로젝트를 정리했어요.`);
-  return Response.json({ dryRun: false, count: targets.length });
+  console.log(`[cleanup] 프로젝트 ${targets.length}개, 수업 ${classes.length}개를 정리했어요.`);
+  return Response.json({ dryRun: false, count: targets.length, classes: classes.length });
 }

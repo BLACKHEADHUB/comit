@@ -14,6 +14,8 @@ import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
 import { daysUntilExpiry, shouldWarnExpiry } from "@/lib/retention";
 import { codeVersion } from "@/lib/version";
+import { onlineNicknames } from "@/lib/presence";
+import { touchPresence } from "@/lib/presenceServer";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
 export const maxDuration = 30;
@@ -40,6 +42,10 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
 
   // 오래 안 쓰면 정리된다는 안내 (만료 30일 전부터). 제출·댓글을 하면 기간이 새로 시작된다
   const daysLeft = daysUntilExpiry(project.lastActivityAt, project.createdAt);
+
+  // 접속 중 표시: 들어온 순간 내 접속 시각을 적고, 지금 접속 중인 팀원을 처음 화면에 넘긴다
+  await touchPresence(project._id, me._id);
+  const initialOnline = onlineNicknames(project.members, new Date(), me.nickname);
 
   return (
     <main className="flex h-dvh w-full flex-col">
@@ -73,6 +79,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
       <ProjectWorkspace
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}
         initialMemberCount={project.members.length}
+        initialOnline={initialOnline}
         inviteUrl={inviteUrl}
         isLeader={me.role === "LEADER"}
       />

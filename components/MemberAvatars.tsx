@@ -1,3 +1,5 @@
+import OnlineDot from "@/components/OnlineDot";
+import GitExportLink from "@/components/GitExportLink";
 import { DeleteProjectButton, RegenerateInviteButton, ReissueCodeButton, RemoveMemberButton, TransferLeaderButton } from "@/components/MemberMenuActions";
 import { initialOf, type MemberView } from "@/lib/members";
 
@@ -14,6 +16,8 @@ function Avatar({ member, overlap = false }: { member: MemberView; overlap?: boo
       {initialOf(member.nickname)}
       {/* 팀장은 색이 아니라 왕관으로 구분한다 */}
       {member.role === "LEADER" && <span className="absolute -top-2 -right-1 text-[10px]">👑</span>}
+      {/* 지금 프로젝트 화면을 보고 있으면 초록 점 */}
+      <OnlineDot nickname={member.nickname} />
     </span>
   );
 }
@@ -41,6 +45,7 @@ export default function MemberAvatars({ members, projectId, projectTitle, isLead
             <div className="flex items-center gap-2">
               <Avatar member={m} />
               <span className="min-w-0 flex-1 truncate">{m.nickname}</span>
+              {!m.isMe && <OnlineDot nickname={m.nickname} withLabel />}
               <span className="shrink-0 text-xs text-muted">
                 {m.role === "LEADER" ? "팀장" : "팀원"}
                 {m.isMe && " · 나"}
@@ -63,6 +68,10 @@ export default function MemberAvatars({ members, projectId, projectTitle, isLead
           <a href={`/api/project/${projectId}/export`} download className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline">
             ⬇ 원본 코드 내려받기
           </a>
+        </li>
+        {/* GitHub로 "졸업"할 때: 병합 기록을 커밋 히스토리로 가져간다 */}
+        <li className="px-2 py-0.5">
+          <GitExportLink projectId={projectId} />
         </li>
         {isLeader && (
           <li className="px-2 py-0.5">

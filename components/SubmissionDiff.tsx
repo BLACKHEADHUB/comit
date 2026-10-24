@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createComment } from "@/app/actions/comment";
 import { summarizeChanges } from "@/lib/changes";
+import { applyStarter, coachFor } from "@/lib/reviewCoach";
 import AskAi from "@/components/AskAi";
 import CommentThread from "@/components/CommentThread";
 import Mascot from "@/components/Mascot";
@@ -36,6 +37,7 @@ export default function SubmissionDiff({ aiPanel, projectId, submissionId, befor
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [tag, setTag] = useState<CommentTag>("LIKE");
   const [content, setContent] = useState("");
+  const coach = coachFor(tag, content);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const dark = useIsDark();
@@ -242,6 +244,24 @@ export default function SubmissionDiff({ aiPanel, projectId, submissionId, befor
                 placeholder="내용 (선택)"
                 className={inputClass}
               />
+              {/* 리뷰 코칭: 내용이 짧으면 어떻게 쓰면 좋은지와 첫마디 예시를 보여준다 (누르면 칸에 들어간다) */}
+              {coach && (
+                <div className="flex flex-col gap-1.5 text-xs">
+                  <p className="text-muted">💡 {coach.tip}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {coach.starters.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setContent((prev) => applyStarter(prev, s))}
+                        className="rounded-full border border-line-strong px-2 py-0.5 text-left text-muted transition hover:bg-surface hover:text-foreground"
+                      >
+                        {s.trim()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {error && <p role="alert" className={noticeError}>{error}</p>}
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setActiveLine(null)} className={btnGhost}>
