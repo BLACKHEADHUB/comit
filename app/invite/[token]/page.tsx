@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CenteredCard from "@/components/CenteredCard";
@@ -7,6 +8,17 @@ import { connectDB } from "@/lib/db";
 import { getMemberId } from "@/lib/session";
 import { btnPrimary, noticeWarn } from "@/lib/ui";
 import { Project } from "@/models/Project";
+
+// 메신저에 초대 링크를 붙이면 "OO 프로젝트에 초대받았어요" 미리보기가 뜨게 한다 (검색 노출은 여전히 막는다)
+export async function generateMetadata({ params }: PageProps<"/invite/[token]">): Promise<Metadata> {
+  const { token } = await params;
+  await connectDB();
+  const project = await Project.findOne({ inviteToken: token }).select("title").lean();
+  if (!project) return { title: "Comit (코밋)" };
+  const title = `${project.title}에 초대받았어요 · Comit`;
+  const description = "닉네임만 정하면 바로 합류해요. 설치도 회원가입도 필요 없어요.";
+  return { title, description, openGraph: { title, description, siteName: "Comit", type: "website" } };
+}
 
 export default async function InvitePage({
   params,

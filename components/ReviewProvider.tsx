@@ -14,6 +14,7 @@ type ReviewContextValue = {
   comments: CommentItem[];
   addComment: (c: CommentItem) => void;
   updateComment: (c: CommentItem) => void; // 해결 처리 등으로 바뀐 댓글을 교체한다
+  removeComments: (ids: string[]) => void; // 지운 댓글(원댓글이면 답글 포함)을 화면에서 뺀다
   viewer: Viewer;
   status: SubmissionStatus;
   setStatus: (s: SubmissionStatus) => void;
@@ -70,6 +71,7 @@ export function ReviewProvider({ projectId, submissionId, viewer, initialComment
     comments,
     addComment: (c) => setComments((prev) => [...prev, c]),
     updateComment: (c) => setComments((prev) => prev.map((old) => (old.id === c.id ? c : old))),
+    removeComments: (ids) => setComments((prev) => prev.filter((c) => !ids.includes(c.id))),
     viewer,
     status,
     setStatus,

@@ -2,11 +2,13 @@ import type { SubmissionItem, SubmissionStatus } from "@/lib/validation";
 
 // 화면에 있던 목록(local)과 서버에서 새로 받은 목록(server)을 id 기준으로 합친다.
 // - 같은 id는 서버 값이 이긴다
-// - 화면에만 있는 항목은 버리지 않는다 (방금 내가 만든 항목이, 그 직전에 출발한 조회 결과에는 없을 수 있다.
-//   이 앱에는 삭제 기능이 없으므로 화면에만 있는 항목은 "아직 조회에 안 잡힌 새 항목"이다)
-export function mergeById<T extends { id: string }>(local: T[], server: T[]): T[] {
+// - 화면에만 있는 항목은 "방금(1분 안에) 만든 것"일 때만 남긴다. 방금 내가 만든 항목이, 그 직전에 출발한 조회 결과에는 없을 수 있어서다.
+//   그보다 오래된데 서버에 없다면 누군가 지운 항목이라 화면에서도 뺀다
+export const FRESH_MS = 60_000;
+export function mergeById<T extends { id: string; createdAt?: string }>(local: T[], server: T[], now = Date.now()): T[] {
   const serverIds = new Set(server.map((item) => item.id));
-  return [...server, ...local.filter((item) => !serverIds.has(item.id))];
+  const isFresh = (item: T) => !item.createdAt || now - Date.parse(item.createdAt) < FRESH_MS;
+  return [...server, ...local.filter((item) => !serverIds.has(item.id) && isFresh(item))];
 }
 
 // 제출 목록에서 "새 활동"이 생긴 제출 id: 새로 나타났거나 댓글/답글이 늘어난 것 (내가 올린 새 제출은 제외)

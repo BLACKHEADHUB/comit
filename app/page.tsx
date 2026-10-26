@@ -2,6 +2,7 @@ import Link from "next/link";
 import EnterForm from "@/components/EnterForm";
 import LandingModal from "@/components/LandingModal";
 import Mascot from "@/components/Mascot";
+import SiteFooter from "@/components/SiteFooter";
 import { card } from "@/lib/ui";
 
 // 4단계 소개 카드. tone은 아이콘 칩의 파스텔 배경 + 글자 색 (파스텔 위에는 회색 글자를 쓰지 않는다)
@@ -109,6 +110,7 @@ export default function Home() {
           ))}
         </section>
       </main>
+      <SiteFooter />
     </div>
   );
 }

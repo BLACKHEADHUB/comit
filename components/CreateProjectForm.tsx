@@ -61,6 +61,11 @@ export default function CreateProjectForm() {
       <button type="submit" disabled={pending} className={btnPrimary}>
         {pending ? "만드는 중..." : "프로젝트 만들기"}
       </button>
+      {/* 만들기/합류 = 약관 동의 (작게, 링크는 새 탭으로 열어 입력한 내용을 잃지 않게) */}
+      <p className="-mt-2 text-center text-xs text-muted">
+        계속하면 <a href="/terms" target="_blank" className="underline">이용약관</a>과{" "}
+        <a href="/privacy" target="_blank" className="underline">개인정보 처리방침</a>에 동의하는 거예요.
+      </p>
     </form>
   );
 }

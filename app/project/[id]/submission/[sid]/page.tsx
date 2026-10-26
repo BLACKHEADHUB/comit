@@ -5,6 +5,7 @@ import { findMember } from "@/lib/auth";
 import RetryAiButton from "@/components/RetryAiButton";
 import MergePanel from "@/components/MergePanel";
 import { ReviewProvider } from "@/components/ReviewProvider";
+import SubmissionActions from "@/components/SubmissionActions";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import SubmissionFlow from "@/components/SubmissionFlow";
 import TermsHelp from "@/components/TermsHelp";
@@ -13,6 +14,7 @@ import { formatTime } from "@/lib/tags";
 import Mascot from "@/components/Mascot";
 import { card, noticeError } from "@/lib/ui";
 import { listComments } from "@/lib/review";
+import { findRevertTarget } from "@/lib/revert";
 import { Submission } from "@/models/Submission";
 
 export default async function SubmissionPage({
@@ -32,6 +34,10 @@ export default async function SubmissionPage({
 
   // 위에서 projectId로 검증한 제출의 댓글만 조회한다
   const comments = await listComments(submission._id);
+
+  // 지금 원본을 만든 가장 최근 병합인지 (팀장의 [되돌리기] 버튼용, 병합된 제출일 때만 확인)
+  const revertTarget = submission.status === "MERGED" ? await findRevertTarget(project._id, project.mainCode) : null;
+  const isLatestMerge = String(revertTarget?._id) === String(submission._id);
 
   const { summary, warning, concept } = submission.aiReport ?? { summary: [], warning: "", concept: "" };
   // AI가 실패하거나 건너뛰었을 때 저장되는 기본 리포트인지 (그렇다면 번호 요약 대신 안내를 보여준다)
@@ -119,6 +125,7 @@ export default async function SubmissionPage({
           </p>
         </div>
         {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
+        <div className="flex flex-col items-start gap-3 sm:items-end">
         <MergePanel
           projectId={id}
           submissionId={sid}
@@ -127,6 +134,9 @@ export default async function SubmissionPage({
           afterCode={submission.afterCode}
           latestMainCode={project.mainCode}
         />
+        {/* 지우기(작성자·팀장, 병합 전) / 되돌리기(팀장, 가장 최근 병합) */}
+        <SubmissionActions projectId={id} submissionId={sid} isLatestMerge={isLatestMerge} />
+        </div>
       </div>
 
       {/* 지금 어느 단계인지 + 다음 할 일 */}

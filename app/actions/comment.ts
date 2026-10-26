@@ -3,7 +3,7 @@
 import { isValidObjectId } from "mongoose";
 import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
-import { canResolve } from "@/lib/comments";
+import { canDeleteComment, canResolve } from "@/lib/comments";
 import { toCommentItem } from "@/lib/review";
 import { createCommentSchema, createReplySchema, type CommentResult } from "@/lib/validation";
 import { Comment } from "@/models/Comment";
@@ -130,4 +130,36 @@ export async function setCommentResolved(
   if (!updated) return { error: COMMENT_GONE_MESSAGE };
 
   return { comment: toCommentItem(updated) };
+}
+
+// 댓글 삭제: 쓴 사람과 팀장만. 원댓글을 지우면 달린 답글도 함께 지운다 (답글만 남아 맥락을 잃지 않게)
+export async function deleteComment(
+  projectId: string,
+  submissionId: string,
+  commentId: string,
+): Promise<{ error?: string; deletedIds?: string[] }> {
+  if (!isValidObjectId(projectId) || !isValidObjectId(submissionId) || !isValidObjectId(commentId)) {
+    return { error: BAD_REQUEST_MESSAGE };
+  }
+  const member = await findMember(projectId);
+  if (!member) return { error: NOT_MEMBER_MESSAGE };
+  const { project, me } = member;
+
+  // projectId까지 걸어 조회 → 다른 프로젝트의 댓글은 지울 수 없다
+  const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).select("_id").lean();
+  if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
+  const comment = await Comment.findOne({ _id: commentId, submissionId: submission._id }).select("author parentId").lean();
+  if (!comment) return { error: COMMENT_GONE_MESSAGE };
+
+  if (!canDeleteComment({ nickname: me.nickname, isLeader: me.role === "LEADER" }, comment.author)) {
+    return { error: "댓글을 쓴 사람과 팀장만 지울 수 있어요." };
+  }
+
+  // 원댓글이면 답글까지 한 번에 지운다
+  const filter = comment.parentId
+    ? { _id: comment._id, submissionId: submission._id }
+    : { submissionId: submission._id, $or: [{ _id: comment._id }, { parentId: comment._id }] };
+  const targets = await Comment.find(filter).select("_id").lean();
+  await Comment.deleteMany({ _id: { $in: targets.map((t) => t._id) }, submissionId: submission._id });
+  return { deletedIds: targets.map((t) => String(t._id)) };
 }

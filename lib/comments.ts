@@ -57,3 +57,8 @@ export const countRoots = (comments: Pick<CommentItem, "parentId">[]) => comment
 export function canResolve(who: { nickname: string; isLeader: boolean }, commentAuthor: string, submissionAuthor: string): boolean {
   return who.isLeader || who.nickname === commentAuthor || who.nickname === submissionAuthor;
 }
+
+// 댓글 삭제: 댓글을 쓴 사람과 팀장만 (원댓글을 지우면 달린 답글도 함께 지워진다)
+export function canDeleteComment(who: { nickname: string; isLeader: boolean }, commentAuthor: string): boolean {
+  return who.isLeader || who.nickname === commentAuthor;
+}

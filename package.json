@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/copy-monaco.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "e2e": "node e2e/run.mjs"
+    "e2e": "node e2e/run.mjs",
+    "postinstall": "node scripts/copy-monaco.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.26.0",
@@ -16,6 +18,7 @@
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.39.0",
     "diff": "^9.0.0",
+    "monaco-editor": "0.57.0",
     "mongoose": "^9.10.3",
     "next": "16.3.8",
     "react": "19.2.8",

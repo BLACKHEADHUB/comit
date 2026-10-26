@@ -8,6 +8,9 @@ import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
 import { initialStatusFor } from "@/lib/changes";
 import type { AIReport } from "@/lib/ai";
+import { canDeleteSubmission, revertReport, revertTitle } from "@/lib/ownership";
+import { findRevertTarget } from "@/lib/revert";
+import { Comment } from "@/models/Comment";
 import { createSubmissionSchema, MAX_SUBMISSIONS_PER_PROJECT, type MergeResult, type SubmissionResult } from "@/lib/validation";
 import { Project } from "@/models/Project";
 import { Submission } from "@/models/Submission";
@@ -174,7 +177,7 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
     // 상태 변경은 PENDING일 때만: 같은 제출이 이미 처리됐다면 아무것도 바뀌지 않는다
     const updated = await Submission.updateOne(
       { _id: submission._id, projectId: project._id, status: "PENDING" },
-      { status: merged ? "MERGED" : "STALE" },
+      merged ? { status: "MERGED", mergedAt: new Date() } : { status: "STALE" },
       { session }
     );
     if (updated.modifiedCount === 0) {
@@ -209,6 +212,95 @@ export async function mergeSubmission(projectId: string, submissionId: string): 
   // 동시 요청으로 다른 요청이 먼저 처리한 경우: 최종 상태를 다시 읽어 알려준다
   const latest = await Submission.findOne({ _id: submission._id, projectId: project._id }).select("status").lean();
   return { status: latest?.status ?? "STALE", message: "이미 처리된 제출이에요." };
+}
+
+// 제출 삭제: 작성자와 팀장만, 병합 전(대기/재제출 필요) 제출만. 달린 댓글도 함께 지운다
+export async function deleteSubmission(projectId: string, submissionId: string): Promise<{ error?: string; ok?: boolean }> {
+  if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) return { error: BAD_REQUEST_MESSAGE };
+  try {
+    const member = await findMember(projectId);
+    if (!member) return { error: NOT_MEMBER_MESSAGE };
+    const { project, me } = member;
+
+    // projectId 필터로 다른 프로젝트의 제출은 지울 수 없다
+    const submission = await Submission.findOne({ _id: submissionId, projectId: project._id }).select("author status").lean();
+    if (!submission) return { error: SUBMISSION_GONE_MESSAGE };
+    if (submission.status === "MERGED") return { error: "병합된 제출은 원본 기록이라 지울 수 없어요. 대신 팀장이 되돌릴 수 있어요." };
+    if (!canDeleteSubmission({ nickname: me.nickname, isLeader: me.role === "LEADER" }, submission.author, submission.status)) {
+      return { error: "제출한 사람과 팀장만 지울 수 있어요." };
+    }
+
+    // 그 사이 병합되지 않았을 때만 지운다 (병합과 동시에 눌러도 병합된 기록은 남는다)
+    const removed = await Submission.deleteOne({ _id: submission._id, projectId: project._id, status: { $ne: "MERGED" } });
+    if (removed.deletedCount === 0) return { error: "그 사이 병합돼서 지울 수 없어요." };
+    await Comment.deleteMany({ submissionId: submission._id });
+
+    revalidatePath(`/project/${projectId}`, "layout");
+    return { ok: true };
+  } catch (error) {
+    console.error("[제출] 삭제 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
+
+// 병합 되돌리기: 팀장만, 가장 최근 병합만. 원본을 그 병합 전 코드로 돌리고 "되돌리기" 기록을 새로 남긴다
+// (기록을 지우지 않고 새로 쌓기 때문에, 되돌리기를 다시 되돌리면 그대로 다시 적용된다)
+export async function revertMerge(projectId: string, submissionId: string): Promise<{ error?: string; ok?: boolean; newId?: string }> {
+  if (!isValidObjectId(projectId) || !isValidObjectId(submissionId)) return { error: BAD_REQUEST_MESSAGE };
+  try {
+    const member = await findMember(projectId);
+    if (!member) return { error: NOT_MEMBER_MESSAGE };
+    const { project, me } = member;
+    if (me.role !== "LEADER") return { error: "팀장만 되돌릴 수 있어요." };
+
+    // 지금 원본을 만든 병합이 이 제출이어야 한다 (중간 병합을 건너뛰고 되돌리면 그 뒤의 변경이 사라지므로)
+    const target = await findRevertTarget(project._id, project.mainCode);
+    if (!target || String(target._id) !== submissionId) {
+      return { error: "가장 최근 병합만 되돌릴 수 있어요. 화면을 새로고침해 주세요." };
+    }
+
+    const created = await mongoose.connection.transaction(async (session) => {
+      // 병합과 같은 조건부 원자적 업데이트: 그 사이 원본이 바뀌었다면 되돌리지 않는다
+      const reverted = await Project.findOneAndUpdate(
+        { _id: project._id, mainCode: target.afterCode },
+        { mainCode: target.beforeCode },
+        { session }
+      );
+      if (!reverted) return null;
+      const now = new Date();
+      const [record] = await Submission.create(
+        [
+          {
+            projectId: project._id,
+            author: me.nickname,
+            title: revertTitle(target.title),
+            beforeCode: target.afterCode,
+            afterCode: target.beforeCode,
+            aiReport: revertReport(me.nickname, target.title),
+            status: "MERGED",
+            mergedAt: now,
+            createdAt: now,
+          },
+        ],
+        { session }
+      );
+      // 원본이 바뀌었으니, 옛 원본 기준의 대기 제출은 "다시 제출 필요"로 (병합 때와 같은 규칙)
+      await Submission.updateMany(
+        { projectId: project._id, status: "PENDING", beforeCode: { $ne: target.beforeCode } },
+        { status: "STALE" },
+        { session }
+      );
+      return record;
+    });
+    if (!created) return { error: "그 사이 원본이 바뀌어서 되돌리지 않았어요. 화면을 새로고침해 주세요." };
+
+    await touchProject(project._id);
+    revalidatePath(`/project/${projectId}`, "layout");
+    return { ok: true, newId: String(created._id) };
+  } catch (error) {
+    console.error("[병합] 되돌리기 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
 }
 
 // 트랜잭션을 롤백시키기 위한 내부용 에러
