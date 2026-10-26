@@ -14,6 +14,8 @@ import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
 import { daysUntilExpiry, shouldWarnExpiry } from "@/lib/retention";
 import { codeVersion } from "@/lib/version";
+import { onlineNicknames } from "@/lib/presence";
+import { touchPresence } from "@/lib/presenceServer";
 
 // Vercel에서 [Comit하기](Server Action)가 AI 분석을 기다리는 동안 함수가 끊기지 않도록 최대 실행 시간을 늘린다
 export const maxDuration = 30;
@@ -41,6 +43,10 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   // 오래 안 쓰면 정리된다는 안내 (만료 30일 전부터). 제출·댓글을 하면 기간이 새로 시작된다
   const daysLeft = daysUntilExpiry(project.lastActivityAt, project.createdAt);
 
+  // 접속 중 표시: 들어온 순간 내 접속 시각을 적고, 지금 접속 중인 팀원을 처음 화면에 넘긴다
+  await touchPresence(project._id, me._id);
+  const initialOnline = onlineNicknames(project.members, new Date(), me.nickname);
+
   return (
     <main className="flex h-dvh w-full flex-col">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2.5">
@@ -56,6 +62,10 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
           <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} projectTitle={project.title} isLeader={me.role === "LEADER"} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
+          {/* 팀원별 기여도 리포트 (팀플 발표·평가 자료로 인쇄할 수 있다) */}
+          <Link href={`/project/${id}/report`} className="rounded-full px-2 py-1 transition hover:bg-surface hover:text-foreground">
+            📊 기여도
+          </Link>
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
           <TermsHelp openFirstVisit />
         </div>
@@ -69,6 +79,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
       <ProjectWorkspace
         projectId={id} myNickname={me.nickname} initialCode={project.mainCode} initialVersion={codeVersion(project.mainCode)} initialSubmissions={submissions}
         initialMemberCount={project.members.length}
+        initialOnline={initialOnline}
         inviteUrl={inviteUrl}
         isLeader={me.role === "LEADER"}
       />

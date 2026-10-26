@@ -1,3 +1,4 @@
+import Link from "next/link";
 import EnterForm from "@/components/EnterForm";
 import LandingModal from "@/components/LandingModal";
 import Mascot from "@/components/Mascot";
@@ -72,6 +73,10 @@ export default function Home() {
           <div className="mt-1 flex flex-col items-center gap-3">
             <LandingModal />
             <EnterForm />
+            {/* 강사·조교용: 여러 팀의 기여도를 한 화면에서 보는 수업 만들기 */}
+            <Link href="/class/create" className="text-xs text-muted underline-offset-2 transition hover:text-foreground hover:underline">
+              강사·조교이신가요? 수업 만들기 →
+            </Link>
           </div>
         </section>
 

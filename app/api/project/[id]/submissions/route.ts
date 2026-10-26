@@ -1,4 +1,6 @@
 import { findMember } from "@/lib/auth";
+import { onlineNicknames } from "@/lib/presence";
+import { touchPresence } from "@/lib/presenceServer";
 import { listSubmissions } from "@/lib/submissions";
 import { codeVersion } from "@/lib/version";
 
@@ -15,5 +17,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const mainVersion = codeVersion(member.project.mainCode);
   // 멤버 수도 함께 보낸다 (팀원이 들어오면 "아직 혼자예요" 안내가 새로고침 없이 바뀐다)
   const memberCount = member.project.members.length;
-  return Response.json({ submissions, mainVersion, memberCount }, { headers: { "Cache-Control": "no-store" } });
+  // 접속 중 표시: 내 접속 시각을 적고(1분에 한 번), 지금 접속 중인 팀원 닉네임을 돌려준다
+  await touchPresence(member.project._id, member.me._id);
+  const online = onlineNicknames(member.project.members, new Date(), member.me.nickname);
+  return Response.json({ submissions, mainVersion, memberCount, online }, { headers: { "Cache-Control": "no-store" } });
 }

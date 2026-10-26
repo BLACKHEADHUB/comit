@@ -149,12 +149,12 @@ test("협업 전체 흐름", async ({ browser, page: leader }, testInfo) => {
   await expect(leader.getByText("병합 완료!")).toBeVisible();
   await shot(leader, testInfo, "14-merged");
 
-  // --- 충돌: 이전 원본을 기준으로 올렸던 제출은 다른 병합이 되는 순간 자동으로 STALE("다시 제출 필요")이 된다 ---
+  // --- 충돌: 이전 원본을 기준으로 올렸던 제출은 병합되는 순간 자동으로 STALE("다시 제출 필요")이 된다 ---
   await leader.getByRole("link", { name: /프로젝트로 돌아가기/ }).click();
   await leader.waitForURL(/\/project\/[0-9a-f]{24}$/);
   await openSubmission(leader, /내 제안/, "문장 부호 추가");
-  await expect(leader.getByText(/내 수정은 사라지지 않았어요/)).toBeVisible();
   await expect(leader.getByRole("button", { name: "병합하기" })).toHaveCount(0);
+  await expect(leader.getByText(/다른 변경이 먼저 병합돼서/)).toBeVisible();
   await shot(leader, testInfo, "15-stale");
 
   // --- 재제출: 최신 원본 위에 내 변경을 다시 얹는다. 1~2번 줄은 양쪽이 고쳐서 겹치고, 팀원이 추가한 주석 줄은 자동으로 합쳐진다 ---

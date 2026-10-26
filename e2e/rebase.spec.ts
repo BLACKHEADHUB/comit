@@ -34,10 +34,10 @@ test("겹치지 않는 변경은 최신 원본 위에 자동으로 다시 얹힌
   await expect(page.getByText("병합 완료!")).toBeVisible();
   await backToProject(page);
 
-  // B는 이전 원본 기준이라, A가 병합되는 순간 자동으로 "다시 제출 필요"가 된다 (병합 버튼 없음)
+  // B는 이전 원본 기준이라 A가 병합되는 순간 자동으로 STALE("다시 제출 필요")이 된다
   await openSubmission(page, /내 제안/, "B: 마지막 줄");
-  await expect(page.getByText(/내 수정은 사라지지 않았어요/)).toBeVisible();
   await expect(page.getByRole("button", { name: "병합하기" })).toHaveCount(0);
+  await expect(page.getByText(/다른 변경이 먼저 병합돼서/)).toBeVisible();
 
   // 다시 얹기: 겹침이 없으므로 창 없이 바로 에디터로 가고, A와 B의 변경이 모두 들어 있다
   await page.getByRole("button", { name: "최신 원본에 내 변경 다시 얹기" }).click();
