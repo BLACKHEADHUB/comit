@@ -18,7 +18,9 @@ jobs:
       - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm test
-      - run: npm run build
+      # Use webpack in CI: Turbopack's next/font/google internal resolver currently
+      # fails on the hosted runner for the Korean font used by the app shell.
+      - run: npm run build -- --webpack
         env:
           MONGODB_URI: mongodb://localhost:27017/ci
       - name: Install Playwright Chromium
