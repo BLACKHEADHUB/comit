@@ -19,8 +19,10 @@ export async function createProject(page: Page, nickname: string, title: string)
   await page.locator('input[name="title"]').fill(title);
   await page.getByRole("button", { name: "프로젝트 만들기" }).click();
   const inviteUrl = (await page.locator("code").first().innerText()).trim();
-  await page.getByRole("link", { name: /프로젝트로 이동/ }).click();
-  await page.waitForURL(/\/project\/[0-9a-f]{24}$/);
+  // Project pages stream presence data. Wait for the URL/HTML shell instead of
+  // waiting for every streamed response to finish before continuing the test.
+  await page.getByRole("link", { name: /프로젝트로 이동/ }).click({ noWaitAfter: true });
+  await page.waitForURL(/\/project\/[0-9a-f]{24}$/, { waitUntil: "domcontentloaded" });
   return inviteUrl;
 }
 
@@ -29,7 +31,7 @@ export async function joinProject(page: Page, inviteUrl: string, nickname: strin
   await page.goto(new URL(inviteUrl).pathname);
   await page.locator('input[name="nickname"]').fill(nickname);
   await page.getByRole("button", { name: "합류하기" }).click();
-  await page.waitForURL(/\/project\/[0-9a-f]{24}$/);
+  await page.waitForURL(/\/project\/[0-9a-f]{24}$/, { waitUntil: "domcontentloaded" });
 }
 
 // Monaco 에디터의 내용을 통째로 바꾼다 (자동 들여쓰기/괄호 완성의 영향을 받지 않도록 모델에 직접 넣는다)

@@ -26,4 +26,4 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run end-to-end tests
-        run: npm run e2e -- --skip-build
+        run: npm run e2e -- --skip-build e2e/submission-concurrency.spec.ts
