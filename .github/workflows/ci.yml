@@ -27,3 +27,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run end-to-end tests
         run: npm run e2e -- --skip-build --project=desktop-light --no-deps e2e/submission-concurrency.spec.ts
+      - name: Upload E2E failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-details
+          path: e2e/test-results/**
+          retention-days: 3
