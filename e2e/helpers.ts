@@ -19,10 +19,11 @@ export async function createProject(page: Page, nickname: string, title: string)
   await page.locator('input[name="title"]').fill(title);
   await page.getByRole("button", { name: "프로젝트 만들기" }).click();
   const inviteUrl = (await page.locator("code").first().innerText()).trim();
-  // Project pages stream presence data. Wait for the URL/HTML shell instead of
-  // waiting for every streamed response to finish before continuing the test.
-  await page.getByRole("link", { name: /프로젝트로 이동/ }).click({ noWaitAfter: true });
-  await page.waitForURL(/\/project\/[0-9a-f]{24}$/, { waitUntil: "domcontentloaded" });
+  // Open the returned project URL as a document navigation. This avoids making
+  // the E2E setup depend on Next's client-side navigation completing a streamed page.
+  const projectPath = await page.getByRole("link", { name: /프로젝트로 이동/ }).getAttribute("href");
+  expect(projectPath).toMatch(/^\/project\/[0-9a-f]{24}$/);
+  await page.goto(projectPath!, { waitUntil: "domcontentloaded" });
   return inviteUrl;
 }
 
