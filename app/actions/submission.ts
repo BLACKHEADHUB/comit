@@ -38,15 +38,10 @@ export async function createSubmission(
     if (!member) return { error: NOT_MEMBER_MESSAGE };
     const { project, me } = member;
 
-    // 내가 연 원본과도, 지금 원본과도 같다면 바뀐 게 없는 제출이다
-    if (parsed.data.afterCode === project.mainCode || parsed.data.afterCode === parsed.data.baseCode) {
+    // 내가 연 원본과도 같다면 바뀐 게 없는 제출이다. 현재 원본 비교는 트랜잭션 안에서 다시 한다.
+    if (parsed.data.afterCode === parsed.data.baseCode) {
       return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
     }
-
-    // 에디터를 연 뒤 다른 변경이 먼저 병합됐다면, 내 코드는 옛 원본 기준이다.
-    // 이걸 지금 원본에 그대로 두면 병합 때 먼저 병합된 변경이 지워지므로, 처음부터 "다시 제출 필요"로 올린다
-    // (beforeCode는 내가 실제로 고친 기준 원본. 병합은 beforeCode가 지금 원본과 같을 때만 되므로 여기서 덮어쓰기는 일어나지 않는다)
-    const status = initialStatusFor(parsed.data.baseCode, project.mainCode);
 
     // 도배 방지: 프로젝트+작성자 기준 분당 10회, IP 기준 하루 100회까지 (Redis가 없으면 건너뛴다)
     const { allowSubmit, allowSubmitFromIp } = await import("@/lib/redis");
@@ -56,31 +51,41 @@ export async function createSubmission(
     const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
     if (!(await allowSubmitFromIp(ip))) return { error: "오늘 제출할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해주세요." };
 
-    // 프로젝트당 제출 개수 상한 (저장 공간 보호). 쓰지 않는 제출은 정리 기능이 생기기 전까지 쌓인다
-    stage = "제출 개수 확인";
-    if ((await Submission.countDocuments({ projectId: project._id })) >= MAX_SUBMISSIONS_PER_PROJECT) {
-      return { error: `이 프로젝트에는 제출을 ${MAX_SUBMISSIONS_PER_PROJECT}개까지 쌓을 수 있어요. 새 프로젝트를 만들어 이어가 주세요.` };
-    }
-
-    // 같은 사람이 똑같은 코드를 아직 대기 중으로 올려뒀다면 또 만들지 않는다
-    const duplicate = await Submission.exists({
-      projectId: project._id,
-      author: me.nickname,
-      status: "PENDING",
-      beforeCode: parsed.data.baseCode,
-      afterCode: parsed.data.afterCode,
-    });
-    if (duplicate) return { error: "같은 내용의 제출이 이미 있어요." };
-
+    // 같은 프로젝트의 생성 요청은 Project 문서의 revision을 갱신해 직렬화한다.
+    // 트랜잭션 재시도 뒤 개수·중복·최신 원본을 다시 확인하므로 동시 요청도 제한을 우회하지 못한다.
     stage = "제출 저장";
-    // 작성자는 DB의 닉네임을 쓴다
-    const submission = await Submission.create({
-      projectId: project._id,
-      author: me.nickname,
-      title: parsed.data.title,
-      beforeCode: parsed.data.baseCode,
-      afterCode: parsed.data.afterCode,
-      status,
+    const { submission, status } = await mongoose.connection.transaction(async (session) => {
+      const currentProject = await Project.findOneAndUpdate(
+        { _id: project._id },
+        { $inc: { submissionRevision: 1 } },
+        { new: true, session }
+      );
+      if (!currentProject) throw new SubmissionProjectGoneError();
+
+      if (parsed.data.afterCode === currentProject.mainCode) throw new SubmissionNoChangesError();
+
+      const count = await Submission.countDocuments({ projectId: project._id }).session(session);
+      if (count >= MAX_SUBMISSIONS_PER_PROJECT) throw new SubmissionLimitError();
+
+      const duplicate = await Submission.findOne({
+        projectId: project._id,
+        author: me.nickname,
+        status: "PENDING",
+        beforeCode: parsed.data.baseCode,
+        afterCode: parsed.data.afterCode,
+      }).select("_id").session(session);
+      if (duplicate) throw new DuplicateSubmissionError();
+
+      const [created] = await Submission.create([{
+        projectId: project._id,
+        author: me.nickname,
+        title: parsed.data.title,
+        beforeCode: parsed.data.baseCode,
+        afterCode: parsed.data.afterCode,
+        status: initialStatusFor(parsed.data.baseCode, currentProject.mainCode),
+      }], { session });
+
+      return { submission: created, status: created.status as "PENDING" | "STALE" };
     });
 
     await touchProject(project._id); // 마지막 활동 기록 (정리 대상에서 제외되는 기준)
@@ -107,6 +112,12 @@ export async function createSubmission(
       },
     };
   } catch (error) {
+    if (error instanceof SubmissionNoChangesError) return { error: "변경된 내용이 없어요. 코드를 수정한 뒤 제출해주세요." };
+    if (error instanceof DuplicateSubmissionError) return { error: "같은 내용의 제출이 이미 있어요." };
+    if (error instanceof SubmissionLimitError) {
+      return { error: `이 프로젝트에는 제출을 ${MAX_SUBMISSIONS_PER_PROJECT}개까지 쌓을 수 있어요. 새 프로젝트를 만들어 이어가 주세요.` };
+    }
+    if (error instanceof SubmissionProjectGoneError) return { error: SUBMISSION_GONE_MESSAGE };
     // 비밀값이 섞일 수 있는 상세 메시지는 서버 로그에만, 화면에는 단계와 오류 종류만 보여준다
     const name = error instanceof Error ? error.name : "UnknownError";
     console.error(`[제출] "${stage}" 단계 실패:`, error instanceof Error ? `${name}: ${error.message}`.slice(0, 300) : "unknown");
@@ -305,3 +316,7 @@ export async function revertMerge(projectId: string, submissionId: string): Prom
 
 // 트랜잭션을 롤백시키기 위한 내부용 에러
 class AlreadyHandledError extends Error {}
+class SubmissionNoChangesError extends Error {}
+class DuplicateSubmissionError extends Error {}
+class SubmissionLimitError extends Error {}
+class SubmissionProjectGoneError extends Error {}
