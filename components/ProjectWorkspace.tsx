@@ -6,6 +6,7 @@ import type { OnMount } from "@monaco-editor/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createSubmission } from "@/app/actions/submission";
 import CodeRunner from "@/components/CodeRunner";
+import ConnectionNotice from "@/components/ConnectionNotice";
 import ChangePreview from "@/components/ChangePreview";
 import FlowSteps from "@/components/FlowSteps";
 import InviteLink from "@/components/InviteLink";
@@ -13,6 +14,7 @@ import ModalHeader from "@/components/ModalHeader";
 import Mascot from "@/components/Mascot";
 import Loading from "@/components/Loading";
 import OnboardingCard from "@/components/OnboardingCard";
+import RebaseHelper from "@/components/RebaseHelper";
 import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
@@ -20,8 +22,10 @@ import { setOnline } from "@/lib/onlineStore";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
   clearDraft,
+  clearOldDraft,
   LANGUAGES,
   readDraft,
+  readOldDraft,
   readSubmitted,
   writeSubmitted,
   readLanguage,
@@ -135,6 +139,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     () => false
   );
   const [staleDismissed, setStaleDismissed] = useState(false);
+  const [pollFailures, setPollFailures] = useState(0); // 자동 갱신이 연속으로 실패한 횟수
+  // 원본이 바뀌어서 에디터에 못 쓴 "예전 초안". 서버/브라우저 화면이 달라지지 않도록 마운트 뒤에 읽는다
+  const [oldDraft, setOldDraft] = useState<{ code: string; base: string } | null>(null);
+  const [confirmMerge, setConfirmMerge] = useState<(() => void) | null>(null); // 지금 코드를 덮어쓰기 전 확인
+  useEffect(() => {
+    setOldDraft(readOldDraft(projectId, initialCode));
+  }, [projectId, initialCode]);
   // 방금 Comit한 코드 (에디터의 코드가 이것과 같으면 "이미 보낸 코드"로 보고 또 Comit하라고 하지 않는다)
   const [submitted, setSubmitted] = useState(() => (typeof window === "undefined" ? null : readSubmitted(projectId)));
   const [confirmReset, setConfirmReset] = useState(false); // "원본으로 되돌리기" 확인 단계
@@ -175,7 +186,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   useEffect(() => {
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(String(res.status)); // 실패로 세어 "연결이 불안정해요"를 띄운다
       const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string; memberCount: number; online?: string[] };
       setMemberCount(data.memberCount);
       if (data.online) setOnline(data.online);
@@ -183,7 +194,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
       setSubmissions((prev) => keepIfSame(prev, mergeById(prev, data.submissions).sort(byCreatedDesc))); // 바뀐 게 없으면 다시 그리지 않는다
-    }, POLL_MS);
+    }, POLL_MS, setPollFailures);
   }, [projectId, myNickname]);
 
   const [tab, setTab] = useState<TaskTab>("REVIEW");
@@ -214,6 +225,19 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     clearDraft(projectId);
     setCode(initialCode);
     setStaleDismissed(true);
+  }
+
+  // 예전 초안을 최신 원본 위에 합친 코드로 에디터를 바꾼다 (이동 없이 이 화면에서)
+  function applyMergedOldDraft(merged: string) {
+    writeDraft(projectId, { code: merged, base: initialCode, fromStale: true, rebased: true });
+    clearOldDraft(projectId);
+    setOldDraft(null);
+    setStaleDismissed(false);
+    setCode(merged);
+  }
+  function discardOldDraft() {
+    clearOldDraft(projectId);
+    setOldDraft(null);
   }
 
   const dark = useIsDark();
@@ -446,6 +470,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           hasSubmitted={submissions.some((s) => s.author === myNickname)}
           leader={isLeader ? { hasMerged: submissions.some((s) => s.status === "MERGED"), hasTeam: !alone } : undefined}
         />
+        <ConnectionNotice failures={pollFailures} className="m-3 mb-0" />
         {/* 다른 변경이 병합돼 원본이 바뀌었을 때: 알려주기만 하고, 작성 중인 코드는 절대 자동으로 바꾸지 않는다 */}
         {originalChanged && (
           <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-wrap items-center gap-2`}>
@@ -457,6 +482,48 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               최신 원본 보기
             </button>
             {latestError && <span role="alert" className="basis-full text-xs">{latestError}</span>}
+          </div>
+        )}
+        {/* 쓰던 코드는 원본이 바뀌어도 남겨 둔다: 최신 원본 위에 합치거나, 필요 없으면 버린다 */}
+        {oldDraft && (
+          <div role="status" className={`${noticeWarn} m-3 mb-0 flex flex-col gap-2`}>
+            <p className="leading-relaxed">
+              <strong className="font-semibold">이전에 쓰던 코드가 남아 있어요.</strong> 그 사이 다른 변경이 병합돼서 원본이 바뀌었어요.
+              에디터에는 최신 원본을 보여주고 있어요.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <RebaseHelper
+                projectId={projectId}
+                beforeCode={oldDraft.base}
+                afterCode={oldDraft.code}
+                latestMainCode={initialCode}
+                guard={(go) => (code !== initialCode ? setConfirmMerge(() => go) : go())}
+                onResolved={applyMergedOldDraft}
+              />
+              <button type="button" onClick={discardOldDraft} className={`${btnGhost} !px-2.5 !py-1 !text-xs`}>
+                버리기
+              </button>
+            </div>
+            {confirmMerge && (
+              <div role="alert" className="flex flex-wrap items-center gap-2 text-xs">
+                <span>지금 에디터에 고친 내용이 있어요. 계속하면 그 부분은 합친 코드로 바뀌어요.</span>
+                <button type="button" onClick={() => setConfirmMerge(null)} className={`${btnGhost} !px-2 !py-0.5 !text-xs`}>
+                  취소
+                </button>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => {
+                    const go = confirmMerge;
+                    setConfirmMerge(null);
+                    go();
+                  }}
+                  className={`${btnSecondary} !px-2 !py-0.5 !text-xs`}
+                >
+                  계속하기
+                </button>
+              </div>
+            )}
           </div>
         )}
         {fromStale && !staleDismissed && (

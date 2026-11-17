@@ -15,6 +15,8 @@ type Props = {
   // 에디터로 가져가기 전에 확인이 필요할 때(작성 중인 코드를 덮어쓰는 경우) 부모가 끼어드는 자리.
   // go를 호출해야 계속 진행된다. 없으면 바로 진행한다
   guard?: (go: () => void) => void;
+  // 있으면 합친 코드를 이 함수로 넘기고 끝낸다(에디터 안에서 쓸 때). 없으면 초안에 저장하고 에디터 화면으로 이동한다
+  onResolved?: (code: string) => void;
 };
 
 const CHOICES: { value: ConflictChoice; label: string; hint: string }[] = [
@@ -37,13 +39,18 @@ function Snippet({ title, lines, tone }: { title: string; lines: string[]; tone:
 
 // STALE 제출에서: 최신 원본 위에 내 변경을 다시 얹어 에디터로 가져간다.
 // 서로 다른 곳을 고쳤으면 자동으로 합치고, 같은 곳을 고쳤으면 그 부분만 사용자가 고른다 (AI는 쓰지 않는다)
-export default function RebaseHelper({ projectId, beforeCode, afterCode, latestMainCode, guard }: Props) {
+export default function RebaseHelper({ projectId, beforeCode, afterCode, latestMainCode, guard, onResolved }: Props) {
   const router = useRouter();
   const [result, setResult] = useState<MergeResult | null>(null); // 겹침이 있어 고르는 중일 때만 값이 있다
   const [choices, setChoices] = useState<(ConflictChoice | undefined)[]>([]);
 
   // 합친 코드를 초안으로 저장하고 에디터 화면으로 이동한다 (반영은 다시 Comit → 리뷰 → 병합을 거친다)
   function sendToEditor(code: string) {
+    if (onResolved) {
+      setResult(null);
+      onResolved(code);
+      return;
+    }
     writeDraft(projectId, { code, base: latestMainCode, fromStale: true, rebased: true });
     router.push(`/project/${projectId}`);
   }

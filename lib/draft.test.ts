@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearDraft,
+  clearOldDraft,
   hasUnsentDraftEdits,
+  readOldDraft,
   readDraft,
   readLanguage,
   readSubmitted,
@@ -40,10 +42,11 @@ describe("초안 저장", () => {
     expect(readDraft("p2", "main")).toBeNull();
   });
 
-  it("그 사이 mainCode가 바뀌었으면 초안을 버린다", () => {
+  it("그 사이 mainCode가 바뀌었으면 에디터에는 쓰지 않는다 (예전 초안으로 따로 보관)", () => {
     writeDraft("p1", { code: "new", base: "main" });
     expect(readDraft("p1", "main v2")).toBeNull();
-    expect(storage.size()).toBe(0);
+    expect(readDraft("p1", "main v2")).toBeNull(); // 다시 읽어도 같다
+    expect(readOldDraft("p1", "main v2")).toEqual({ code: "new", base: "main" });
   });
 
   it("수정 사항이 없으면 초안을 남기지 않는다", () => {
@@ -157,5 +160,40 @@ describe("방금 Comit한 코드 기억", () => {
     vi.stubGlobal("sessionStorage", undefined);
     expect(readSubmitted("p1")).toBeNull();
     expect(() => writeSubmitted("p1", { code: "a", submissionId: "s" })).not.toThrow();
+  });
+});
+
+describe("원본이 바뀐 뒤의 예전 초안", () => {
+  it("수정이 없던 초안은 보관하지 않는다", () => {
+    writeDraft("p1", { code: "main", base: "main", fromStale: true });
+    writeDraft("p1", { code: "main", base: "main" }); // 수정 없음 → 초안 삭제
+    expect(readDraft("p1", "main v2")).toBeNull();
+    expect(readOldDraft("p1", "main v2")).toBeNull();
+  });
+
+  it("이미 Comit한 코드는 보관하지 않는다 (잃는 게 없다)", () => {
+    writeSubmitted("p1", { code: "new", submissionId: "s1" });
+    writeDraft("p1", { code: "new", base: "main" });
+    readDraft("p1", "main v2");
+    expect(readOldDraft("p1", "main v2")).toBeNull();
+  });
+
+  it("원본이 다시 그 초안의 기준과 같아지면 합칠 필요가 없다", () => {
+    writeDraft("p1", { code: "new", base: "main" });
+    readDraft("p1", "main v2");
+    expect(readOldDraft("p1", "main")).toBeNull();
+  });
+
+  it("clearOldDraft로 지운다", () => {
+    writeDraft("p1", { code: "new", base: "main" });
+    readDraft("p1", "main v2");
+    clearOldDraft("p1");
+    expect(readOldDraft("p1", "main v2")).toBeNull();
+  });
+
+  it("프로젝트마다 따로 보관한다", () => {
+    writeDraft("p1", { code: "new", base: "main" });
+    readDraft("p1", "main v2");
+    expect(readOldDraft("p2", "main v2")).toBeNull();
   });
 });
