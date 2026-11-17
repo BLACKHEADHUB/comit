@@ -37,17 +37,29 @@ function stashOldDraft(projectId: string, draft: Draft) {
   sessionStorage.setItem(oldKey(projectId), JSON.stringify({ code: draft.code, base: draft.base }));
 }
 
-// 보관해 둔 예전 초안을 꺼낸다. 원본이 다시 그 초안의 기준과 같아졌다면 합칠 필요가 없으므로 null
-export function readOldDraft(projectId: string, currentMainCode: string): Draft | null {
+// 보관해 둔 예전 초안의 저장된 글자(JSON)를 그대로 돌려준다. 같은 값이면 같은 문자열이라 useSyncExternalStore에서 쓰기 좋다
+export function readOldDraftRaw(projectId: string): string | null {
   try {
-    const raw = sessionStorage.getItem(oldKey(projectId));
-    if (!raw) return null;
+    return sessionStorage.getItem(oldKey(projectId));
+  } catch {
+    return null;
+  }
+}
+
+// 저장된 글자를 초안으로 해석한다. 원본이 다시 그 초안의 기준과 같아졌다면 합칠 필요가 없으므로 null
+export function parseOldDraft(raw: string | null, currentMainCode: string): Draft | null {
+  if (!raw) return null;
+  try {
     const draft = JSON.parse(raw) as Draft;
     if (typeof draft.code !== "string" || typeof draft.base !== "string" || draft.base === currentMainCode) return null;
     return draft;
   } catch {
     return null;
   }
+}
+
+export function readOldDraft(projectId: string, currentMainCode: string): Draft | null {
+  return parseOldDraft(readOldDraftRaw(projectId), currentMainCode);
 }
 
 export function clearOldDraft(projectId: string) {

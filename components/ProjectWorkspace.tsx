@@ -25,7 +25,8 @@ import {
   clearOldDraft,
   LANGUAGES,
   readDraft,
-  readOldDraft,
+  parseOldDraft,
+  readOldDraftRaw,
   readSubmitted,
   writeSubmitted,
   readLanguage,
@@ -140,12 +141,15 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   );
   const [staleDismissed, setStaleDismissed] = useState(false);
   const [pollFailures, setPollFailures] = useState(0); // 자동 갱신이 연속으로 실패한 횟수
-  // 원본이 바뀌어서 에디터에 못 쓴 "예전 초안". 서버/브라우저 화면이 달라지지 않도록 마운트 뒤에 읽는다
-  const [oldDraft, setOldDraft] = useState<{ code: string; base: string } | null>(null);
+  // 원본이 바뀌어서 에디터에 못 쓴 "예전 초안". 서버 화면과 달라지지 않도록 useSyncExternalStore로 읽는다 (서버에서는 없음)
+  const oldDraftRaw = useSyncExternalStore(
+    () => () => {},
+    () => readOldDraftRaw(projectId),
+    () => null
+  );
+  const [oldHandled, setOldHandled] = useState(false); // 합치거나 버린 뒤에는 배너를 닫는다
+  const oldDraft = useMemo(() => (oldHandled ? null : parseOldDraft(oldDraftRaw, initialCode)), [oldHandled, oldDraftRaw, initialCode]);
   const [confirmMerge, setConfirmMerge] = useState<(() => void) | null>(null); // 지금 코드를 덮어쓰기 전 확인
-  useEffect(() => {
-    setOldDraft(readOldDraft(projectId, initialCode));
-  }, [projectId, initialCode]);
   // 방금 Comit한 코드 (에디터의 코드가 이것과 같으면 "이미 보낸 코드"로 보고 또 Comit하라고 하지 않는다)
   const [submitted, setSubmitted] = useState(() => (typeof window === "undefined" ? null : readSubmitted(projectId)));
   const [confirmReset, setConfirmReset] = useState(false); // "원본으로 되돌리기" 확인 단계
@@ -231,13 +235,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   function applyMergedOldDraft(merged: string) {
     writeDraft(projectId, { code: merged, base: initialCode, fromStale: true, rebased: true });
     clearOldDraft(projectId);
-    setOldDraft(null);
+    setOldHandled(true);
     setStaleDismissed(false);
     setCode(merged);
   }
   function discardOldDraft() {
     clearOldDraft(projectId);
-    setOldDraft(null);
+    setOldHandled(true);
   }
 
   const dark = useIsDark();
