@@ -12,6 +12,9 @@ type Props = {
   beforeCode: string; // 제출 당시의 원본 (기준)
   afterCode: string; // 내가 제출한 코드
   latestMainCode: string; // 지금의 최신 원본
+  // 에디터로 가져가기 전에 확인이 필요할 때(작성 중인 코드를 덮어쓰는 경우) 부모가 끼어드는 자리.
+  // go를 호출해야 계속 진행된다. 없으면 바로 진행한다
+  guard?: (go: () => void) => void;
 };
 
 const CHOICES: { value: ConflictChoice; label: string; hint: string }[] = [
@@ -34,7 +37,7 @@ function Snippet({ title, lines, tone }: { title: string; lines: string[]; tone:
 
 // STALE 제출에서: 최신 원본 위에 내 변경을 다시 얹어 에디터로 가져간다.
 // 서로 다른 곳을 고쳤으면 자동으로 합치고, 같은 곳을 고쳤으면 그 부분만 사용자가 고른다 (AI는 쓰지 않는다)
-export default function RebaseHelper({ projectId, beforeCode, afterCode, latestMainCode }: Props) {
+export default function RebaseHelper({ projectId, beforeCode, afterCode, latestMainCode, guard }: Props) {
   const router = useRouter();
   const [result, setResult] = useState<MergeResult | null>(null); // 겹침이 있어 고르는 중일 때만 값이 있다
   const [choices, setChoices] = useState<(ConflictChoice | undefined)[]>([]);
@@ -65,14 +68,16 @@ export default function RebaseHelper({ projectId, beforeCode, afterCode, latestM
 
   const conflicts = result?.segments.filter((s) => s.type === "conflict") ?? [];
   const allChosen = choices.every((c) => c !== undefined);
+  const chosenCount = choices.filter((c) => c !== undefined).length;
 
   return (
     <>
-      <button type="button" onClick={start} className={btnPrimary}>
+      <button type="button" onClick={() => (guard ? guard(start) : start())} className={btnPrimary}>
         최신 원본에 내 변경 다시 얹기
       </button>
       {result && (
-        <div className={modalOverlay} onClick={() => setResult(null)}>
+        // 바깥을 잘못 눌러서 이미 고른 내용이 사라지지 않게, 하나라도 골랐다면 바깥 클릭으로는 닫지 않는다 ([취소]와 ESC로는 닫힌다)
+        <div className={modalOverlay} onClick={() => chosenCount === 0 && setResult(null)}>
           <div
             role="dialog"
             aria-modal="true"
@@ -118,6 +123,10 @@ export default function RebaseHelper({ projectId, beforeCode, afterCode, latestM
             )}
             <p className="text-xs leading-relaxed text-muted">
               고른 결과는 에디터로 가져가요. 거기서 더 고친 뒤 [Comit하기]를 누르면 다시 리뷰를 받을 수 있어요.
+            </p>
+            {/* 몇 곳을 골랐는지 보여준다 (버튼이 왜 아직 안 눌리는지 알 수 있게) */}
+            <p role="status" className="text-xs font-medium tabular-nums text-muted">
+              {chosenCount} / {conflicts.length}곳 선택함
             </p>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setResult(null)} className={btnGhost}>

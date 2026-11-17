@@ -37,10 +37,11 @@ export const STALE_ON_SUBMIT_MESSAGE =
 export const RETRY_MESSAGE = "문제가 생겨 처리하지 못했어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.";
 
 // 제출 상태를 화면에 보여줄 때 쓰는 라벨/아이콘/색 (색만으로 구분하지 않도록 아이콘과 글자를 함께 쓴다)
+// desc: 마우스를 올리지 않아도(터치·키보드에서도) 화면에 바로 보여줄 수 있는 한 줄 설명
 export const STATUS_META = {
-  PENDING: { label: "대기", icon: "⏳", style: "bg-surface text-muted ring-1 ring-line-strong" },
-  MERGED: { label: "병합됨", icon: "✓", style: "bg-ok-soft text-ok" },
-  STALE: { label: STALE_LABEL, icon: "↻", style: "bg-warn-soft text-warn" },
+  PENDING: { label: "대기", icon: "⏳", style: "bg-surface text-muted ring-1 ring-line-strong", desc: "팀원의 리뷰를 받는 중이에요. 확인이 끝나면 팀장이 병합해요." },
+  MERGED: { label: "병합됨", icon: "✓", style: "bg-ok-soft text-ok", desc: "원본에 반영됐어요." },
+  STALE: { label: STALE_LABEL, icon: "↻", style: "bg-warn-soft text-warn", desc: STALE_HINT },
 } as const;
 
 // 서버 액션이 돌려주는 오류 문구 (탓하지 않는 말투: 무슨 일이 있었는지 + 어떻게 하면 되는지)

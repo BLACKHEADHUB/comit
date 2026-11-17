@@ -1,3 +1,4 @@
+import { STALE_LABEL } from "@/lib/ui";
 import type { SubmissionStatus } from "@/lib/validation";
 
 // 협업 흐름 4단계: 작성 → 제안함 → 리뷰 중 → 반영됨
@@ -59,7 +60,8 @@ export function submissionFlow({ status, commentCount, isAuthor, isLeader }: Sub
         { label: "작성", state: "done" },
         { label: "제안함", state: "done" },
         { label: "리뷰 중", state: "done" },
-        { label: "원본이 먼저 바뀜", state: "blocked" },
+        // 목록·배지와 같은 이름을 쓴다 (한 상태를 화면마다 다르게 부르면 헷갈린다)
+        { label: STALE_LABEL, state: "blocked" },
       ],
       next: isAuthor
         ? "원본이 먼저 바뀌었어요 → 최신 원본을 바탕으로 다시 Comit해주세요."
