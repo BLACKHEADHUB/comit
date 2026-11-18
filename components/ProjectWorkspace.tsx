@@ -372,6 +372,10 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             ))}
           </div>
         )}
+        {/* 고른 상태가 무슨 뜻인지 글자로 알려준다 (title 툴팁은 터치·키보드에서는 볼 수 없다) */}
+        {TAB_FILTERS[tab].length > 1 && filter !== "ALL" && (
+          <p className="border-b border-line px-3 py-1.5 text-xs leading-relaxed text-muted">{STATUS_META[filter].desc}</p>
+        )}
         <ul className="flex-1 space-y-1.5 overflow-y-auto p-2">
           {visible.length === 0 && (
             <li className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-strong p-4 text-center text-sm leading-relaxed text-muted">

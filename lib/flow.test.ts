@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { submissionFlow, writingFlow } from "@/lib/flow";
+import { STATUS_META } from "@/lib/ui";
 
 const states = (flow: { steps: { state: string }[] }) => flow.steps.map((s) => s.state);
 const base = { commentCount: 0, isAuthor: false, isLeader: false };
@@ -46,7 +47,7 @@ describe("submissionFlow", () => {
   it("STALE → 마지막 단계가 막힘으로 표시되고, 작성자에게 다시 Comit 안내", () => {
     const mine = submissionFlow({ ...base, status: "STALE", isAuthor: true });
     expect(states(mine)).toEqual(["done", "done", "done", "blocked"]);
-    expect(mine.steps[3].label).toBe("원본이 먼저 바뀜");
+    expect(mine.steps[3].label).toBe(STATUS_META.STALE.label); // 배지와 같은 이름
     expect(mine.tone).toBe("warn");
     expect(mine.next).toBe("원본이 먼저 바뀌었어요 → 최신 원본을 바탕으로 다시 Comit해주세요.");
 

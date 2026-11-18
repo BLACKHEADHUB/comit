@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearDraft,
+  hasUnsentDraftEdits,
   readDraft,
   readLanguage,
   readSubmitted,
@@ -72,6 +73,46 @@ describe("초안 저장", () => {
     expect(readDraft("p1", "main")).toBeNull();
     expect(() => writeDraft("p1", { code: "a", base: "b" })).not.toThrow();
     expect(() => clearDraft("p1")).not.toThrow();
+  });
+});
+
+describe("아직 Comit하지 않은 수정이 있는지 (덮어쓰기 확인용)", () => {
+  it("초안이 없으면 false", () => {
+    expect(hasUnsentDraftEdits("p1")).toBe(false);
+  });
+
+  it("원본과 다른 새 수정이 있으면 true", () => {
+    writeDraft("p1", { code: "내가 쓰던 코드", base: "main" });
+    expect(hasUnsentDraftEdits("p1", "가져올 코드")).toBe(true);
+  });
+
+  it("원본과 같은(수정 없는) 초안은 false", () => {
+    storage.setItem("comit_draft_p1", JSON.stringify({ code: "main", base: "main" }));
+    expect(hasUnsentDraftEdits("p1")).toBe(false);
+  });
+
+  it("방금 Comit한 코드가 초안으로 남아 있는 경우는 잃을 게 없으니 false", () => {
+    writeDraft("p1", { code: "보낸 코드", base: "main" });
+    writeSubmitted("p1", { code: "보낸 코드", submissionId: "s1" });
+    expect(hasUnsentDraftEdits("p1", "다른 코드")).toBe(false);
+  });
+
+  it("가져올 코드와 똑같은 초안은 false", () => {
+    writeDraft("p1", { code: "같은 코드", base: "main" });
+    expect(hasUnsentDraftEdits("p1", "같은 코드")).toBe(false);
+  });
+
+  it("원본이 바뀌어 낡은 초안이어도 사용자의 수정이므로 true (그리고 지우지 않는다)", () => {
+    writeDraft("p1", { code: "내가 쓰던 코드", base: "옛 원본" });
+    expect(hasUnsentDraftEdits("p1", "가져올 코드")).toBe(true);
+    expect(storage.size()).toBe(1);
+  });
+
+  it("깨진 값이나 저장소를 못 쓰는 환경에서는 에러 없이 false", () => {
+    storage.setItem("comit_draft_p1", "{not json");
+    expect(hasUnsentDraftEdits("p1")).toBe(false);
+    vi.stubGlobal("sessionStorage", undefined);
+    expect(hasUnsentDraftEdits("p1")).toBe(false);
   });
 });
 

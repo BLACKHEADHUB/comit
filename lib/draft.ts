@@ -40,6 +40,25 @@ export function clearDraft(projectId: string) {
   } catch {}
 }
 
+// 에디터에 "아직 Comit하지 않은 새 수정"이 있는지 본다.
+// STALE 제출의 코드를 에디터로 가져오면 지금 초안을 덮어쓰므로, 그 전에 한 번 물어볼지 정하는 데 쓴다.
+// - readDraft와 달리 원본이 바뀐 초안도 지우지 않고 "있는지만" 본다 (사용자의 작업이므로)
+// - 이미 Comit한 코드(방금 제출한 코드, 가져오려는 제출의 코드)는 덮어써도 잃는 게 없어서 센 것에서 뺀다
+export function hasUnsentDraftEdits(projectId: string, incomingCode?: string): boolean {
+  try {
+    const raw = sessionStorage.getItem(key(projectId));
+    if (!raw) return false;
+    const draft = JSON.parse(raw) as Draft;
+    if (typeof draft.code !== "string") return false;
+    const edited = draft.fromStale === true || draft.code !== draft.base; // 원본과 다른 수정이 있는지
+    if (!edited) return false;
+    if (draft.code === incomingCode) return false; // 가져올 코드와 같으면 덮어써도 그대로
+    return draft.code !== readSubmitted(projectId)?.code; // 이미 보낸 코드면 잃지 않는다
+  } catch {
+    return false; // 저장소를 못 쓰는 환경에서는 확인 없이 진행
+  }
+}
+
 // 방금 Comit한 코드를 기억한다. 에디터의 코드가 이것과 같으면 "이미 보낸 코드"라는 뜻이다
 // (같은 내용을 실수로 두 번 Comit하지 않게 안내하는 용도. 탭을 닫으면 사라진다)
 export type Submitted = { code: string; submissionId: string };

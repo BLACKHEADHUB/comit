@@ -1,28 +1,23 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { mergeSubmission } from "@/app/actions/submission";
 import Confetti from "@/components/Confetti";
 import Mascot from "@/components/Mascot";
 import ModalHeader from "@/components/ModalHeader";
-import RebaseHelper from "@/components/RebaseHelper";
 import { useReview } from "@/components/ReviewProvider";
+import StaleNotice from "@/components/StaleNotice";
 import { countOpen, countRoots } from "@/lib/comments";
-import { writeDraft } from "@/lib/draft";
-import type { SubmissionStatus } from "@/lib/validation";
 import {
   badge,
   btnGhost,
   btnPrimary,
-  btnSecondary,
   modalCard,
   modalOverlay,
   noticeError,
   noticeOk,
   noticeWarn,
   RETRY_MESSAGE,
-  STALE_HINT,
   STATUS_META,
 } from "@/lib/ui";
 
@@ -39,13 +34,12 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [pending, setPending] = useState(false);
-  const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [celebrate, setCelebrate] = useState(false); // 병합 성공 직후의 짧은 축하 효과
 
   // 확인 창에 보여줄 리뷰 개수 (병합을 막지는 않고 확인만 받는다)
   // 상태는 진행 단계 바와 함께 쓰기 위해 ReviewProvider에서 가져온다
-  const { comments, status, setStatus } = useReview();
+  const { comments, status, setStatus, viewer } = useReview();
   // 해결 안 된 원댓글만 센다 (해결된 버그 지적은 경고하지 않는다)
   const open = countOpen(comments);
   const likeCount = open.LIKE;
@@ -75,14 +69,9 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
 
     if (result.status) setStatus(result.status);
     setCelebrate(result.status === "MERGED" && !result.error); // 방금 내가 병합에 성공했을 때만 축하한다
-    setIsError(Boolean(result.error) || result.status === "STALE");
-    setMessage(result.error ?? result.message ?? "");
-  }
-
-  // 충돌 난 제출의 코드를 에디터로 불러와 최신 코드 기준으로 다시 Comit할 수 있게 한다
-  function loadIntoEditor() {
-    writeDraft(projectId, { code: afterCode, base: latestMainCode, fromStale: true });
-    router.push(`/project/${projectId}`);
+    setIsError(Boolean(result.error));
+    // 충돌(STALE)로 끝났다면 아래 안내 카드가 같은 말을 이미 하므로 결과 박스는 따로 띄우지 않는다
+    setMessage(result.error ?? (result.status === "STALE" ? "" : result.message) ?? "");
   }
 
   // 병합 안내 문구는 한 줄로 보여준다 (그래서 이때만 폭 제한을 푼다)
@@ -91,8 +80,8 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   return (
     <div className={`flex flex-col items-start gap-2 sm:items-end ${hintOnOneLine ? "" : "max-w-sm"}`}>
       <div className="flex items-center gap-3">
-        {/* 목록 카드와 같은 모양: 아이콘 + 글자 (색만으로 구분하지 않는다) */}
-        <span title={status === "STALE" ? STALE_HINT : undefined} className={`${badge} ${STATUS_META[status].style} !px-3 !py-1`}>
+        {/* 목록 카드와 같은 모양: 아이콘 + 글자 (색만으로 구분하지 않는다). STALE의 설명은 아래 안내 카드에 글자로 나온다 */}
+        <span className={`${badge} ${STATUS_META[status].style} !px-3 !py-1`}>
           <span aria-hidden>{STATUS_META[status].icon}</span>
           {STATUS_META[status].label}
         </span>
@@ -104,17 +93,16 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
           </button>
         )}
       </div>
+      {/* 충돌(STALE) 안내는 한 장의 카드로. 작성자에게만 "내 수정"과 에디터로 가져가는 버튼을 보여준다 */}
       {status === "STALE" && (
-        <>
-          <p className="text-xs leading-relaxed text-muted sm:text-right">
-            내 수정은 사라지지 않았어요. 다른 변경이 먼저 병합돼서, 최신 원본 위에 다시 얹어야 해요.
-          </p>
-          {/* 추천: 최신 원본을 바탕으로 내 변경만 다시 얹는다 (먼저 병합된 변경을 지우지 않는다) */}
-          <RebaseHelper projectId={projectId} beforeCode={beforeCode} afterCode={afterCode} latestMainCode={latestMainCode} />
-          <button type="button" onClick={loadIntoEditor} className={`${btnSecondary} !text-xs`}>
-            내 코드 그대로 에디터로 불러오기
-          </button>
-        </>
+        <StaleNotice
+          projectId={projectId}
+          isAuthor={viewer.nickname === viewer.submissionAuthor}
+          author={viewer.submissionAuthor}
+          beforeCode={beforeCode}
+          afterCode={afterCode}
+          latestMainCode={latestMainCode}
+        />
       )}
       {hintOnOneLine && (
         <p className="text-xs leading-relaxed text-muted sm:whitespace-nowrap sm:text-right">
@@ -124,7 +112,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
       {message && (
         <p
           role={isError ? "alert" : "status"}
-          className={`${resultClass(isError, status)} ${celebrate ? "relative flex items-center gap-2" : ""}`}
+          className={`${resultClass(isError)} ${celebrate ? "relative flex items-center gap-2" : ""}`}
         >
           {/* 작은 기쁨: 병합에 성공하면 코밋이가 만세하고 색종이가 한 번 터진다 (1초 이내, CSS만) */}
           {celebrate && (
@@ -174,8 +162,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   );
 }
 
-// 오류는 빨강, 충돌(STALE) 안내는 노랑, 성공은 초록
-function resultClass(isError: boolean, status: SubmissionStatus) {
-  if (isError && status === "STALE") return noticeWarn;
+// 오류는 빨강, 성공은 초록 (충돌(STALE) 안내는 StaleNotice 카드가 맡는다)
+function resultClass(isError: boolean) {
   return isError ? noticeError : noticeOk;
 }
