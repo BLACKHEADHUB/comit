@@ -20,6 +20,8 @@ const projectSchema = new Schema({
   description: { type: String, default: "", trim: true, maxlength: 200 },
   members: { type: [memberSchema], default: [] },
   mainCode: { type: String, default: "" },
+  // 제출 생성 요청을 프로젝트별로 직렬화해 중복 제출·개수 제한 경쟁 상태를 막는다.
+  submissionRevision: { type: Number, default: 0 },
   // 초대 링크용 추측 불가능한 토큰 (조회가 잦으므로 unique 인덱스)
   inviteToken: { type: String, required: true, unique: true },
   createdAt: { type: Date, default: Date.now },

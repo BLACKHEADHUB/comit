@@ -18,6 +18,19 @@ jobs:
       - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm test
-      - run: npm run build
+      # Use webpack in CI: Turbopack's next/font/google internal resolver currently
+      # fails on the hosted runner for the Korean font used by the app shell.
+      - run: npm run build -- --webpack
         env:
           MONGODB_URI: mongodb://localhost:27017/ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run end-to-end tests
+        run: npm run e2e -- --skip-build --project=desktop-light --no-deps e2e/submission-concurrency.spec.ts
+      - name: Upload E2E failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-details
+          path: e2e/test-results/**
+          retention-days: 3
