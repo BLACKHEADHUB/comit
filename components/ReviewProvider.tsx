@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { byCreatedAsc, keepIfSame, mergeById, newCommentIds, nextStatus } from "@/lib/activity";
+import ConnectionNotice from "@/components/ConnectionNotice";
 import { startPolling } from "@/lib/polling";
 import type { CommentItem, SubmissionStatus } from "@/lib/validation";
 
@@ -38,6 +39,7 @@ type Props = {
 export function ReviewProvider({ projectId, submissionId, viewer, initialComments, initialStatus, children }: Props) {
   const [comments, setComments] = useState(initialComments);
   const [status, setStatus] = useState(initialStatus);
+  const [failures, setFailures] = useState(0); // 자동 갱신이 연속으로 실패한 횟수
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
   const router = useRouter();
   const myNickname = viewer.nickname;
@@ -52,7 +54,7 @@ export function ReviewProvider({ projectId, submissionId, viewer, initialComment
   useEffect(() => {
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submission/${submissionId}/review`, { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(String(res.status)); // 실패로 세어 "연결이 불안정해요"를 띄운다
       const data = (await res.json()) as { status: SubmissionStatus; comments: CommentItem[] };
 
       const fresh = newCommentIds(latest.current.comments, data.comments, myNickname);
@@ -64,7 +66,7 @@ export function ReviewProvider({ projectId, submissionId, viewer, initialComment
         setStatus(next);
         router.refresh(); // 다른 사람이 병합/충돌 처리함 → 서버가 준 값(최신 메인 코드 등)도 새로 받는다
       }
-    }, POLL_MS);
+    }, POLL_MS, setFailures);
   }, [projectId, submissionId, myNickname, router]);
 
   const value: ReviewContextValue = {
@@ -85,7 +87,12 @@ export function ReviewProvider({ projectId, submissionId, viewer, initialComment
       }),
   };
 
-  return <ReviewContext.Provider value={value}>{children}</ReviewContext.Provider>;
+  return (
+    <ReviewContext.Provider value={value}>
+      <ConnectionNotice failures={failures} />
+      {children}
+    </ReviewContext.Provider>
+  );
 }
 
 export function useReview(): ReviewContextValue {

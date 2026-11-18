@@ -15,8 +15,10 @@ export function readDraft(projectId: string, currentMainCode: string): Draft | n
     const raw = sessionStorage.getItem(key(projectId));
     if (!raw) return null;
     const draft = JSON.parse(raw) as Draft;
-    // 그 사이 mainCode가 바뀌었다면(다른 병합 등) 최신 mainCode를 보여주기 위해 초안을 버린다
+    // 그 사이 mainCode가 바뀌었다면(다른 병합 등) 에디터에는 최신 mainCode를 보여준다.
+    // 다만 사용자가 쓰던 코드는 지우지 않고 따로 보관해서, 나중에 최신 원본 위에 합칠 수 있게 한다
     if (typeof draft.code !== "string" || draft.base !== currentMainCode) {
+      if (typeof draft.code === "string") stashOldDraft(projectId, draft);
       sessionStorage.removeItem(key(projectId));
       return null;
     }
@@ -24,6 +26,46 @@ export function readDraft(projectId: string, currentMainCode: string): Draft | n
   } catch {
     return null; // 저장소를 못 쓰는 환경에서도 앱은 정상 동작
   }
+}
+
+// 원본이 바뀐 뒤에도 남겨 둔 "예전 초안". 진짜 수정이 있고 아직 Comit하지 않은 것만 보관한다
+const oldKey = (projectId: string) => `comit_olddraft_${projectId}`;
+
+function stashOldDraft(projectId: string, draft: Draft) {
+  const edited = draft.fromStale === true || draft.code !== draft.base;
+  if (!edited || draft.code === readSubmitted(projectId)?.code) return; // 잃을 게 없으면 보관하지 않는다
+  sessionStorage.setItem(oldKey(projectId), JSON.stringify({ code: draft.code, base: draft.base }));
+}
+
+// 보관해 둔 예전 초안의 저장된 글자(JSON)를 그대로 돌려준다. 같은 값이면 같은 문자열이라 useSyncExternalStore에서 쓰기 좋다
+export function readOldDraftRaw(projectId: string): string | null {
+  try {
+    return sessionStorage.getItem(oldKey(projectId));
+  } catch {
+    return null;
+  }
+}
+
+// 저장된 글자를 초안으로 해석한다. 원본이 다시 그 초안의 기준과 같아졌다면 합칠 필요가 없으므로 null
+export function parseOldDraft(raw: string | null, currentMainCode: string): Draft | null {
+  if (!raw) return null;
+  try {
+    const draft = JSON.parse(raw) as Draft;
+    if (typeof draft.code !== "string" || typeof draft.base !== "string" || draft.base === currentMainCode) return null;
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+export function readOldDraft(projectId: string, currentMainCode: string): Draft | null {
+  return parseOldDraft(readOldDraftRaw(projectId), currentMainCode);
+}
+
+export function clearOldDraft(projectId: string) {
+  try {
+    sessionStorage.removeItem(oldKey(projectId));
+  } catch {}
 }
 
 export function writeDraft(projectId: string, draft: Draft) {

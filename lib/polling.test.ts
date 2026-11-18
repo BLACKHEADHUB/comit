@@ -87,4 +87,25 @@ describe("startPolling", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(run).not.toHaveBeenCalled();
   });
+
+  it("연속 실패 횟수를 알려주고, 성공하면 0으로 돌아온다", async () => {
+    const run = vi.fn().mockRejectedValueOnce(new Error("x")).mockRejectedValueOnce(new Error("x")).mockResolvedValue(undefined);
+    const health: number[] = [];
+    const stop = startPolling(run, 15_000, (n) => health.push(n));
+    await vi.advanceTimersByTimeAsync(45_000);
+    expect(health).toEqual([1, 2, 0]);
+    stop();
+  });
+
+  it("멈춘 뒤에는 상태를 알리지 않는다", async () => {
+    let finish = () => {};
+    const run = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    const health: number[] = [];
+    const stop = startPolling(run, 15_000, (n) => health.push(n));
+    await vi.advanceTimersByTimeAsync(15_000);
+    stop();
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(health).toEqual([]);
+  });
 });
