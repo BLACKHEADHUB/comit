@@ -41,8 +41,10 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
       return visibleDialogs.filter((visible) => !visible).length;
     }).toBe(1);
     await expect.poll(() => submissions.countDocuments({ projectId: projectObjectId })).toBe(1);
-    const duplicateAlerts = await Promise.all([page, secondPage].map(async (p) => p.getByRole("alert").textContent().catch(() => "")));
-    expect(duplicateAlerts.filter((message) => message?.includes("같은 내용의 제출이 이미 있어요.")).length).toBe(1);
+    await expect.poll(async () => {
+      const alerts = await Promise.all([page, secondPage].map((p) => p.getByRole("alert").allTextContents()));
+      return alerts.flat().filter((message) => message.includes("같은 내용의 제출이 이미 있어요.")).length;
+    }).toBe(1);
 
     // 기존 제출을 198건 채워 총 199건으로 만든 뒤, 서로 다른 제출 두 개를 동시에 보낸다.
     await submissions.insertMany(Array.from({ length: 198 }, (_, i) => ({
@@ -62,8 +64,10 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
     await Promise.all(limitDialogs.map((dialog) => dialog.getByRole("button", { name: "제출하기" }).click()));
 
     await expect.poll(() => submissions.countDocuments({ projectId: projectObjectId })).toBe(200);
-    const limitAlerts = await Promise.all([page, secondPage].map(async (p) => p.getByRole("alert").textContent().catch(() => "")));
-    expect(limitAlerts.filter((message) => message?.includes("제출을 200개까지")).length).toBe(1);
+    await expect.poll(async () => {
+      const alerts = await Promise.all([page, secondPage].map((p) => p.getByRole("alert").allTextContents()));
+      return alerts.flat().filter((message) => message.includes("제출을 200개까지")).length;
+    }).toBe(1);
     const project = await db.collection("projects").findOne({ _id: projectObjectId });
     expect(project?.submissionRevision).toBeGreaterThanOrEqual(2);
     } finally {
