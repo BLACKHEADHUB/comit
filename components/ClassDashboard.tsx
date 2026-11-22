@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { regenerateClassCode, unlinkClassProject, updateClassroom } from "@/app/actions/classroom";
-import { MAX_PROJECTS_PER_CLASS } from "@/lib/classroom";
 import {
   buildClassCsv,
   filterAndSortTeams,
@@ -30,12 +29,14 @@ export default function ClassDashboard({
   initialInstructor,
   initialJoinCode,
   initialTeams,
+  maxProjects,
 }: {
   token: string;
   initialTitle: string;
   initialInstructor: string;
   initialJoinCode: string;
   initialTeams: ClassTeamSummary[];
+  maxProjects: number;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [instructorName, setInstructorName] = useState(initialInstructor);
@@ -204,7 +205,7 @@ export default function ClassDashboard({
         <div className={`${card} px-4 py-3`}>
           <p className="text-xs text-muted">연결된 팀</p>
           <p className="mt-0.5 text-2xl font-semibold tabular-nums">
-            {summary.teamCount} <span className="text-xs font-normal text-muted">/ {MAX_PROJECTS_PER_CLASS}</span>
+            {summary.teamCount} <span className="text-xs font-normal text-muted">/ {maxProjects}</span>
           </p>
         </div>
         <div className={`${card} px-4 py-3`}>
