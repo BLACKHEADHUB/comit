@@ -35,6 +35,15 @@ const aiDailyLimit = redis
     })
   : null;
 
+// 서비스 전체 하루 AI 호출 상한 (무료 한도 초과 및 비용 폭주 방지). env AI_GLOBAL_DAILY_LIMIT로 조절한다
+const aiGlobalDailyLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.fixedWindow(Number(process.env.AI_GLOBAL_DAILY_LIMIT) || 500, "1 d"),
+      prefix: "comit:ai-global-daily",
+    })
+  : null;
+
 // 제출(Comit하기): 프로젝트+작성자 기준 분당 10회 → 도배로 DB가 차는 것을 막는다
 const submitRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "comit:submit" })
@@ -55,20 +64,23 @@ const createClassRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "1 h"), prefix: "comit:create-class" })
   : null;
 
-const CACHE_TTL_SECONDS = 60 * 60 * 24; // 24시간
+// 같은 변경(diff)은 7일 동안 캐시를 재사용해 중복 Gemini 호출을 줄인다
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7일
 
 // Redis 장애가 제출 흐름을 막지 않도록 에러는 로그만 남기고 계속 진행한다 (비밀값이 섞이지 않게 메시지만 기록)
 const logRedisError = (what: string, error: unknown) =>
   console.error(`[Redis] ${what} 실패:`, error instanceof Error ? error.message.slice(0, 200) : "unknown");
 
-// true = 호출 허용. Redis가 없거나 장애면 제한 없이 허용한다
+// true = 호출 허용. AI_ENABLED=false면 전역 중지, Redis가 없거나 장애면 제한 없이 허용한다
 export async function allowAiCall(projectId: string, author: string): Promise<boolean> {
-  if (!aiRateLimit || !aiDailyLimit) return true;
+  if (process.env.AI_ENABLED === "false") return false;
+  if (!aiRateLimit || !aiDailyLimit || !aiGlobalDailyLimit) return true;
   try {
     const { success } = await aiRateLimit.limit(`${projectId}:${author}`);
     if (!success) return false;
-    // 분당 한도를 통과한 호출만 하루 한도(프로젝트 전체)를 소모한다
-    return (await aiDailyLimit.limit(projectId)).success;
+    // 분당 한도를 통과한 호출만 프로젝트·서비스 일일 한도를 소모한다
+    if (!(await aiDailyLimit.limit(projectId)).success) return false;
+    return (await aiGlobalDailyLimit.limit("global")).success;
   } catch (error) {
     logRedisError("rate limit", error);
     return true;

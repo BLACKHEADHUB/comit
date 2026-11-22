@@ -23,7 +23,10 @@ test("격리 확인: 메모리 DB에 데이터가 생기고 AI는 기본 문구�
     await comit(page, "격리 확인 제출");
     await openSubmission(page, /내 제안/, "격리 확인 제출");
 
-    // Gemini 키가 비어 있으므로 실제 호출 없이 기본 리포트가 저장된다
+    // 기본값은 AI 분석 없이 저장된다
+    await expect(page.getByText("이번 제출은 AI 분석 없이 저장됐어요.")).toBeVisible();
+    // Gemini 키가 비어 있으므로 AI 분석 요청 시에도 실제 호출 없이 실패 문구로 대체된다
+    await page.getByRole("button", { name: /AI 분석 요청하기/ }).click();
     await expect(page.getByText("AI 분석을 불러오지 못했어요.")).toBeVisible();
     const saved = await db.collection("submissions").findOne({ title: "격리 확인 제출" });
     expect(saved?.aiReport?.summary?.[1]).toBe("AI 분석을 불러오지 못했어요.");

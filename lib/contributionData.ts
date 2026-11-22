@@ -32,3 +32,63 @@ export async function loadContribution(
     now
   );
 }
+
+// 강사용 반 화면 N+1 방지: 반에 연결된 모든 팀의 제출·댓글을 각각 1번씩만 조회해 팀별로 묶어 계산한다
+export async function loadClassContributions(
+  projects: { _id: Types.ObjectId; members: { nickname: string; role: "LEADER" | "MEMBER" }[] }[],
+  now = new Date()
+): Promise<Map<string, ContributionRow[]>> {
+  const result = new Map<string, ContributionRow[]>();
+  if (projects.length === 0) return result;
+
+  const projectIds = projects.map((p) => p._id);
+  const submissions = await Submission.find({ projectId: { $in: projectIds } })
+    .select({ projectId: 1, author: 1, status: 1, beforeCode: 1, afterCode: 1, createdAt: 1 })
+    .lean();
+
+  const subsByProject = new Map<string, typeof submissions>();
+  const subMeta = new Map<string, { projectId: string; author: string }>();
+  for (const s of submissions) {
+    const pid = String(s.projectId);
+    const list = subsByProject.get(pid);
+    if (list) list.push(s);
+    else subsByProject.set(pid, [s]);
+    subMeta.set(String(s._id), { projectId: pid, author: s.author });
+  }
+
+  const comments = submissions.length > 0
+    ? await Comment.find({ submissionId: { $in: submissions.map((s) => s._id) } })
+        .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, createdAt: 1 })
+        .lean()
+    : [];
+
+  const commentsByProject = new Map<string, { author: string; submissionAuthor: string; isReply: boolean; tag?: string | null; createdAt: Date }[]>();
+  for (const c of comments) {
+    const meta = subMeta.get(String(c.submissionId));
+    if (!meta) continue;
+    const mapped = {
+      author: c.author,
+      submissionAuthor: meta.author,
+      isReply: Boolean(c.parentId),
+      tag: c.tag,
+      createdAt: c.createdAt,
+    };
+    const list = commentsByProject.get(meta.projectId);
+    if (list) list.push(mapped);
+    else commentsByProject.set(meta.projectId, [mapped]);
+  }
+
+  for (const project of projects) {
+    const pid = String(project._id);
+    const projectSubs = (subsByProject.get(pid) ?? []).map((s) => ({
+      author: s.author,
+      status: s.status,
+      beforeCode: s.beforeCode ?? "",
+      afterCode: s.afterCode ?? "",
+      createdAt: s.createdAt,
+    }));
+    result.set(pid, buildContribution(project.members, projectSubs, commentsByProject.get(pid) ?? [], now));
+  }
+
+  return result;
+}

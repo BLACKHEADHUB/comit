@@ -1,11 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { findMember } from "@/lib/auth";
 import { generateClassCode, generateOwnerToken, hashOwnerToken, MAX_PROJECTS_PER_CLASS, normalizeClassCode } from "@/lib/classroom";
+import { findClassroomByToken, findClassProject } from "@/lib/classroomAuth";
 import { connectDB } from "@/lib/db";
-import { NOT_MEMBER_MESSAGE, RETRY_MESSAGE } from "@/lib/ui";
+import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE } from "@/lib/ui";
 import { Classroom } from "@/models/Classroom";
 import { Project } from "@/models/Project";
 
@@ -45,7 +47,7 @@ export async function createClassroom(_prev: CreateClassState, formData: FormDat
     }
     return { error: RETRY_MESSAGE };
   } catch (error) {
-    console.error("[class] 생성 실패", error);
+    console.error("[class] 생성 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
   }
 }
@@ -69,7 +71,7 @@ export async function linkProjectToClass(projectId: string, rawCode: string): Pr
     await Project.updateOne({ _id: found.project._id }, { $set: { classroomId: classroom._id } });
     return { ok: true, title: classroom.title, instructorName: classroom.instructorName };
   } catch (error) {
-    console.error("[class] 연결 실패", error);
+    console.error("[class] 연결 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
   }
 }
@@ -83,7 +85,71 @@ export async function unlinkProjectFromClass(projectId: string): Promise<ClassLi
     await Project.updateOne({ _id: found.project._id }, { $set: { classroomId: null } });
     return { ok: true };
   } catch (error) {
-    console.error("[class] 연결 끊기 실패", error);
+    console.error("[class] 연결 끊기 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
+
+// 강사용: 수업 이름·강사 이름 수정
+export async function updateClassroom(
+  token: string,
+  title: string,
+  instructorName: string
+): Promise<{ error?: string; ok?: boolean; title?: string; instructorName?: string }> {
+  const parsed = createClassSchema.safeParse({ title, instructorName });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    const classroom = await findClassroomByToken(token);
+    if (!classroom) return { error: BAD_REQUEST_MESSAGE };
+
+    await Classroom.updateOne(
+      { _id: classroom._id },
+      { $set: { title: parsed.data.title, instructorName: parsed.data.instructorName } }
+    );
+    revalidatePath(`/class/${token}`);
+    return { ok: true, title: parsed.data.title, instructorName: parsed.data.instructorName };
+  } catch (error) {
+    console.error("[class] 정보 수정 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
+
+// 강사용: 반 코드 재발급 (기존 코드가 외부에 유출됐을 때 새 코드로 교체)
+export async function regenerateClassCode(token: string): Promise<{ error?: string; joinCode?: string }> {
+  try {
+    const classroom = await findClassroomByToken(token);
+    if (!classroom) return { error: BAD_REQUEST_MESSAGE };
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const joinCode = generateClassCode();
+      try {
+        await Classroom.updateOne({ _id: classroom._id }, { $set: { joinCode } });
+        revalidatePath(`/class/${token}`);
+        return { joinCode };
+      } catch (error) {
+        if ((error as { code?: number }).code === 11000) continue;
+        throw error;
+      }
+    }
+    return { error: RETRY_MESSAGE };
+  } catch (error) {
+    console.error("[class] 반 코드 재발급 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
+
+// 강사용: 잘못 연결된 팀을 수업에서 연결 해제 (프로젝트 데이터는 지우지 않는다)
+export async function unlinkClassProject(token: string, projectId: string): Promise<{ error?: string; ok?: boolean }> {
+  try {
+    const found = await findClassProject(token, projectId);
+    if (!found) return { error: BAD_REQUEST_MESSAGE };
+
+    await Project.updateOne({ _id: found.project._id, classroomId: found.classroom._id }, { $set: { classroomId: null } });
+    revalidatePath(`/class/${token}`);
+    return { ok: true };
+  } catch (error) {
+    console.error("[class] 강사 팀 해제 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
   }
 }

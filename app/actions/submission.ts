@@ -3,7 +3,7 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { FALLBACK_SUMMARY } from "@/lib/aiReport";
+import { FALLBACK_SUMMARY, SKIPPED_SUMMARY } from "@/lib/aiReport";
 import { touchProject } from "@/lib/projectActivity";
 import { findMember } from "@/lib/auth";
 import { initialStatusFor } from "@/lib/changes";
@@ -18,11 +18,13 @@ import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE, STALE_ON_SUBMIT
 
 // [Comit하기]: 에디터를 열었을 때의 원본을 beforeCode로 고정해 Submission을 만든다
 // baseCode: 에디터가 처음 받은 원본. 그 사이 원본이 바뀌었다면 이 코드는 옛 원본 기준이라, 병합하지 못하게 "다시 제출 필요"로 올린다
+// requestAi: 기본값 false (비용 절감을 위해 사용자가 선택했을 때만 제출 시 AI 분석을 실행한다)
 export async function createSubmission(
   projectId: string,
   title: string,
   afterCode: string,
-  baseCode: string
+  baseCode: string,
+  requestAi = false
 ): Promise<SubmissionResult> {
   if (!isValidObjectId(projectId)) return { error: BAD_REQUEST_MESSAGE };
 
@@ -90,9 +92,11 @@ export async function createSubmission(
 
     await touchProject(project._id); // 마지막 활동 기록 (정리 대상에서 제외되는 기준)
 
-    // 제출은 이미 저장됐으므로, AI 분석이 어떻게 실패하든 제출 흐름은 계속된다
+    // 기본값은 AI 호출 없이 저장(비용 절감). 사용자가 요청했을 때만 분석을 실행한다
     stage = "AI 분석";
-    const { aiReport, notice } = await analyzeForSubmission(String(project._id), me.nickname, parsed.data.baseCode, parsed.data.afterCode);
+    const { aiReport, notice } = requestAi
+      ? await analyzeForSubmission(String(project._id), me.nickname, parsed.data.baseCode, parsed.data.afterCode)
+      : { aiReport: { summary: [...SKIPPED_SUMMARY], warning: "", concept: "" }, notice: undefined };
     stage = "분석 결과 저장";
     await Submission.updateOne({ _id: submission._id, projectId: project._id }, { aiReport });
 
