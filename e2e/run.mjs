@@ -2,7 +2,7 @@
 // 1) 메모리 MongoDB(레플리카셋: 병합 트랜잭션에 필요) 시작
 // 2) 환경변수를 명시적으로 덮어쓰고, 정말 덮어써졌는지 사전 확인 (실패하면 앱을 띄우지 않는다)
 // 3) next build → next start
-// 4) playwright test
+// 4) playwright test (비동기 spawn으로 실행해 MongoMemoryReplSet 이벤트 루프가 멈추지 않게 한다)
 import { spawn, spawnSync } from "node:child_process";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 
@@ -61,11 +61,17 @@ const preflight = spawnSync(
 console.log(`[e2e] 환경변수 사전 확인: ${preflight.stdout.trim()}`);
 if (preflight.status !== 0) await fail("환경변수가 덮어써지지 않았어요. 실제 서비스에 연결될 수 있어 앱을 띄우지 않습니다.");
 
-const run = (cmd, args) => spawnSync(cmd, args, { env, stdio: "inherit" });
+// spawnSync는 이벤트 루프를 멈춰 MongoMemoryReplSet의 파이프/타이머 처리를 막을 수 있으므로 비동기 spawn을 쓴다
+const runAsync = (cmd, args) =>
+  new Promise((resolve) => {
+    const child = spawn(cmd, args, { env, stdio: "inherit" });
+    child.on("close", (code) => resolve(code ?? 1));
+    child.on("error", () => resolve(1));
+  });
 
 if (!process.argv.includes("--skip-build")) {
   console.log("[e2e] next build ...");
-  if (run("npx", ["next", "build"]).status !== 0) await fail("빌드 실패");
+  if ((await runAsync("npx", ["next", "build"])) !== 0) await fail("빌드 실패");
 }
 
 server = spawn("npx", ["next", "start", "-p", String(PORT), "-H", "127.0.0.1"], { env, stdio: ["ignore", "ignore", "inherit"] });
@@ -82,7 +88,7 @@ for (let i = 0; i < 120 && !ready; i++) {
 if (!ready) await fail("서버가 뜨지 않았어요.");
 
 const extraArgs = process.argv.slice(2).filter((a) => a !== "--skip-build");
-const result = run("npx", ["playwright", "test", "-c", "e2e/playwright.config.ts", ...extraArgs]);
+const status = await runAsync("npx", ["playwright", "test", "-c", "e2e/playwright.config.ts", ...extraArgs]);
 
 await cleanup();
-process.exit(result.status ?? 1);
+process.exit(status);

@@ -15,18 +15,19 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
   const mongoUri = process.env.E2E_MONGO_URI;
   if (!mongoUri) throw new Error("격리된 E2E MongoDB 주소가 있어야 합니다.");
 
-  await createProject(page, "팀장", "동시 제출 검증");
-  const projectUrl = page.url();
-  const projectId = projectUrl.split("/").pop()!;
-  const secondContext = await browser.newContext({ storageState: await page.context().storageState() });
-  const secondPage = await secondContext.newPage();
-  await secondPage.goto(projectUrl);
-
-  const db = await mongoose.createConnection(mongoUri).asPromise();
+  const db = await mongoose.createConnection(mongoUri, { directConnection: true, family: 4 }).asPromise();
   const submissions = db.collection("submissions");
-  const projectObjectId = new mongoose.Types.ObjectId(projectId);
 
   try {
+    await createProject(page, "팀장", "동시 제출 검증");
+    const projectUrl = page.url();
+    const projectId = projectUrl.split("/").pop()!;
+    const projectObjectId = new mongoose.Types.ObjectId(projectId);
+    const secondContext = await browser.newContext({ storageState: await page.context().storageState() });
+    const secondPage = await secondContext.newPage();
+    await secondPage.goto(projectUrl);
+
+    try {
     // 같은 브라우저 사용자가 같은 원본·코드를 거의 동시에 보내도 한 건만 저장되어야 한다.
     const duplicateCode = "console.log('같은 변경');\n";
     const duplicateDialogs = await Promise.all([
@@ -65,8 +66,10 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
     expect(limitAlerts.filter((message) => message?.includes("제출을 200개까지")).length).toBe(1);
     const project = await db.collection("projects").findOne({ _id: projectObjectId });
     expect(project?.submissionRevision).toBeGreaterThanOrEqual(2);
+    } finally {
+      await secondContext.close();
+    }
   } finally {
     await db.close();
-    await secondContext.close();
   }
 });
