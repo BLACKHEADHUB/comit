@@ -199,6 +199,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   const anyUnseen = submissions.some((s) => unseen.has(s.id));
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [withAi, setWithAi] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
@@ -278,7 +279,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     setError("");
     let result;
     try {
-      result = await createSubmission(projectId, title, code, initialCode);
+      result = await createSubmission(projectId, title, code, initialCode, withAi);
     } catch {
       result = { error: RETRY_MESSAGE }; // 네트워크 오류 등: 모달을 유지해 바로 다시 시도할 수 있게 한다
     } finally {
@@ -296,6 +297,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     writeSubmitted(projectId, sent);
     selectTab("MINE");
     setTitle("");
+    setWithAi(false);
     setNotice(result.notice ?? "");
     setModalOpen(false);
   }
@@ -657,6 +659,21 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               placeholder="예) 로그인 버튼 추가"
               className={inputClass}
             />
+            <label className="flex items-start gap-2 rounded-xl bg-surface px-3 py-2 text-xs leading-relaxed">
+              <input
+                type="checkbox"
+                checked={withAi}
+                onChange={(e) => setWithAi(e.target.checked)}
+                disabled={pending || !hasChanges}
+                className="mt-0.5 size-4 accent-[var(--accent)]"
+              />
+              <span>
+                <span className="font-medium text-foreground">제출과 함께 AI 요약 받기 (선택)</span>
+                <span className="mt-0.5 block text-muted">
+                  체크하면 바뀐 부분(diff 최대 12,000자)만 AI에 보내 요약해요. 저장 후 제출 화면에서도 언제든 요청할 수 있어요.
+                </span>
+              </span>
+            </label>
             {error && <p role="alert" className={noticeError}>{error}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setModalOpen(false)} disabled={pending} className={`${btnGhost} shrink-0 whitespace-nowrap`}>
@@ -667,7 +684,9 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               <button type="submit" disabled={pending || !hasChanges} className={`${btnPrimary} min-w-44`}>
                 {pending && <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                 {/* key를 바꿔 글자를 통째로 교체한다: 브라우저 번역 기능이 남긴 옛 글자가 겹쳐 보이는 것을 막는다 */}
-                <span key={pending ? "pending" : error ? "retry" : "idle"}>{pending ? "AI가 읽는 중..." : error ? "다시 시도" : "제출하기"}</span>
+                <span key={pending ? "pending" : error ? "retry" : "idle"}>
+                  {pending ? (withAi ? "AI가 읽는 중..." : "제출하는 중...") : error ? "다시 시도" : "제출하기"}
+                </span>
               </button>
             </div>
           </form>

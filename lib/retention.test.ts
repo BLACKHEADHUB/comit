@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntilExpiry, expiryCutoff, shouldWarnExpiry } from "@/lib/retention";
+import { daysUntilExpiry, expiryCutoff, shouldWarnExpiry, staleIdsToCompact } from "@/lib/retention";
 
 const now = new Date("2026-10-20T00:00:00Z");
 const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
@@ -24,5 +24,12 @@ describe("expiryCutoff / shouldWarnExpiry", () => {
     expect(shouldWarnExpiry(31)).toBe(false);
     expect(shouldWarnExpiry(30)).toBe(true);
     expect(shouldWarnExpiry(0)).toBe(true);
+  });
+});
+
+describe("staleIdsToCompact", () => {
+  it("보관 개수를 초과한 오래된 STALE ID만 골라낸다", () => {
+    expect(staleIdsToCompact(["a", "b", "c"], 3)).toEqual([]);
+    expect(staleIdsToCompact(["a", "b", "c", "d"], 2)).toEqual(["c", "d"]);
   });
 });

@@ -5,8 +5,18 @@ import { useEffect, useState } from "react";
 import { retryAiReport } from "@/app/actions/ai";
 import { btnSecondary, noticeError, RETRY_MESSAGE } from "@/lib/ui";
 
-// AI 분석이 실패했거나 건너뛴 제출에서, 버튼 한 번으로 다시 분석한다
-export default function RetryAiButton({ projectId, submissionId, auto = false }: { projectId: string; submissionId: string; auto?: boolean }) {
+// AI 분석이 실패했거나 건너뛴 제출에서, 버튼 한 번으로 분석을 요청한다
+export default function RetryAiButton({
+  projectId,
+  submissionId,
+  auto = false,
+  skipped = false,
+}: {
+  projectId: string;
+  submissionId: string;
+  auto?: boolean;
+  skipped?: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -48,8 +58,11 @@ export default function RetryAiButton({ projectId, submissionId, auto = false }:
     <div className="mt-2 flex flex-col items-start gap-2">
       <button type="button" onClick={retry} disabled={pending} className={`${btnSecondary} !px-3 !py-1.5 !text-xs`}>
         {pending && <span className="size-3 animate-spin rounded-full border-2 border-current/30 border-t-current" />}
-        {pending ? "분석하는 중..." : "↻ AI 분석 다시 시도"}
+        {pending ? "분석하는 중..." : skipped ? "🤖 AI 분석 요청하기" : "↻ AI 분석 다시 시도"}
       </button>
+      <p className="text-[11px] text-muted">
+        전체 코드가 아니라 바뀐 부분(diff 최대 12,000자)만 AI에 전송돼요.
+      </p>
       {error && (
         <p role="alert" className={`${noticeError} !py-1.5 text-xs`}>
           {error}

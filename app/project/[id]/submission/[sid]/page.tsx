@@ -9,7 +9,7 @@ import SubmissionActions from "@/components/SubmissionActions";
 import SubmissionDiff from "@/components/SubmissionDiff";
 import SubmissionFlow from "@/components/SubmissionFlow";
 import TermsHelp from "@/components/TermsHelp";
-import { AI_FAILED_LINE, aiUnavailableReason } from "@/lib/aiReport";
+import { AI_FAILED_LINE, AI_SKIPPED_LINE, aiUnavailableReason } from "@/lib/aiReport";
 import { formatTime } from "@/lib/tags";
 import Mascot from "@/components/Mascot";
 import { card, noticeError } from "@/lib/ui";
@@ -58,14 +58,19 @@ export default async function SubmissionPage({
           {aiMissing ? (
             // 실패 문구가 "요약"처럼 번호로 보이지 않게, 무슨 일이 있었고 무엇을 하면 되는지 안내한다
             <div className="flex items-start gap-3 rounded-xl bg-surface p-3 text-sm leading-relaxed">
-              <Mascot mood="oops" size={36} />
+              <Mascot mood={aiMissing === AI_SKIPPED_LINE ? "calm" : "oops"} size={36} />
               <div>
                 <p className="font-medium">{aiMissing}</p>
                 <p className="mt-0.5 text-muted">
                   괜찮아요, 제출은 잘 저장됐어요. 아래 &lsquo;코드 변경&rsquo;에서 바뀐 줄을 직접 읽어보고, 궁금한 줄은 줄 옆의{" "}
                   <strong className="text-foreground">+</strong> 를 눌러 AI에게 따로 물어볼 수 있어요.
                 </p>
-                <RetryAiButton projectId={id} submissionId={sid} auto={aiMissing === AI_FAILED_LINE} />
+                <RetryAiButton
+                  projectId={id}
+                  submissionId={sid}
+                  auto={aiMissing === AI_FAILED_LINE}
+                  skipped={aiMissing === AI_SKIPPED_LINE}
+                />
               </div>
             </div>
           ) : summary.length > 0 ? (
