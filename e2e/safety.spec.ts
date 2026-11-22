@@ -9,7 +9,7 @@ test("격리 확인: 메모리 DB에 데이터가 생기고 AI는 기본 문구�
   expect(mongoUri.startsWith("mongodb://127.0.0.1"), "E2E_MONGO_URI는 메모리 DB여야 해요").toBe(true);
 
   // 앱과 별개의 연결로 메모리 DB를 직접 들여다본다
-  const client = await mongoose.createConnection(mongoUri).asPromise();
+  const client = await mongoose.createConnection(mongoUri, { directConnection: true, family: 4 }).asPromise();
   try {
     const db = client;
     const before = await db.collection("projects").countDocuments();
