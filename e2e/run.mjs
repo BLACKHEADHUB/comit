@@ -10,7 +10,10 @@ const PORT = 3100;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 const replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-const mongoUri = replSet.getUri("comit_e2e");
+// 1노드 레플리카셋에서 SDAM 서버 선택 타임아웃을 막기 위해 directConnection=true를 명시한다.
+const mongoUrl = new URL(replSet.getUri("comit_e2e"));
+mongoUrl.searchParams.set("directConnection", "true");
+const mongoUri = mongoUrl.toString();
 
 // .env.local에 실제 값이 있어도 이 값들이 이긴다 (Next는 이미 정의된 환경변수를 .env 파일로 덮어쓰지 않는다. 빈 문자열도 "정의됨")
 const env = {
