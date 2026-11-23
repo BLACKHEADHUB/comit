@@ -57,6 +57,15 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
       createdAt: new Date(Date.now() - i * 1_000),
     })));
 
+    // 앞선 중복 제출에서 실패한 쪽은 모달이 열려 있으므로 닫고 다음 시나리오로 넘어간다.
+    for (const p of [page, secondPage]) {
+      const dialog = p.getByRole("dialog");
+      if (await dialog.isVisible()) {
+        await dialog.getByRole("button", { name: "취소" }).click();
+        await expect(dialog).toBeHidden();
+      }
+    }
+
     const limitDialogs = await Promise.all([
       openSubmissionDialog(page, "상한 경쟁 A", "console.log('경쟁 A');\n"),
       openSubmissionDialog(secondPage, "상한 경쟁 B", "console.log('경쟁 B');\n"),
