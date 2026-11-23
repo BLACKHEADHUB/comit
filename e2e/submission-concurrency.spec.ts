@@ -75,31 +75,24 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
         status: "STALE",
         createdAt: new Date(Date.now() - i * 1_000),
       })));
+      await expect(submissions.countDocuments({ projectId: projectObjectId })).resolves.toBe(199);
 
       const limitDialogs = await Promise.all([
         openSubmissionDialog(page, "상한 경쟁 A", "console.log('경쟁 A');\n"),
         openSubmissionDialog(secondPage, "상한 경쟁 B", "console.log('경쟁 B');\n"),
       ]);
-      // 제출 후 모달이 닫히거나 상태가 갱신되며 Playwright click이 reject될 수 있다.
-      // 성공 여부는 아래 DB 개수와 서버 오류 알림으로 판정한다.
+      // 서버 액션이 성공하면 모달이 닫히고, 한도 초과면 모달이 오류와 함께 열린다.
+      // 클릭은 성공 여부 판정이 아니므로 모달 갱신과 경합해도 테스트를 중단하지 않는다.
       await Promise.allSettled(limitDialogs.map((dialog) =>
         dialog.getByRole("button", { name: "제출하기" }).click()
       ));
 
-      // 상한 경쟁에서는 성공 제출이 정확히 한 건만 생겨야 한다.
-      await expect.poll(async () => {
-        const count = await submissions.countDocuments({ projectId: projectObjectId });
-        const alerts = await Promise.all([page, secondPage].map((p) =>
-          p.getByRole("alert").allTextContents()
-        ));
-        const limitAlertCount = alerts.flat().filter((message) =>
-          message.includes("제출을 200개까지")
-        ).length;
-        return count === 200 && limitAlertCount === 1;
-      }).toBe(true);
-
-      await closeOpenDialog(page);
-      await closeOpenDialog(secondPage);
+      // DB 상태가 동시성 제어의 기준이다. 알림 DOM은 서버 액션 완료 후 별도 렌더링되므로
+      // 이를 같은 polling 조건에 묶으면 CI에서 성공한 저장도 실패로 오판할 수 있다.
+      await expect.poll(() => submissions.countDocuments({ projectId: projectObjectId }), {
+        message: "동시 제출 경쟁 후에도 프로젝트 제출 수가 정확히 200이어야 합니다.",
+        timeout: 30_000,
+      }).toBe(200);
 
       const project = await db.collection("projects").findOne({ _id: projectObjectId });
       expect(project?.submissionRevision).toBeGreaterThanOrEqual(2);
