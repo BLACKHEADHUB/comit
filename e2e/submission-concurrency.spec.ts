@@ -80,7 +80,9 @@ test("동시 제출에서도 중복과 프로젝트 제출 상한을 지킨다",
         openSubmissionDialog(page, "상한 경쟁 A", "console.log('경쟁 A');\n"),
         openSubmissionDialog(secondPage, "상한 경쟁 B", "console.log('경쟁 B');\n"),
       ]);
-      await Promise.all(limitDialogs.map((dialog) =>
+      // 제출 후 모달이 닫히거나 상태가 갱신되며 Playwright click이 reject될 수 있다.
+      // 성공 여부는 아래 DB 개수와 서버 오류 알림으로 판정한다.
+      await Promise.allSettled(limitDialogs.map((dialog) =>
         dialog.getByRole("button", { name: "제출하기" }).click()
       ));
 
