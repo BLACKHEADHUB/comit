@@ -53,12 +53,13 @@ describe("buildContribution", () => {
     expect(by["지수"]).toMatchObject({ submitted: 2, merged: 1, linesChanged: 1, lineShare: 33 });
   });
 
-  it("남의 제출에 단 원댓글만 리뷰로 세고, 답글은 따로 센다", () => {
+  it("남의 제출에 단 원댓글만 리뷰로 세고, 답글·과정 지표를 따로 센다", () => {
     const rows = buildContribution(
       members,
-      [],
+      [sub("지수", "STALE", "a\n", "b\n")],
       [
-        comment("민수", "지수", { tag: "BUG" }),
+        comment("민수", "지수", { tag: "BUG", resolved: true }),
+        comment("민수", "지수", { tag: "QUESTION" }),
         comment("민수", "지수"),
         comment("민수", "민수"), // 내 제출에 단 댓글: 리뷰 아님
         comment("지수", "지수", { isReply: true, tag: null }),
@@ -66,9 +67,9 @@ describe("buildContribution", () => {
       now
     );
     const by = Object.fromEntries(rows.map((r) => [r.nickname, r]));
-    expect(by["민수"]).toMatchObject({ reviews: 2, bugsFound: 1, replies: 0 });
-    expect(by["지수"]).toMatchObject({ reviews: 0, replies: 1 });
-    expect(by["민수"].weekly[7]).toBe(3); // 활동 자체는 모두 이번 주 칸에 들어간다
+    expect(by["민수"]).toMatchObject({ reviews: 3, questions: 1, bugsFound: 1, bugsResolved: 1, replies: 0 });
+    expect(by["지수"]).toMatchObject({ reviews: 0, replies: 1, staleCount: 1 });
+    expect(by["민수"].weekly[7]).toBe(4); // 활동 자체는 모두 이번 주 칸에 들어간다
   });
 
   it("나간 팀원의 기록은 맨 아래에 LEFT로 남는다", () => {

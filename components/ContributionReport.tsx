@@ -33,7 +33,7 @@ export default function ContributionReport({
   now: Date;
   backHref: string;
   backLabel: string;
-  children?: ReactNode; // 표 아래에 붙일 추가 영역 (예: 팀장의 수업 연결 칸)
+  children?: ReactNode; // 표 아래에 붙일 추가 영역 (예: 팀장의 수업 연결 칸, 강사용 최종 코드)
 }) {
   const totals = teamTotals(rows);
   return (
@@ -75,14 +75,16 @@ export default function ContributionReport({
       )}
 
       <section className={`${card} overflow-x-auto`}>
-        <table className="w-full min-w-[640px] whitespace-nowrap text-sm">
+        <table className="w-full min-w-[740px] whitespace-nowrap text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th scope="col" className="px-4 py-2.5 font-medium">이름</th>
               <th scope="col" className="px-2 py-2.5 text-right font-medium" title="올린 제출 중 원본에 반영된 수">반영 / 제출</th>
               <th scope="col" className="px-2 py-2.5 font-medium" title="반영된 제출에서 바뀐 줄 (한 줄 수정 = 1줄)">반영된 줄</th>
               <th scope="col" className="px-2 py-2.5 text-right font-medium" title="팀원 제출에 남긴 댓글 (답글 제외)">리뷰</th>
-              <th scope="col" className="px-2 py-2.5 text-right font-medium">🐞 버그 발견</th>
+              <th scope="col" className="px-2 py-2.5 text-right font-medium">❓ 질문</th>
+              <th scope="col" className="px-2 py-2.5 text-right font-medium" title="버그 발견 (해결 완료 수)">🐞 버그 (해결)</th>
+              <th scope="col" className="px-2 py-2.5 text-right font-medium" title="충돌(STALE)로 다시 얹어 해결한 제출">↻ 충돌</th>
               <th scope="col" className="px-2 py-2.5 text-right font-medium">답글</th>
               <th scope="col" className="px-2 py-2.5 font-medium">최근 {REPORT_WEEKS}주</th>
               <th scope="col" className="px-4 py-2.5 font-medium">마지막 활동</th>
@@ -111,7 +113,12 @@ export default function ContributionReport({
                   </div>
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums">{r.reviews}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{r.bugsFound}</td>
+                <td className="px-2 py-3 text-right tabular-nums">{r.questions}</td>
+                <td className="px-2 py-3 text-right tabular-nums">
+                  {r.bugsFound}
+                  {r.bugsFound > 0 && <span className="ml-1 text-xs text-muted">({r.bugsResolved})</span>}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums">{r.staleCount}</td>
                 <td className="px-2 py-3 text-right tabular-nums">{r.replies}</td>
                 <td className="px-2 py-3">
                   <WeekCells weekly={r.weekly} />
@@ -127,7 +134,8 @@ export default function ContributionReport({
         <summary className="cursor-pointer">숫자는 이렇게 세요</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>반영된 줄: 팀장이 병합한 제출에서 원본과 달라진 줄 수예요. 한 줄을 고치면 1줄로 세요. 아직 대기 중이거나 다시 제출이 필요한 제출은 넣지 않아요.</li>
-          <li>리뷰: 다른 팀원의 제출에 남긴 댓글이에요. 내 제출에 단 댓글과 답글은 따로 세요.</li>
+          <li>리뷰 · 질문 · 버그(해결): 다른 팀원의 제출에 남긴 댓글이에요. 괄호 안 숫자는 해결 완료로 표시된 버그 수예요.</li>
+          <li>↻ 충돌: 다른 변경이 먼저 병합돼 ‘다시 제출 필요(STALE)’ 상태를 겪은 제출 수예요.</li>
           <li>최근 {REPORT_WEEKS}주: 한 칸이 일주일이고, 오른쪽 끝이 이번 주예요. 제출과 댓글을 합친 횟수가 많을수록 진해요.</li>
           <li>지운 제출·댓글과 정리된 기록은 세지 않아요.</li>
         </ul>
