@@ -18,6 +18,6 @@ export async function findClassProject(token: string, projectId: string) {
   if (!isValidObjectId(projectId)) return null;
   const classroom = await findClassroomByToken(token);
   if (!classroom) return null;
-  const project = await Project.findOne({ _id: projectId, classroomId: classroom._id }).select({ title: 1, members: 1 }).lean();
+  const project = await Project.findOne({ _id: projectId, classroomId: classroom._id }).select({ title: 1, members: 1, mainCode: 1 }).lean();
   return project ? { classroom, project } : null;
 }

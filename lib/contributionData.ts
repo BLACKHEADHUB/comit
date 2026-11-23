@@ -16,7 +16,7 @@ export async function loadContribution(
     .lean();
   const authorOf = new Map(submissions.map((s) => [String(s._id), s.author]));
   const comments = await Comment.find({ submissionId: { $in: submissions.map((s) => s._id) } })
-    .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, createdAt: 1 })
+    .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, resolved: 1, createdAt: 1 })
     .lean();
 
   return buildContribution(
@@ -27,6 +27,7 @@ export async function loadContribution(
       submissionAuthor: authorOf.get(String(c.submissionId)) ?? "",
       isReply: Boolean(c.parentId),
       tag: c.tag,
+      resolved: Boolean(c.resolved),
       createdAt: c.createdAt,
     })),
     now
@@ -58,11 +59,11 @@ export async function loadClassContributions(
 
   const comments = submissions.length > 0
     ? await Comment.find({ submissionId: { $in: submissions.map((s) => s._id) } })
-        .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, createdAt: 1 })
+        .select({ submissionId: 1, author: 1, parentId: 1, tag: 1, resolved: 1, createdAt: 1 })
         .lean()
     : [];
 
-  const commentsByProject = new Map<string, { author: string; submissionAuthor: string; isReply: boolean; tag?: string | null; createdAt: Date }[]>();
+  const commentsByProject = new Map<string, { author: string; submissionAuthor: string; isReply: boolean; tag?: string | null; resolved?: boolean; createdAt: Date }[]>();
   for (const c of comments) {
     const meta = subMeta.get(String(c.submissionId));
     if (!meta) continue;
@@ -71,6 +72,7 @@ export async function loadClassContributions(
       submissionAuthor: meta.author,
       isReply: Boolean(c.parentId),
       tag: c.tag,
+      resolved: Boolean(c.resolved),
       createdAt: c.createdAt,
     };
     const list = commentsByProject.get(meta.projectId);

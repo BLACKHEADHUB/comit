@@ -16,6 +16,7 @@ export type ContributionComment = {
   submissionAuthor: string; // 댓글이 달린 제출을 올린 사람 (자기 제출에 단 댓글은 리뷰로 세지 않는다)
   isReply: boolean;
   tag?: string | null;
+  resolved?: boolean;
   createdAt: Date;
 };
 
@@ -24,10 +25,13 @@ export type ContributionRow = {
   role: "LEADER" | "MEMBER" | "LEFT"; // LEFT = 지금은 멤버가 아니지만 기록이 남은 사람
   submitted: number; // 올린 제출 수
   merged: number; // 그중 원본에 반영된 수
+  staleCount: number; // 충돌/재제출(STALE) 과정을 겪은 제출 수
   linesChanged: number; // 반영된 제출에서 바뀐 줄 수 (한 줄 수정 = 1)
   lineShare: number; // 팀 전체 반영 줄 중 내 몫 (0~100, 반올림)
   reviews: number; // 팀원 제출에 남긴 리뷰 댓글 (답글 제외)
+  questions: number; // 그중 ❓ 질문 태그 (함께 질문하며 배운 횟수)
   bugsFound: number; // 그중 🐞 버그 태그
+  bugsResolved: number; // 🐞 버그 태그 중 해결 완료된 수
   replies: number; // 남긴 답글
   weekly: number[]; // 최근 주별 활동 수 (제출 + 댓글). 마지막 칸이 이번 주
   lastActiveAt: Date | null;
@@ -55,8 +59,8 @@ export function buildContribution(
     if (!row) {
       // 멤버 목록에 없는 이름 = 나간(내보내진) 팀원. 기록은 그대로 보여준다
       row = {
-        nickname, role: "LEFT", submitted: 0, merged: 0, linesChanged: 0, lineShare: 0,
-        reviews: 0, bugsFound: 0, replies: 0, weekly: Array(REPORT_WEEKS).fill(0), lastActiveAt: null,
+        nickname, role: "LEFT", submitted: 0, merged: 0, staleCount: 0, linesChanged: 0, lineShare: 0,
+        reviews: 0, questions: 0, bugsFound: 0, bugsResolved: 0, replies: 0, weekly: Array(REPORT_WEEKS).fill(0), lastActiveAt: null,
       };
       rows.set(nickname, row);
     }
@@ -77,6 +81,8 @@ export function buildContribution(
     if (s.status === "MERGED") {
       row.merged += 1;
       row.linesChanged += summarizeChanges(s.beforeCode, s.afterCode).changed;
+    } else if (s.status === "STALE") {
+      row.staleCount += 1;
     }
     touch(row, s.createdAt);
   }
@@ -86,7 +92,11 @@ export function buildContribution(
     if (c.isReply) row.replies += 1;
     else if (c.author !== c.submissionAuthor) {
       row.reviews += 1;
-      if (c.tag === "BUG") row.bugsFound += 1;
+      if (c.tag === "QUESTION") row.questions += 1;
+      if (c.tag === "BUG") {
+        row.bugsFound += 1;
+        if (c.resolved) row.bugsResolved += 1;
+      }
     }
     touch(row, c.createdAt);
   }
