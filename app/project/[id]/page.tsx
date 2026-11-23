@@ -3,12 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findMember } from "@/lib/auth";
 import { getNewCodeCookie } from "@/lib/session";
+import ClassLinkButton from "@/components/ClassLinkButton";
 import RecoveryNotice from "@/components/RecoveryNotice";
 import { buildInviteUrl } from "@/lib/invite";
 import InviteLink from "@/components/InviteLink";
 import MemberAvatars from "@/components/MemberAvatars";
 import ProjectWorkspace from "@/components/ProjectWorkspace";
 import TermsHelp from "@/components/TermsHelp";
+import { Classroom } from "@/models/Classroom";
 import { badge, noticeWarn } from "@/lib/ui";
 import { orderMembers } from "@/lib/members";
 import { listSubmissions } from "@/lib/submissions";
@@ -33,6 +35,11 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   // 초대 링크는 팀장에게만 보여준다
   let inviteUrl: string | null = null;
   if (me.role === "LEADER") inviteUrl = await buildInviteUrl(project.inviteToken);
+
+  // 연결된 수업이 있으면 메인 헤더에서도 바로 상태를 확인하고 연결/해제할 수 있게 조회한다
+  const classroom = project.classroomId
+    ? await Classroom.findById(project.classroomId).select({ title: 1, instructorName: 1 }).lean()
+    : null;
 
   // 방금 합류했다면 복구 코드를 한 번 보여준다
   const newRecoveryCode = await getNewCodeCookie(id);
@@ -62,6 +69,11 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           {/* 누가 함께하는지: 이니셜 아바타 묶음 (팀장 → 나 → 나머지 순) */}
           <MemberAvatars members={orderMembers(project.members, me.nickname)} projectId={id} projectTitle={project.title} isLeader={me.role === "LEADER"} />
           {inviteUrl && <InviteLink url={inviteUrl} />}
+          <ClassLinkButton
+            projectId={id}
+            isLeader={me.role === "LEADER"}
+            linked={classroom ? { title: classroom.title, instructorName: classroom.instructorName } : null}
+          />
           {/* 팀원별 기여도 리포트 (팀플 발표·평가 자료로 인쇄할 수 있다) */}
           <Link href={`/project/${id}/report`} className="rounded-full px-2 py-1 transition hover:bg-surface hover:text-foreground">
             📊 기여도
