@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { regenerateClassCode, unlinkClassProject, updateClassroom } from "@/app/actions/classroom";
+import { regenerateClassCode, regenerateOwnerToken, unlinkClassProject, updateClassroom } from "@/app/actions/classroom";
 import {
   buildClassCsv,
   filterAndSortTeams,
@@ -38,6 +39,7 @@ export default function ClassDashboard({
   initialTeams: ClassTeamSummary[];
   maxProjects: number;
 }) {
+  const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [instructorName, setInstructorName] = useState(initialInstructor);
   const [joinCode, setJoinCode] = useState(initialJoinCode);
@@ -49,6 +51,7 @@ export default function ClassDashboard({
 
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmResetLink, setConfirmResetLink] = useState(false);
   const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [draftInstructor, setDraftInstructor] = useState(initialInstructor);
   const [confirmUnlinkId, setConfirmUnlinkId] = useState<string | null>(null);
@@ -122,6 +125,20 @@ export default function ClassDashboard({
     });
   };
 
+  const handleRegenerateOwnerLink = () => {
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await regenerateOwnerToken(token);
+      if (res.error || !res.newToken) {
+        setFeedback({ type: "error", text: res.error ?? "비밀 링크를 다시 만들지 못했어요." });
+        return;
+      }
+      const nextUrl = `${window.location.origin}/class/${res.newToken}`;
+      await copyText(nextUrl);
+      router.replace(`/class/${res.newToken}`);
+    });
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -142,6 +159,26 @@ export default function ClassDashboard({
           >
             {editing ? "닫기" : "수업 설정"}
           </button>
+          {confirmResetLink ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs">
+              <span className="text-warn">이전 링크가 무효화돼요.</span>
+              <button type="button" disabled={pending} onClick={handleRegenerateOwnerLink} className="font-semibold text-danger hover:underline">
+                재발급
+              </button>
+              <button type="button" onClick={() => setConfirmResetLink(false)} className="text-muted hover:underline">
+                취소
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={btnSecondary}
+              onClick={() => setConfirmResetLink(true)}
+              title="강사용 비밀 링크가 유출됐을 때 새 주소로 바꿉니다"
+            >
+              비밀 링크 재발급
+            </button>
+          )}
           <div className={`${card} flex items-center gap-2 px-3 py-1.5`}>
             <div>
               <p className="text-[11px] text-muted">반 코드</p>
