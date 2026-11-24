@@ -16,6 +16,7 @@ import OnboardingCard from "@/components/OnboardingCard";
 import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/activity";
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
+import { resolveMerge, threeWayMerge, type ConflictChoice, type MergeResult } from "@/lib/rebase";
 import { setOnline } from "@/lib/onlineStore";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
@@ -117,6 +118,9 @@ type Props = {
 };
 
 export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, initialOnline, inviteUrl, isLeader }: Props) {
+  // 사용자가 [내 코드에 바로 합치기]를 실행하면 서버 새로고침 없이도 기준 원본과 버전을 최신으로 갱신한다
+  const [baseCode, setBaseCode] = useState(initialCode);
+  const [baseVersion, setBaseVersion] = useState(initialVersion);
   // 저장된 초안이 있으면(상세 페이지에서 돌아왔거나 STALE 코드를 불러온 경우) 그 코드로 시작한다.
   // 에디터는 브라우저에서만 그려지므로 서버/클라이언트 초기값이 달라도 화면 불일치가 생기지 않는다
   const [code, setCode] = useState(() =>
@@ -147,12 +151,16 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   const [memberCount, setMemberCount] = useState(initialMemberCount); // 혼자인지 판단 (폴링으로 갱신)
   const alone = memberCount <= 1;
   const [latestVersion, setLatestVersion] = useState(initialVersion);
-  const originalChanged = latestVersion !== initialVersion;
+  const originalChanged = latestVersion !== baseVersion;
   // [최신 원본 보기]를 눌렀을 때만 받아 오는 최신 원본 (null이면 창이 닫힌 상태)
   const [latestMain, setLatestMain] = useState<string | null>(null);
   const [latestError, setLatestError] = useState("");
+  const [syncResult, setSyncResult] = useState<MergeResult | null>(null);
+  const [syncChoices, setSyncChoices] = useState<(ConflictChoice | undefined)[]>([]);
   async function showLatestMain() {
     setLatestError("");
+    setSyncResult(null);
+    setSyncChoices([]);
     try {
       const res = await fetch(`/api/project/${projectId}/main`, { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
@@ -160,6 +168,26 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     } catch {
       setLatestError(RETRY_MESSAGE);
     }
+  }
+  function applySyncedMain(mergedCode: string, nextMain: string) {
+    setCode(mergedCode);
+    setBaseCode(nextMain);
+    setBaseVersion(latestVersion);
+    writeDraft(projectId, { code: mergedCode, base: nextMain, fromStale: true, rebased: true });
+    setLatestMain(null);
+    setSyncResult(null);
+    setSyncChoices([]);
+    setNotice("최신 원본을 내 코드에 합쳤어요. 확인한 뒤 Comit해보세요.");
+  }
+  function startSyncMain() {
+    if (latestMain === null) return;
+    const merged = threeWayMerge(baseCode, code, latestMain);
+    if (merged.conflicts === 0) {
+      applySyncedMain(resolveMerge(merged), latestMain);
+      return;
+    }
+    setSyncChoices(new Array(merged.conflicts).fill(undefined));
+    setSyncResult(merged);
   }
   const latestSubmissions = useRef(submissions); // 폴링 콜백에서 "지금 목록"과 비교하기 위한 최신 값
   useEffect(() => {
@@ -207,13 +235,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   function handleCodeChange(value: string) {
     setCode(value);
     const keepStale = fromStale && !staleDismissed;
-    writeDraft(projectId, { code: value, base: initialCode, fromStale: keepStale, rebased: keepStale && rebased });
+    writeDraft(projectId, { code: value, base: baseCode, fromStale: keepStale, rebased: keepStale && rebased });
   }
 
-  // 최신 mainCode로 되돌리기: 초안을 지우고 에디터를 서버가 준 최신 코드로 되돌린다
+  // 최신 mainCode로 되돌리기: 초안을 지우고 에디터를 최신 기준 코드로 되돌린다
   function resetToMain() {
     clearDraft(projectId);
-    setCode(initialCode);
+    setCode(baseCode);
     setStaleDismissed(true);
   }
 
@@ -224,14 +252,14 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   // 브라우저에서 준비가 끝난 뒤에만 실제 변경 요약을 쓴다. 그 전에는 "변경 없음"으로 그린다
   const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   const summary = useMemo(
-    () => (hydrated ? summarizeChanges(initialCode, code) : { added: 0, removed: 0, changed: 0 }),
-    [hydrated, initialCode, code]
+    () => (hydrated ? summarizeChanges(baseCode, code) : { added: 0, removed: 0, changed: 0 }),
+    [hydrated, baseCode, code]
   );
   type MonacoEditor = Parameters<OnMount>[0];
   const [editor, setEditor] = useState<MonacoEditor | null>(null);
   useEffect(() => {
     if (!editor) return;
-    const { added, modified, deletedAt } = changedLineMarks(initialCode, code);
+    const { added, modified, deletedAt } = changedLineMarks(baseCode, code);
     const mark = (line: number, className: string, tooltip: string) => ({
       range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
       options: { linesDecorationsClassName: className, linesDecorationsTooltip: tooltip },
@@ -243,7 +271,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     ];
     const collection = editor.createDecorationsCollection(decorations);
     return () => collection.clear(); // 코드가 바뀌면 이전 표시를 지우고 새로 그린다
-  }, [editor, initialCode, code]);
+  }, [editor, baseCode, code]);
 
   // ESC 키로 모달(제출 / 최신 원본 보기) 닫기
   const anyModalOpen = modalOpen || latestMain !== null;
@@ -253,6 +281,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       if (e.key !== "Escape") return;
       setModalOpen(false);
       setLatestMain(null);
+      setSyncResult(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -279,7 +308,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     setError("");
     let result;
     try {
-      result = await createSubmission(projectId, title, code, initialCode, withAi);
+      result = await createSubmission(projectId, title, code, baseCode, withAi);
     } catch {
       result = { error: RETRY_MESSAGE }; // 네트워크 오류 등: 모달을 유지해 바로 다시 시도할 수 있게 한다
     } finally {
@@ -537,8 +566,8 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
           {hydrated && code.trim() === "" && (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center p-6 pl-16">
               <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-background/90 p-4 text-sm leading-relaxed">
-                <Mascot mood={initialCode.trim() === "" ? "hello" : "oops"} size={36} />
-                {initialCode.trim() === "" ? (
+                <Mascot mood={baseCode.trim() === "" ? "hello" : "oops"} size={36} />
+                {baseCode.trim() === "" ? (
                   <p>
                     <strong className="font-semibold">아직 원본이 비어 있어요.</strong>
                     <span className="mt-0.5 block text-muted">
@@ -603,7 +632,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
       </section>
 
       {latestMain !== null && (
-        <div className={modalOverlay} onClick={() => setLatestMain(null)}>
+        <div
+          className={modalOverlay}
+          onClick={() => {
+            setLatestMain(null);
+            setSyncResult(null);
+          }}
+        >
           <div
             role="dialog"
             aria-modal="true"
@@ -611,24 +646,98 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             onClick={(e) => e.stopPropagation()}
             className={`${modalCard} flex max-h-[calc(100dvh-2rem)] !max-w-4xl flex-col gap-4 overflow-y-auto`}
           >
-            <ModalHeader id="latest-main-title" mood="oops" title="원본이 이렇게 바뀌었어요">
-              이 화면을 열었을 때의 원본과 지금 원본의 차이예요. 내 에디터의 코드는 그대로니 걱정 마세요.
+            <ModalHeader id="latest-main-title" mood={syncResult ? "thinking" : "oops"} title={syncResult ? "겹치는 부분을 골라주세요" : "원본이 이렇게 바뀌었어요"}>
+              {syncResult
+                ? "먼저 병합된 원본과 내 코드가 같은 줄을 고쳤어요. 겹치지 않는 나머지는 자동으로 합쳤으니 아래 부분만 골라주세요."
+                : "내가 보던 원본과 지금 최신 원본의 차이예요. 아래 버튼으로 내 코드에 바로 합칠 수도 있어요."}
             </ModalHeader>
-            <ChangePreview
-              before={initialCode}
-              after={latestMain}
-              label="내가 보던 원본에서"
-              emptyText="내용은 같아요. (다른 변경이 병합됐다가 같은 내용으로 돌아왔어요)"
-            />
-            <p className="rounded-xl bg-surface p-3 text-xs leading-relaxed text-muted">
-              지금 그대로 Comit하면 위에 보이는 변경이 지워진 것처럼 제출될 수 있어요. 초록색 줄을 내 코드에도 옮겨 적거나, 페이지를 새로고침해 최신
-              원본에서 다시 시작하세요. (새로고침하면 작성 중인 코드는 사라져요)
-            </p>
-            <div className="flex justify-end">
-              <button type="button" autoFocus onClick={() => setLatestMain(null)} className={btnPrimary}>
-                확인했어요
-              </button>
-            </div>
+            {syncResult ? (
+              <div className="flex flex-col gap-3">
+                {syncResult.segments
+                  .filter((s) => s.type === "conflict")
+                  .map((conflict, i) =>
+                    conflict.type !== "conflict" ? null : (
+                      <fieldset key={i} className="flex flex-col gap-2 rounded-xl border border-line p-3">
+                        <legend className="px-1 text-sm font-semibold">겹침 {i + 1}</legend>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="min-w-0">
+                            <p className="mb-1 text-xs font-medium text-muted">최신 원본 (먼저 병합됨)</p>
+                            <pre className="max-h-40 overflow-auto rounded-lg border border-line bg-surface p-2 font-mono text-xs leading-relaxed">
+                              {conflict.theirs.length > 0 ? conflict.theirs.join("\n") : "(이 부분을 지움)"}
+                            </pre>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="mb-1 text-xs font-medium text-muted">내 코드</p>
+                            <pre className="max-h-40 overflow-auto rounded-lg border border-accent/40 bg-accent-soft p-2 font-mono text-xs leading-relaxed">
+                              {conflict.mine.length > 0 ? conflict.mine.join("\n") : "(이 부분을 지움)"}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(
+                            [
+                              { value: "theirs", label: "최신 원본 유지" },
+                              { value: "mine", label: "내 변경 쓰기" },
+                              { value: "both", label: "둘 다 넣기" },
+                            ] as const
+                          ).map((choice) => (
+                            <label
+                              key={choice.value}
+                              className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                                syncChoices[i] === choice.value
+                                  ? "border-accent bg-accent-soft font-semibold text-accent-ink"
+                                  : "border-line-strong text-muted hover:bg-surface hover:text-foreground"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`sync-conflict-${i}`}
+                                className="size-3 accent-[var(--accent)]"
+                                checked={syncChoices[i] === choice.value}
+                                onChange={() => setSyncChoices((prev) => prev.map((c, n) => (n === i ? choice.value : c)))}
+                              />
+                              {choice.label}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )
+                  )}
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setSyncResult(null)} className={btnGhost}>
+                    뒤로
+                  </button>
+                  <button
+                    type="button"
+                    disabled={syncChoices.some((c) => c === undefined)}
+                    onClick={() => applySyncedMain(resolveMerge(syncResult, syncChoices as ConflictChoice[]), latestMain)}
+                    className={btnPrimary}
+                  >
+                    {syncChoices.some((c) => c === undefined) ? "겹친 부분을 모두 골라주세요" : "합친 코드 적용하기"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <ChangePreview
+                  before={baseCode}
+                  after={latestMain}
+                  label="내가 보던 원본에서"
+                  emptyText="내용은 같아요. (다른 변경이 병합됐다가 같은 내용으로 돌아왔어요)"
+                />
+                <p className="rounded-xl bg-surface p-3 text-xs leading-relaxed text-muted">
+                  그대로 제출하면 먼저 병합된 변경 때문에 ‘다시 제출 필요(STALE)’가 될 수 있어요. 아래 <strong>[내 코드에 바로 합치기]</strong>를 누르면 작성 중인 내 코드와 최신 원본을 안전하게 합쳐드려요.
+                </p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={() => setLatestMain(null)} className={btnGhost}>
+                    닫기
+                  </button>
+                  <button type="button" autoFocus onClick={startSyncMain} className={btnPrimary}>
+                    내 코드에 바로 합치기
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -647,7 +756,7 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               보내기 전에 바뀐 부분을 한 번 확인하고, 팀원이 알아보기 쉽게 한 줄로 적어주세요.
             </ModalHeader>
             {/* 보내기 전 확인: 원본과 달라진 부분만 보여준다 */}
-            <ChangePreview before={initialCode} after={code} />
+            <ChangePreview before={baseCode} after={code} />
             <input
               autoFocus={hasChanges}
               required

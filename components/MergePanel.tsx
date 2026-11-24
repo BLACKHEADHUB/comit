@@ -8,6 +8,7 @@ import ModalHeader from "@/components/ModalHeader";
 import { useReview } from "@/components/ReviewProvider";
 import StaleNotice from "@/components/StaleNotice";
 import { countOpen, countRoots } from "@/lib/comments";
+import { checkMergeSyntax } from "@/lib/syntaxCheck";
 import {
   badge,
   btnGhost,
@@ -46,6 +47,7 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
   const questionCount = open.QUESTION;
   const bugCount = open.BUG;
   const noReview = countRoots(comments) === 0; // 리뷰가 하나도 없었는지 (해결된 것도 리뷰로 친다)
+  const syntaxWarning = confirmOpen ? checkMergeSyntax(afterCode) : null;
 
   // ESC 키로 확인 창 닫기
   useEffect(() => {
@@ -146,13 +148,18 @@ export default function MergePanel({ projectId, submissionId, canMerge, beforeCo
                 🐞 해결 안 된 버그 지적이 있어요. 병합하기 전에 댓글을 한 번 더 확인해보세요.
               </p>
             )}
+            {syntaxWarning && (
+              <p role="status" className={noticeWarn}>
+                ⚠️ {syntaxWarning.reason} 병합하기 전에 코드를 한 번 더 확인해보세요.
+              </p>
+            )}
             {noReview && <p className={noticeWarn}>아직 리뷰가 없어요. 팀원이 한 번 봐주면 더 안전해요.</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmOpen(false)} className={btnGhost}>
                 취소
               </button>
               <button type="button" autoFocus onClick={handleMerge} className={btnPrimary}>
-                {bugCount > 0 || noReview ? "그래도 병합하기" : "병합하기"}
+                {bugCount > 0 || noReview || syntaxWarning ? "그래도 병합하기" : "병합하기"}
               </button>
             </div>
           </div>
