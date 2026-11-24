@@ -46,11 +46,11 @@ export async function createSubmission(
     }
 
     // 도배 방지: 프로젝트+작성자 기준 분당 10회, IP 기준 하루 100회까지 (Redis가 없으면 건너뛴다)
-    const { allowSubmit, allowSubmitFromIp } = await import("@/lib/redis");
+    const { allowSubmit, allowSubmitFromIp, extractClientIp } = await import("@/lib/redis");
     if (!(await allowSubmit(String(project._id), me.nickname))) {
       return { error: "제출이 너무 잦아요. 잠시 후 다시 시도해주세요." };
     }
-    const ip = (await headers()).get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+    const ip = extractClientIp(await headers());
     if (!(await allowSubmitFromIp(ip))) return { error: "오늘 제출할 수 있는 횟수를 모두 썼어요. 내일 다시 시도해주세요." };
 
     // 같은 프로젝트의 생성 요청은 Project 문서의 revision을 갱신해 직렬화한다.

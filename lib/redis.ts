@@ -64,6 +64,18 @@ const createClassRateLimit = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "1 h"), prefix: "comit:create-class" })
   : null;
 
+// 코드 입장·합류·수업 연결: IP 기준 분당 20회 (복구 코드·반 코드 무작위 대입 방지)
+const entryRateLimit = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "1 m"), prefix: "comit:entry" })
+  : null;
+
+// 프록시 헤더에서 클라이언트 IP 추출 (x-real-ip 우선, 없으면 x-forwarded-for 첫 번째 값)
+export function extractClientIp(h: Pick<Headers, "get">): string {
+  const realIp = h.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
 // 같은 변경(diff)은 7일 동안 캐시를 재사용해 중복 Gemini 호출을 줄인다
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7일
 
@@ -102,6 +114,7 @@ export const allowSubmit = (projectId: string, author: string) => checkLimit(sub
 export const allowSubmitFromIp = (ip: string) => checkLimit(submitIpRateLimit, ip, "IP별 제출 제한");
 export const allowCreateProject = (ip: string) => checkLimit(createProjectRateLimit, ip, "프로젝트 생성 제한");
 export const allowCreateClass = (ip: string) => checkLimit(createClassRateLimit, ip, "수업 생성 제한");
+export const allowEntryAttempt = (ip: string) => checkLimit(entryRateLimit, ip, "입장·코드 시도 제한");
 
 // 캐시 키: diff 내용의 SHA-256 (같은 변경이면 같은 키)
 // v2: 프롬프트를 바꿨을 때 이전 프롬프트로 만든 캐시가 재사용되지 않도록 버전을 키에 포함한다

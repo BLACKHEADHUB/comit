@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { hashRecoveryCode, parseEntry } from "@/lib/recovery";
@@ -12,6 +13,12 @@ import { Project } from "@/models/Project";
 export async function enterWithCode(_prev: FormState, formData: FormData): Promise<FormState> {
   const entry = parseEntry(String(formData.get("code") ?? ""));
   if (!entry) return { error: "초대 링크나 복구 코드를 다시 확인해주세요." };
+
+  const { allowEntryAttempt, extractClientIp } = await import("@/lib/redis");
+  const ip = extractClientIp(await headers());
+  if (!(await allowEntryAttempt(ip))) {
+    return { error: "시도가 너무 잦아요. 잠시 후 다시 시도해주세요." };
+  }
 
   try {
     await connectDB();

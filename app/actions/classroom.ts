@@ -24,8 +24,8 @@ export async function createClassroom(_prev: CreateClassState, formData: FormDat
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const h = await headers();
-  const { allowCreateClass } = await import("@/lib/redis");
-  const ip = h.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  const { allowCreateClass, extractClientIp } = await import("@/lib/redis");
+  const ip = extractClientIp(h);
   if (!(await allowCreateClass(ip))) return { error: "수업을 너무 많이 만들었어요. 잠시 후 다시 시도해주세요." };
 
   try {
@@ -60,6 +60,11 @@ export async function linkProjectToClass(projectId: string, rawCode: string): Pr
     const found = await findMember(projectId);
     if (!found) return { error: NOT_MEMBER_MESSAGE };
     if (found.me.role !== "LEADER") return { error: "팀장만 수업에 연결할 수 있어요." };
+
+    const { allowEntryAttempt, extractClientIp } = await import("@/lib/redis");
+    const ip = extractClientIp(await headers());
+    if (!(await allowEntryAttempt(ip))) return { error: "시도가 너무 잦아요. 잠시 후 다시 시도해주세요." };
+
     const joinCode = normalizeClassCode(String(rawCode ?? ""));
     if (!joinCode) return { error: "반 코드 모양이 달라요. 예) K7P2-XQ9M" };
 
@@ -135,6 +140,21 @@ export async function regenerateClassCode(token: string): Promise<{ error?: stri
     return { error: RETRY_MESSAGE };
   } catch (error) {
     console.error("[class] 반 코드 재발급 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
+
+// 강사용: 비밀 링크 토큰 재발급 (링크가 유출됐을 때 기존 링크를 즉시 무효화한다)
+export async function regenerateOwnerToken(token: string): Promise<{ error?: string; newToken?: string }> {
+  try {
+    const classroom = await findClassroomByToken(token);
+    if (!classroom) return { error: BAD_REQUEST_MESSAGE };
+
+    const newToken = generateOwnerToken();
+    await Classroom.updateOne({ _id: classroom._id }, { $set: { ownerTokenHash: hashOwnerToken(newToken) } });
+    return { newToken };
+  } catch (error) {
+    console.error("[class] 강사 링크 재발급 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
   }
 }

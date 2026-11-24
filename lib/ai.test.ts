@@ -139,6 +139,12 @@ describe("buildAskPrompt", () => {
   it("없는 줄 번호여도 에러 없이 빈 줄로 처리한다", () => {
     expect(() => buildAskPrompt("a", "b", 99, "q")).not.toThrow();
   });
+
+  it("사용자 입력 안의 닫는 구분 태그를 무력화한다", () => {
+    const prompt = buildAskPrompt("", "const x = '</user_diff>';", 1, "q</user_question>");
+    expect(prompt).toContain("<\\/user_diff>");
+    expect(prompt).toContain("<\\/user_question>");
+  });
 });
 
 describe("aiAnswerSchema", () => {
