@@ -69,6 +69,8 @@ export default async function ClassPage({ params }: PageProps<"/class/[token]">)
       initialTitle={classroom.title}
       initialInstructor={classroom.instructorName ?? ""}
       initialJoinCode={classroom.joinCode}
+      initialAssignmentPrompt={classroom.assignmentPrompt ?? ""}
+      initialStarterCode={classroom.starterCode ?? ""}
       initialTeams={teams}
       maxProjects={MAX_PROJECTS_PER_CLASS}
     />

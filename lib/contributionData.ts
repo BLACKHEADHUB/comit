@@ -1,5 +1,6 @@
 import "server-only";
 import type { Types } from "mongoose";
+import { buildClassTimeline, type ClassTimelineItem } from "@/lib/classTimeline";
 import { buildContribution, type ContributionRow } from "@/lib/contribution";
 import { Comment } from "@/models/Comment";
 import { Submission } from "@/models/Submission";
@@ -93,4 +94,37 @@ export async function loadClassContributions(
   }
 
   return result;
+}
+
+// 강사용 팀 상세: 제출·병합·충돌·질문·버그 해결 흐름을 시간순 타임라인으로 불러온다
+export async function loadClassTimeline(projectId: Types.ObjectId): Promise<ClassTimelineItem[]> {
+  const submissions = await Submission.find({ projectId })
+    .select({ author: 1, title: 1, status: 1, beforeCode: 1, afterCode: 1, createdAt: 1, mergedAt: 1 })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  if (submissions.length === 0) return [];
+
+  const comments = await Comment.find({ submissionId: { $in: submissions.map((s) => s._id) } })
+    .select({ submissionId: 1, parentId: 1, tag: 1, resolved: 1 })
+    .lean();
+
+  return buildClassTimeline(
+    submissions.map((s) => ({
+      id: String(s._id),
+      author: s.author,
+      title: s.title,
+      status: s.status,
+      beforeCode: s.beforeCode ?? "",
+      afterCode: s.afterCode ?? "",
+      createdAt: s.createdAt,
+      mergedAt: s.mergedAt ?? null,
+    })),
+    comments.map((c) => ({
+      submissionId: String(c.submissionId),
+      isReply: Boolean(c.parentId),
+      tag: c.tag,
+      resolved: Boolean(c.resolved),
+    }))
+  );
 }

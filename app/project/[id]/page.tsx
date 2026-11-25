@@ -38,7 +38,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
 
   // 연결된 수업이 있으면 메인 헤더에서도 바로 상태를 확인하고 연결/해제할 수 있게 조회한다
   const classroom = project.classroomId
-    ? await Classroom.findById(project.classroomId).select({ title: 1, instructorName: 1 }).lean()
+    ? await Classroom.findById(project.classroomId).select({ title: 1, instructorName: 1, assignmentPrompt: 1 }).lean()
     : null;
 
   // 방금 합류했다면 복구 코드를 한 번 보여준다
@@ -72,7 +72,15 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
           <ClassLinkButton
             projectId={id}
             isLeader={me.role === "LEADER"}
-            linked={classroom ? { title: classroom.title, instructorName: classroom.instructorName } : null}
+            linked={
+              classroom
+                ? {
+                    title: classroom.title,
+                    instructorName: classroom.instructorName,
+                    assignmentPrompt: classroom.assignmentPrompt ?? "",
+                  }
+                : null
+            }
           />
           {/* 팀원별 기여도 리포트 (팀플 발표·평가 자료로 인쇄할 수 있다) */}
           <Link href={`/project/${id}/report`} className="rounded-full px-2 py-1 transition hover:bg-surface hover:text-foreground">

@@ -1,20 +1,24 @@
 import { notFound } from "next/navigation";
 import ClassCodeViewer from "@/components/ClassCodeViewer";
+import ClassProcessTimeline from "@/components/ClassProcessTimeline";
 import ContributionReport from "@/components/ContributionReport";
 import { findClassProject } from "@/lib/classroomAuth";
-import { loadContribution } from "@/lib/contributionData";
+import { loadClassTimeline, loadContribution } from "@/lib/contributionData";
 import { card } from "@/lib/ui";
 
 export const metadata = { title: "팀 기여도 · Comit", robots: { index: false, follow: false } };
 
-// 강사가 보는 한 팀의 기여도 리포트 (이 수업에 연결된 팀만 열리며, 최종 병합된 mainCode만 읽기 전용·실행 가능하게 보여준다)
+// 강사가 보는 한 팀의 기여도 리포트 (이 수업에 연결된 팀만 열리며, 최종 병합된 mainCode와 과정 타임라인을 보여준다)
 export default async function ClassProjectReportPage({ params }: PageProps<"/class/[token]/project/[id]">) {
   const { token, id } = await params;
   const found = await findClassProject(token, id);
   if (!found) notFound();
 
   const now = new Date();
-  const rows = await loadContribution(found.project, now);
+  const [rows, timeline] = await Promise.all([
+    loadContribution(found.project, now),
+    loadClassTimeline(found.project._id),
+  ]);
   const mainCode = found.project.mainCode ?? "";
   const lineCount = mainCode ? mainCode.split("\n").length : 0;
 
@@ -36,6 +40,7 @@ export default async function ClassProjectReportPage({ params }: PageProps<"/cla
         </p>
         <ClassCodeViewer code={mainCode} />
       </section>
+      <ClassProcessTimeline items={timeline} />
     </ContributionReport>
   );
 }
