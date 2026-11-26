@@ -108,6 +108,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 얇고 차분한 스크롤바 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 /* 키보드로 이동할 때 현재 위치가 보이도록 */
 :focus-visible {
   outline: 2px solid var(--accent);

@@ -51,15 +51,23 @@ export default function Home() {
           <span className="text-lg font-bold tracking-tight">
             Comit<span className="text-accent-ink">.</span>
           </span>
-          <span className="text-xs text-muted">
-            코딩 입문자를 위한 협업 샌드박스
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-xs text-muted sm:inline">
+              코딩 입문자를 위한 협업 샌드박스
+            </span>
+            <Link
+              href="/class/create"
+              className="rounded-full border border-line bg-background px-3 py-1 text-xs font-medium text-muted shadow-sm transition hover:border-line-strong hover:text-foreground"
+            >
+              🎓 수업 만들기
+            </Link>
+          </div>
         </header>
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-5 py-12 text-center sm:py-20">
-          <Mascot mood="hello" size={104} />
-          <span className="rounded-full border border-line bg-background px-3 py-1 text-xs text-muted shadow-soft">
-            터미널도 Git도 몰라도 괜찮아요
+        <section className="flex flex-1 flex-col items-center justify-center gap-5 py-10 text-center sm:py-16">
+          <Mascot mood="hello" size={100} />
+          <span className="rounded-full border border-line bg-background px-3.5 py-1 text-xs font-medium text-muted shadow-soft">
+            터미널도 Git도 설치도 필요 없어요
           </span>
           <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
             처음 하는 코드 협업,
@@ -70,13 +78,12 @@ export default function Home() {
             코드를 고치고, AI의 설명을 듣고, 팀원과 이야기 나누고, 안전하게
             합치는 것까지. 브라우저 하나면 충분해요.
           </p>
-          <div className="mt-1 flex flex-col items-center gap-3">
+          <div className={`${card} mt-2 flex w-full max-w-md flex-col items-center gap-3 p-4 sm:p-5`}>
             <LandingModal />
             <EnterForm />
-            {/* 강사·조교용: 여러 팀의 기여도를 한 화면에서 보는 수업 만들기 */}
-            <Link href="/class/create" className="text-xs text-muted underline-offset-2 transition hover:text-foreground hover:underline">
-              강사·조교이신가요? 수업 만들기 →
-            </Link>
+            <p className="text-xs text-muted">
+              팀원이 보낸 초대 링크가 있다면 그 주소로 바로 들어가면 돼요.
+            </p>
           </div>
         </section>
 
@@ -87,7 +94,7 @@ export default function Home() {
           {STEPS.map((s, i) => (
             <div
               key={s.title}
-              className={`${card} p-4 transition hover:-translate-y-1`}
+              className={`${card} p-4 transition duration-150 hover:-translate-y-1 hover:shadow-md`}
             >
               <div className="mb-3 flex items-center gap-2.5">
                 <span

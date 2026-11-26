@@ -17,6 +17,7 @@ import { byCreatedDesc, keepIfSame, mergeById, newActivityIds } from "@/lib/acti
 import { writingFlow } from "@/lib/flow";
 import { startPolling } from "@/lib/polling";
 import { resolveMerge, threeWayMerge, type ConflictChoice, type MergeResult } from "@/lib/rebase";
+import { isRunnable } from "@/lib/runner";
 import { setOnline } from "@/lib/onlineStore";
 import { changedLineMarks, summarizeChanges } from "@/lib/changes";
 import {
@@ -115,9 +116,21 @@ type Props = {
   initialOnline: string[]; // 처음 화면을 그릴 때 접속 중이던 팀원
   inviteUrl: string | null; // 팀장에게만 전달된다 (혼자일 때 빈 상태에서 초대 버튼을 보여주는 용도)
   isLeader: boolean; // 팀장이면 첫 진입 안내를 팀장용(리뷰 → 병합 → 초대)으로 보여준다
+  assignmentPrompt?: string; // 수업에 연결된 경우 강사가 등록한 과제 안내
 };
 
-export default function ProjectWorkspace({ projectId, myNickname, initialCode, initialVersion, initialSubmissions, initialMemberCount, initialOnline, inviteUrl, isLeader }: Props) {
+export default function ProjectWorkspace({
+  projectId,
+  myNickname,
+  initialCode,
+  initialVersion,
+  initialSubmissions,
+  initialMemberCount,
+  initialOnline,
+  inviteUrl,
+  isLeader,
+  assignmentPrompt = "",
+}: Props) {
   // 사용자가 [내 코드에 바로 합치기]를 실행하면 서버 새로고침 없이도 기준 원본과 버전을 최신으로 갱신한다
   const [baseCode, setBaseCode] = useState(initialCode);
   const [baseVersion, setBaseVersion] = useState(initialVersion);
@@ -221,8 +234,11 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
     setTab(next);
     setFilter(nextFilter);
   }
-  // 좁은 화면에서는 목록을 한 줄로 접어 두고 에디터 자리를 넓힌다 (넓은 화면에서는 항상 펼침)
+  // 좁은 화면에서는 목록을 한 줄로 접어 두고 에디터 자리를 넓힌다 (넓은 화면에서는 접기/펼치기 가능)
   const [listOpen, setListOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [runnerSide, setRunnerSide] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
   const reviewCount = submissions.filter((s) => inTab(s, "REVIEW", myNickname)).length;
   const anyUnseen = submissions.some((s) => unseen.has(s.id));
   const [modalOpen, setModalOpen] = useState(false);
@@ -231,6 +247,12 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   function handleCodeChange(value: string) {
     setCode(value);
@@ -333,7 +355,13 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
 
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <aside className="flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0">
+      <aside
+        className={
+          sidebarOpen
+            ? "flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:max-h-none md:w-72 md:border-r md:border-b-0"
+            : "flex max-h-56 shrink-0 flex-col border-b border-line bg-surface md:hidden"
+        }
+      >
         {/* 좁은 화면 전용: 목록 접기/펼치기 한 줄 (접혀 있어도 개수와 새 활동은 보인다) */}
         <button
           type="button"
@@ -502,14 +530,21 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             </button>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface px-4 py-2">
-          <p className="min-w-0 flex-1 basis-64 text-xs text-muted">
-            마음껏 고쳐보세요. 원본은 병합 전까지 바뀌지 않아요. (작성 중인 코드는 이 브라우저 탭에 임시 저장돼요)
-          </p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line bg-surface px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="hidden items-center gap-1 rounded-lg border border-line bg-background px-2 py-1 text-xs font-medium text-muted transition hover:text-foreground md:inline-flex"
+            title={sidebarOpen ? "제출 목록 접기" : "제출 목록 펼치기"}
+          >
+            <span aria-hidden>{sidebarOpen ? "◧" : "📋"}</span>
+            {sidebarOpen ? "목록 접기" : `목록 (${submissions.length})`}
+            {!sidebarOpen && anyUnseen && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
+          </button>
           {/* 원본과 얼마나 달라졌는지 글자로도 알려준다 (색 띠만으로 구분하지 않게) */}
-          <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <p role="status" className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             {summary.changed === 0 ? (
-              <span className="text-muted">원본과 같아요</span>
+              <span className="text-muted">원본과 같아요 · 고쳐도 병합 전까지 원본은 안전해요</span>
             ) : (
               <>
                 <span className="font-medium">원본에서 {summary.changed}줄 바뀜</span>
@@ -546,62 +581,109 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
               </>
             )}
           </p>
-          <label className="flex items-center gap-2 text-xs text-muted" title="언어를 고르면 코드에 색이 입혀져 읽기 쉬워져요">
-            언어
-            <select
-              value={language}
-              onChange={(e) => writeLanguage(projectId, e.target.value as Language)}
-              className="rounded-md border border-line-strong bg-background px-2 py-1 text-xs text-foreground"
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex items-center gap-2">
+            {assignmentPrompt && (
+              <button
+                type="button"
+                onClick={() => setPromptOpen((v) => !v)}
+                className={`rounded-lg border px-2 py-1 text-xs font-medium transition ${
+                  promptOpen
+                    ? "border-accent bg-accent-soft text-accent-ink"
+                    : "border-line bg-background text-muted hover:text-foreground"
+                }`}
+              >
+                📋 과제 안내
+              </button>
+            )}
+            {(language === "html" || isRunnable(language)) && (
+              <button
+                type="button"
+                onClick={() => setRunnerSide((v) => !v)}
+                className="hidden items-center gap-1 rounded-lg border border-line bg-background px-2 py-1 text-xs text-muted transition hover:text-foreground lg:inline-flex"
+                title={runnerSide ? "실행 결과를 에디터 아래에 두기" : "실행 결과를 에디터 오른쪽에 나란히 두기"}
+              >
+                {runnerSide ? "⬓ 아래로" : "◫ 나란히"}
+              </button>
+            )}
+            <label className="flex items-center gap-1.5 text-xs text-muted" title="언어를 고르면 코드에 색이 입혀져 읽기 쉬워져요">
+              언어
+              <select
+                value={language}
+                onChange={(e) => writeLanguage(projectId, e.target.value as Language)}
+                className="rounded-lg border border-line-strong bg-background px-2 py-1 text-xs text-foreground"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
-        <div className="relative min-h-64 flex-1">
-          {/* 에디터가 비어 있을 때: 빈 화면 앞에서 멈추지 않게 무엇을 하면 되는지 알려준다 (클릭은 에디터로 그대로 전달) */}
-          {hydrated && code.trim() === "" && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center p-6 pl-16">
-              <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-background/90 p-4 text-sm leading-relaxed">
-                <Mascot mood={baseCode.trim() === "" ? "hello" : "oops"} size={36} />
-                {baseCode.trim() === "" ? (
-                  <p>
-                    <strong className="font-semibold">아직 원본이 비어 있어요.</strong>
-                    <span className="mt-0.5 block text-muted">
-                      여기를 눌러 첫 코드를 적어보세요. Comit하고 팀장이 병합하면 팀 모두의 첫 원본이 돼요.
-                    </span>
-                  </p>
-                ) : (
-                  <p>
-                    <strong className="font-semibold">코드를 모두 지웠어요.</strong>
-                    <span className="mt-0.5 block text-muted">
-                      이대로 Comit하면 원본을 전부 지우자는 제안이 돼요. 실수였다면 위의 [원본으로 되돌리기]를 눌러주세요.
-                    </span>
-                  </p>
-                )}
+        {assignmentPrompt && promptOpen && (
+          <div className="border-b border-line bg-accent-soft/40 px-4 py-2.5 text-xs leading-relaxed">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="font-semibold text-foreground">📋 강사님이 남긴 과제 안내</strong>
+              <button type="button" onClick={() => setPromptOpen(false)} className="text-muted hover:text-foreground">
+                닫기
+              </button>
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-muted">{assignmentPrompt}</p>
+          </div>
+        )}
+        <div className={`flex min-h-0 flex-1 flex-col ${runnerSide && (language === "html" || isRunnable(language)) ? "lg:flex-row" : ""}`}>
+          <div className="relative min-h-64 min-w-0 flex-1">
+            {/* 에디터가 비어 있을 때: 빈 화면 앞에서 멈추지 않게 무엇을 하면 되는지 알려준다 (클릭은 에디터로 그대로 전달) */}
+            {hydrated && code.trim() === "" && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center p-6 pl-16">
+                <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-background/90 p-4 text-sm leading-relaxed">
+                  <Mascot mood={baseCode.trim() === "" ? "hello" : "oops"} size={36} />
+                  {baseCode.trim() === "" ? (
+                    <p>
+                      <strong className="font-semibold">아직 원본이 비어 있어요.</strong>
+                      <span className="mt-0.5 block text-muted">
+                        여기를 눌러 첫 코드를 적어보세요. Comit하고 팀장이 병합하면 팀 모두의 첫 원본이 돼요.
+                      </span>
+                    </p>
+                  ) : (
+                    <p>
+                      <strong className="font-semibold">코드를 모두 지웠어요.</strong>
+                      <span className="mt-0.5 block text-muted">
+                        이대로 Comit하면 원본을 전부 지우자는 제안이 돼요. 실수였다면 위의 [원본으로 되돌리기]를 눌러주세요.
+                      </span>
+                    </p>
+                  )}
+                </div>
               </div>
+            )}
+            <Editor
+              height="100%"
+              language={language}
+              theme={dark ? "vs-dark" : "light"}
+              value={code}
+              onChange={(v) => handleCodeChange(v ?? "")}
+              onMount={(mounted, monaco) => {
+                setEditor(mounted);
+                // 에디터 안에서는 Tab이 들여쓰기라 키보드로 빠져나오기 어렵다 → Ctrl/⌘+Enter로 바로 Comit 창을 연다
+                mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => openComitRef.current());
+              }}
+              options={{ minimap: { enabled: false }, fontSize: 16, padding: { top: 12 }, scrollBeyondLastLine: false }}
+            />
+          </div>
+          {/* 코드 실행/미리보기: 내 브라우저 안의 격리된 공간에서만 돈다 (서버에서는 실행하지 않는다) */}
+          {(language === "html" || isRunnable(language)) && (
+            <div className={runnerSide ? "lg:w-[44%] lg:max-w-xl lg:shrink-0" : ""}>
+              <CodeRunner
+                key={language}
+                code={code}
+                language={language}
+                layout={runnerSide ? "side" : "bottom"}
+              />
             </div>
           )}
-          <Editor
-            height="100%"
-            language={language}
-            theme={dark ? "vs-dark" : "light"}
-            value={code}
-            onChange={(v) => handleCodeChange(v ?? "")}
-            onMount={(mounted, monaco) => {
-              setEditor(mounted);
-              // 에디터 안에서는 Tab이 들여쓰기라 키보드로 빠져나오기 어렵다 → Ctrl/⌘+Enter로 바로 Comit 창을 연다
-              mounted.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => openComitRef.current());
-            }}
-            options={{ minimap: { enabled: false }, fontSize: 16, padding: { top: 12 }, scrollBeyondLastLine: false }}
-          />
         </div>
-        {/* 코드 실행/미리보기: 내 브라우저 안의 격리된 공간에서만 돈다 (서버에서는 실행하지 않는다) */}
-        <CodeRunner key={language} code={code} language={language} />
-        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-3">
+        <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-line bg-surface px-4 py-2.5">
           {/* 협업 흐름에서 지금은 "작성" 단계라는 것과 다음 할 일을 알려준다 */}
           <div className="min-w-0 flex-1 basis-64">
             <FlowSteps flow={writingFlow(hasChanges, alreadySubmitted)} compact />
@@ -610,7 +692,6 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
                 방금 Comit한 제출 보러 가기 →
               </Link>
             )}
-            {notice && <p role="status" className="mt-1 text-xs text-warn">{notice}</p>}
           </div>
           <div className="flex items-center gap-2">
             {/* 키보드 단축키 안내 (터치 화면에서는 숨긴다) */}
@@ -629,6 +710,22 @@ export default function ProjectWorkspace({ projectId, myNickname, initialCode, i
             </button>
           </div>
         </div>
+        {notice && (
+          <div
+            role="status"
+            className="fixed right-4 bottom-20 z-40 flex max-w-sm animate-slide-up items-start gap-2 rounded-2xl border border-line bg-background px-4 py-3 text-xs leading-relaxed shadow-xl"
+          >
+            <span className="flex-1 text-foreground">{notice}</span>
+            <button
+              type="button"
+              onClick={() => setNotice("")}
+              aria-label="알림 닫기"
+              className="shrink-0 text-muted hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </section>
 
       {latestMain !== null && (

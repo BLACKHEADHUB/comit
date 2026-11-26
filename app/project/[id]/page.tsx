@@ -55,14 +55,16 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
   const initialOnline = onlineNicknames(project.members, new Date(), me.nickname);
 
   return (
-    <main className="flex h-dvh w-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2.5">
-        <Link href="/" className="text-base font-bold tracking-tight transition hover:opacity-70">
-          Comit<span className="text-accent-ink">.</span>
-        </Link>
-        <span className="hidden h-4 w-px bg-line-strong sm:block" />
-        <h1 className="min-w-0 truncate text-sm font-semibold">{project.title}</h1>
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted">
+    <main className="flex h-dvh w-full flex-col bg-background">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-background px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Link href="/" className="text-base font-bold tracking-tight transition hover:opacity-70">
+            Comit<span className="text-accent-ink">.</span>
+          </Link>
+          <span className="h-4 w-px bg-line-strong" />
+          <h1 className="max-w-44 truncate text-sm font-semibold sm:max-w-xs">{project.title}</h1>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5 text-xs text-muted">
           <span className={`${badge} ${me.role === "LEADER" ? "bg-accent-soft text-accent-ink" : "bg-surface text-muted ring-1 ring-line"}`}>
             {me.role === "LEADER" ? "👑 팀장" : "팀원"} · {me.nickname}
           </span>
@@ -83,7 +85,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
             }
           />
           {/* 팀원별 기여도 리포트 (팀플 발표·평가 자료로 인쇄할 수 있다) */}
-          <Link href={`/project/${id}/report`} className="rounded-full px-2 py-1 transition hover:bg-surface hover:text-foreground">
+          <Link href={`/project/${id}/report`} className="rounded-full px-2.5 py-1 transition hover:bg-surface hover:text-foreground">
             📊 기여도
           </Link>
           {/* 원본, Comit, 병합 같은 낯선 말을 바로 확인할 수 있게 */}
@@ -102,6 +104,7 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
         initialOnline={initialOnline}
         inviteUrl={inviteUrl}
         isLeader={me.role === "LEADER"}
+        assignmentPrompt={classroom?.assignmentPrompt ?? ""}
       />
     </main>
   );
