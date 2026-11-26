@@ -117,6 +117,8 @@ type Props = {
   inviteUrl: string | null; // 팀장에게만 전달된다 (혼자일 때 빈 상태에서 초대 버튼을 보여주는 용도)
   isLeader: boolean; // 팀장이면 첫 진입 안내를 팀장용(리뷰 → 병합 → 초대)으로 보여준다
   assignmentPrompt?: string; // 수업에 연결된 경우 강사가 등록한 과제 안내
+  instructorFeedback?: string; // 강사가 팀에 남긴 한마디 피드백
+  instructorFeedbackAt?: string | null;
 };
 
 export default function ProjectWorkspace({
@@ -130,6 +132,8 @@ export default function ProjectWorkspace({
   inviteUrl,
   isLeader,
   assignmentPrompt = "",
+  instructorFeedback = "",
+  instructorFeedbackAt = null,
 }: Props) {
   // 사용자가 [내 코드에 바로 합치기]를 실행하면 서버 새로고침 없이도 기준 원본과 버전을 최신으로 갱신한다
   const [baseCode, setBaseCode] = useState(initialCode);
@@ -190,7 +194,7 @@ export default function ProjectWorkspace({
     setLatestMain(null);
     setSyncResult(null);
     setSyncChoices([]);
-    setNotice("최신 원본을 내 코드에 합쳤어요. 확인한 뒤 Comit해보세요.");
+    setNotice("최신 원본을 내 코드에 합쳤어요. (실제 Git: git pull --rebase origin main)");
   }
   function startSyncMain() {
     if (latestMain === null) return;
@@ -239,6 +243,7 @@ export default function ProjectWorkspace({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [runnerSide, setRunnerSide] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const reviewCount = submissions.filter((s) => inTab(s, "REVIEW", myNickname)).length;
   const anyUnseen = submissions.some((s) => unseen.has(s.id));
   const [modalOpen, setModalOpen] = useState(false);
@@ -349,7 +354,7 @@ export default function ProjectWorkspace({
     selectTab("MINE");
     setTitle("");
     setWithAi(false);
-    setNotice(result.notice ?? "");
+    setNotice(result.notice || "제출을 올렸어요! (실제 Git: git commit && git push)");
     setModalOpen(false);
   }
 
@@ -595,6 +600,19 @@ export default function ProjectWorkspace({
                 📋 과제 안내
               </button>
             )}
+            {instructorFeedback && (
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen((v) => !v)}
+                className={`rounded-lg border px-2 py-1 text-xs font-medium transition ${
+                  feedbackOpen
+                    ? "border-accent bg-accent-soft text-accent-ink"
+                    : "border-line bg-background text-muted hover:text-foreground"
+                }`}
+              >
+                💬 강사 피드백
+              </button>
+            )}
             {(language === "html" || isRunnable(language)) && (
               <button
                 type="button"
@@ -630,6 +648,19 @@ export default function ProjectWorkspace({
               </button>
             </div>
             <p className="mt-1 whitespace-pre-wrap text-muted">{assignmentPrompt}</p>
+          </div>
+        )}
+        {instructorFeedback && feedbackOpen && (
+          <div className="border-b border-line bg-ok-soft/40 px-4 py-2.5 text-xs leading-relaxed">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="font-semibold text-foreground">
+                💬 강사님 피드백{instructorFeedbackAt ? ` · ${formatTime(instructorFeedbackAt)}` : ""}
+              </strong>
+              <button type="button" onClick={() => setFeedbackOpen(false)} className="text-muted hover:text-foreground">
+                닫기
+              </button>
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-foreground">{instructorFeedback}</p>
           </div>
         )}
         <div className={`flex min-h-0 flex-1 flex-col ${runnerSide && (language === "html" || isRunnable(language)) ? "lg:flex-row" : ""}`}>

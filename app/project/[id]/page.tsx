@@ -105,6 +105,8 @@ export default async function ProjectPage({ params }: PageProps<"/project/[id]">
         inviteUrl={inviteUrl}
         isLeader={me.role === "LEADER"}
         assignmentPrompt={classroom?.assignmentPrompt ?? ""}
+        instructorFeedback={project.instructorFeedback ?? ""}
+        instructorFeedbackAt={project.instructorFeedbackAt ? project.instructorFeedbackAt.toISOString() : null}
       />
     </main>
   );

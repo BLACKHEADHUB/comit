@@ -36,6 +36,8 @@ export type ClassTimelineItem = {
   replies: number;
   // 프라이버시 원칙: 병합 완료된(MERGED) 단계의 코드만 열람 가능하며 미병합 초안 코드는 싣지 않는다
   mergedCode: string | null;
+  // 이전 반영 상태(beforeCode): 단계별 Diff 비교용 (MERGED일 때만 제공)
+  previousMergedCode: string | null;
 };
 
 // 강사용 과정 타임라인 계산 (시간순 정렬, 미병합 코드 및 댓글 원문 미포함)
@@ -80,6 +82,7 @@ export function buildClassTimeline(
       likes: c.likes,
       replies: c.replies,
       mergedCode: s.status === "MERGED" ? s.afterCode : null,
+      previousMergedCode: s.status === "MERGED" ? s.beforeCode : null,
     };
   });
 }

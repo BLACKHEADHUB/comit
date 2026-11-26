@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import ClassCodeViewer from "@/components/ClassCodeViewer";
+import ClassFeedbackForm from "@/components/ClassFeedbackForm";
 import ClassProcessTimeline from "@/components/ClassProcessTimeline";
 import ContributionReport from "@/components/ContributionReport";
 import { findClassProject } from "@/lib/classroomAuth";
@@ -30,6 +31,12 @@ export default async function ClassProjectReportPage({ params }: PageProps<"/cla
       backHref={`/class/${token}`}
       backLabel={`${found.classroom.title} 수업으로`}
     >
+      <ClassFeedbackForm
+        token={token}
+        projectId={id}
+        initialFeedback={found.project.instructorFeedback ?? ""}
+        initialFeedbackAt={found.project.instructorFeedbackAt ? found.project.instructorFeedbackAt.toISOString() : null}
+      />
       <section className={`${card} flex flex-col gap-2 p-4`} aria-label="최종 병합된 코드">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">📄 최종 병합된 코드 (읽기 전용 · 실행 가능)</h2>
