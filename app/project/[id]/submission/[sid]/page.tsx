@@ -116,33 +116,36 @@ export default async function SubmissionPage({
     >
     <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
       <div className="flex items-center justify-between gap-2">
-        <Link href={`/project/${id}`} className="w-fit text-sm text-muted transition hover:text-foreground">
+        <Link
+          href={`/project/${id}`}
+          className="inline-flex w-fit items-center gap-1 rounded-full border border-line bg-background px-3 py-1 text-xs font-medium text-muted shadow-sm transition hover:text-foreground"
+        >
           ← 프로젝트로 돌아가기
         </Link>
         <TermsHelp />
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className={`${card} flex flex-wrap items-start justify-between gap-4 p-5`}>
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{submission.title}</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{submission.title}</h1>
           <p className="mt-1 text-sm text-muted">
             {submission.author}님의 제출 · {formatTime(submission.createdAt.toISOString())}
           </p>
         </div>
         {/* 병합은 팀장만 (버튼 표시 + 서버에서 다시 검증) */}
         <div className="flex flex-col items-start gap-3 sm:items-end">
-        <MergePanel
-          projectId={id}
-          submissionId={sid}
-          canMerge={me.role === "LEADER"}
-          beforeCode={submission.beforeCode}
-          afterCode={submission.afterCode}
-          latestMainCode={project.mainCode}
-        />
-        {/* 지우기(작성자·팀장, 병합 전) / 되돌리기(팀장, 가장 최근 병합) */}
-        <SubmissionActions projectId={id} submissionId={sid} isLatestMerge={isLatestMerge} />
+          <MergePanel
+            projectId={id}
+            submissionId={sid}
+            canMerge={me.role === "LEADER"}
+            beforeCode={submission.beforeCode}
+            afterCode={submission.afterCode}
+            latestMainCode={project.mainCode}
+          />
+          {/* 지우기(작성자·팀장, 병합 전) / 되돌리기(팀장, 가장 최근 병합) */}
+          <SubmissionActions projectId={id} submissionId={sid} isLatestMerge={isLatestMerge} />
         </div>
-      </div>
+      </section>
 
       {/* 지금 어느 단계인지 + 다음 할 일 */}
       <SubmissionFlow isAuthor={submission.author === me.nickname} isLeader={me.role === "LEADER"} />

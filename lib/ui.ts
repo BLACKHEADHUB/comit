@@ -1,16 +1,16 @@
 // 화면 전체에서 같은 모양을 쓰기 위한 공통 Tailwind 클래스 (색상은 app/globals.css의 토큰 사용)
 // 모양 원칙: 버튼은 알약형, 카드는 둥근 모서리 16px + 아주 부드러운 그림자 (DESIGN_NOTES.md "디자인 톤")
 const btnBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium transition hover:-translate-y-px active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100";
+  "inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium transition duration-150 ease-out hover:-translate-y-px active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100";
 
 export const btnPrimary = `${btnBase} bg-accent px-5 py-2 text-white shadow-soft hover:bg-accent-hover`;
-export const btnSecondary = `${btnBase} border border-line-strong bg-background px-4 py-2 shadow-sm hover:bg-surface`;
+export const btnSecondary = `${btnBase} border border-line-strong bg-background px-4 py-2 shadow-sm hover:border-muted/40 hover:bg-surface`;
 export const btnGhost = `${btnBase} px-3 py-2 text-muted hover:bg-surface hover:text-foreground`;
 
 export const inputClass =
-  "w-full rounded-xl border border-line-strong bg-background px-3 py-2 text-sm shadow-sm transition placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25";
+  "w-full rounded-xl border border-line-strong bg-background px-3 py-2 text-sm shadow-sm transition duration-150 placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25";
 
-export const card = "rounded-2xl border border-line bg-background shadow-soft";
+export const card = "rounded-2xl border border-line bg-background shadow-soft transition-shadow duration-150";
 
 // 배경 흐림(backdrop-blur)은 쓰지 않는다: Safari에서 모달 안의 글자가 바뀔 때 옛 글자가 남는 화면 깨짐이 생긴다
 export const modalOverlay =
