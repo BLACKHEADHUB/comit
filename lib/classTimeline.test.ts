@@ -51,6 +51,7 @@ describe("buildClassTimeline", () => {
 
     // 병합된 제출만 코드 열람 가능
     expect(items[0].mergedCode).toBe("a\nb");
+    expect(items[0].previousMergedCode).toBe("");
     expect(items[0].addedLines).toBe(2);
     expect(items[0].questions).toBe(1);
     expect(items[0].bugsFound).toBe(1);
@@ -59,8 +60,10 @@ describe("buildClassTimeline", () => {
 
     // 미병합(STALE, PENDING) 제출 코드는 절대 노출하지 않음
     expect(items[1].mergedCode).toBeNull();
+    expect(items[1].previousMergedCode).toBeNull();
     expect(items[1].bugsFound).toBe(1);
     expect(items[1].bugsResolved).toBe(0);
     expect(items[2].mergedCode).toBeNull();
+    expect(items[2].previousMergedCode).toBeNull();
   });
 });

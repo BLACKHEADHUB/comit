@@ -28,6 +28,9 @@ const projectSchema = new Schema({
   lastActivityAt: { type: Date, default: Date.now }, // 마지막 활동(제출·병합·댓글). 오래 안 쓰면 정리 대상이 된다
   // 연결된 수업(반). 팀장이 반 코드를 넣으면 생기고, 강사는 이 반에 연결된 프로젝트의 기여도만 볼 수 있다
   classroomId: { type: Schema.Types.ObjectId, ref: "Classroom", default: null },
+  // 강사가 팀 상세 화면에서 남기는 한마디 피드백 (학생 작업 공간에서 확인할 수 있다)
+  instructorFeedback: { type: String, default: "", trim: true, maxlength: 500 },
+  instructorFeedbackAt: { type: Date, default: null },
 });
 
 // 복구 코드로 멤버를 찾는 조회용 (값이 없는 멤버는 인덱스에서 뺀다)

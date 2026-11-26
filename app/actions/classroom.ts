@@ -215,3 +215,32 @@ export async function unlinkClassProject(token: string, projectId: string): Prom
     return { error: RETRY_MESSAGE };
   }
 }
+
+const feedbackSchema = z.string().trim().max(500, "피드백은 500자 이하로 입력해주세요.");
+
+// 강사용: 팀에게 한마디 피드백 남기기 (학생 작업 공간에서 확인할 수 있다)
+export async function updateProjectFeedback(
+  token: string,
+  projectId: string,
+  rawFeedback: string
+): Promise<{ error?: string; ok?: boolean; feedback?: string; feedbackAt?: string | null }> {
+  const parsed = feedbackSchema.safeParse(rawFeedback ?? "");
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    const found = await findClassProject(token, projectId);
+    if (!found) return { error: BAD_REQUEST_MESSAGE };
+
+    const now = parsed.data ? new Date() : null;
+    await Project.updateOne(
+      { _id: found.project._id, classroomId: found.classroom._id },
+      { $set: { instructorFeedback: parsed.data, instructorFeedbackAt: now } }
+    );
+    revalidatePath(`/class/${token}/project/${projectId}`);
+    revalidatePath(`/project/${projectId}`);
+    return { ok: true, feedback: parsed.data, feedbackAt: now ? now.toISOString() : null };
+  } catch (error) {
+    console.error("[class] 피드백 저장 실패", error instanceof Error ? error.name : "unknown");
+    return { error: RETRY_MESSAGE };
+  }
+}
