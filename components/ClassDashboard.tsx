@@ -15,6 +15,7 @@ import {
 import { copyText, showForManualCopy } from "@/lib/clipboard";
 import { formatTime } from "@/lib/tags";
 import { badge, btnGhost, btnPrimary, btnSecondary, card, inputClass, noticeError, noticeOk } from "@/lib/ui";
+import { MAX_CODE_CHARS } from "@/lib/validation";
 
 const FILTERS: { id: ClassFilter; label: string }[] = [
   { id: "all", label: "전체" },
@@ -29,6 +30,8 @@ export default function ClassDashboard({
   initialTitle,
   initialInstructor,
   initialJoinCode,
+  initialAssignmentPrompt,
+  initialStarterCode,
   initialTeams,
   maxProjects,
 }: {
@@ -36,6 +39,8 @@ export default function ClassDashboard({
   initialTitle: string;
   initialInstructor: string;
   initialJoinCode: string;
+  initialAssignmentPrompt: string;
+  initialStarterCode: string;
   initialTeams: ClassTeamSummary[];
   maxProjects: number;
 }) {
@@ -43,6 +48,8 @@ export default function ClassDashboard({
   const [title, setTitle] = useState(initialTitle);
   const [instructorName, setInstructorName] = useState(initialInstructor);
   const [joinCode, setJoinCode] = useState(initialJoinCode);
+  const [assignmentPrompt, setAssignmentPrompt] = useState(initialAssignmentPrompt);
+  const [starterCode, setStarterCode] = useState(initialStarterCode);
   const [teams, setTeams] = useState(initialTeams);
 
   const [query, setQuery] = useState("");
@@ -54,6 +61,8 @@ export default function ClassDashboard({
   const [confirmResetLink, setConfirmResetLink] = useState(false);
   const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [draftInstructor, setDraftInstructor] = useState(initialInstructor);
+  const [draftPrompt, setDraftPrompt] = useState(initialAssignmentPrompt);
+  const [draftStarter, setDraftStarter] = useState(initialStarterCode);
   const [confirmUnlinkId, setConfirmUnlinkId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -86,15 +95,17 @@ export default function ClassDashboard({
     e.preventDefault();
     setFeedback(null);
     startTransition(async () => {
-      const res = await updateClassroom(token, draftTitle, draftInstructor);
+      const res = await updateClassroom(token, draftTitle, draftInstructor, draftPrompt, draftStarter);
       if (res.error) {
         setFeedback({ type: "error", text: res.error });
         return;
       }
       setTitle(res.title ?? draftTitle);
       setInstructorName(res.instructorName ?? draftInstructor);
+      setAssignmentPrompt(res.assignmentPrompt ?? draftPrompt);
+      setStarterCode(res.starterCode ?? draftStarter);
       setEditing(false);
-      setFeedback({ type: "ok", text: "수업 정보를 저장했어요." });
+      setFeedback({ type: "ok", text: "수업 정보와 과제 설정을 저장했어요." });
     });
   };
 
@@ -154,10 +165,12 @@ export default function ClassDashboard({
             onClick={() => {
               setDraftTitle(title);
               setDraftInstructor(instructorName);
+              setDraftPrompt(assignmentPrompt);
+              setDraftStarter(starterCode);
               setEditing((v) => !v);
             }}
           >
-            {editing ? "닫기" : "수업 설정"}
+            {editing ? "닫기" : "수업·과제 설정"}
           </button>
           {confirmResetLink ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs">
@@ -201,30 +214,73 @@ export default function ClassDashboard({
       </header>
 
       {editing && (
-        <form onSubmit={handleSaveInfo} className={`${card} flex flex-col gap-3 p-4 sm:flex-row sm:items-end`}>
-          <label className="flex flex-1 flex-col gap-1 text-xs font-medium">
-            수업 이름
-            <input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              required
-              maxLength={50}
+        <form onSubmit={handleSaveInfo} className={`${card} flex flex-col gap-3 p-4`}>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <label className="flex flex-1 flex-col gap-1 text-xs font-medium">
+              수업 이름
+              <input
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                required
+                maxLength={50}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium sm:w-48">
+              강사 이름 (선택)
+              <input
+                value={draftInstructor}
+                onChange={(e) => setDraftInstructor(e.target.value)}
+                maxLength={20}
+                className={inputClass}
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            과제 안내 (선택, 최대 500자)
+            <textarea
+              value={draftPrompt}
+              onChange={(e) => setDraftPrompt(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="예) 함수 2개를 나눠서 구현하고, 서로 코드 리뷰에서 질문 1개 이상 남겨보세요."
               className={inputClass}
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium sm:w-48">
-            강사 이름 (선택)
-            <input
-              value={draftInstructor}
-              onChange={(e) => setDraftInstructor(e.target.value)}
-              maxLength={20}
-              className={inputClass}
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            시작 코드 (Starter Code, 선택)
+            <textarea
+              value={draftStarter}
+              onChange={(e) => setDraftStarter(e.target.value)}
+              rows={5}
+              maxLength={MAX_CODE_CHARS}
+              placeholder="// 빈 프로젝트가 처음 수업에 연결될 때 자동으로 채워질 시작 코드"
+              className={`${inputClass} font-mono text-xs`}
             />
+            <span className="text-[11px] font-normal text-muted">
+              새로 연결하는 빈 프로젝트에만 자동으로 채워져요. 이미 코드가 있는 팀은 덮어쓰지 않아요.
+            </span>
           </label>
-          <button type="submit" disabled={pending} className={btnPrimary}>
-            {pending ? "저장 중..." : "저장"}
-          </button>
+          <div className="flex justify-end">
+            <button type="submit" disabled={pending} className={btnPrimary}>
+              {pending ? "저장 중..." : "저장"}
+            </button>
+          </div>
         </form>
+      )}
+
+      {(assignmentPrompt || starterCode) && !editing && (
+        <section className={`${card} flex flex-col gap-1.5 px-4 py-3 text-xs`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold">📋 등록된 과제 설정</span>
+            {starterCode && (
+              <span className={`${badge} bg-accent-soft text-accent-ink`}>
+                시작 코드 {starterCode.split("\n").length}줄 설정됨
+              </span>
+            )}
+          </div>
+          {assignmentPrompt && <p className="whitespace-pre-wrap leading-relaxed text-muted">{assignmentPrompt}</p>}
+        </section>
       )}
 
       {feedback && (

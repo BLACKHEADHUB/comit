@@ -8,12 +8,18 @@ import { generateClassCode, generateOwnerToken, hashOwnerToken, MAX_PROJECTS_PER
 import { findClassroomByToken, findClassProject } from "@/lib/classroomAuth";
 import { connectDB } from "@/lib/db";
 import { BAD_REQUEST_MESSAGE, NOT_MEMBER_MESSAGE, RETRY_MESSAGE } from "@/lib/ui";
+import { MAX_CODE_CHARS } from "@/lib/validation";
 import { Classroom } from "@/models/Classroom";
 import { Project } from "@/models/Project";
 
 const createClassSchema = z.object({
   title: z.string().trim().min(1, "수업 이름을 입력해주세요.").max(50, "수업 이름은 50자 이하로 입력해주세요."),
   instructorName: z.string().trim().max(20, "이름은 20자 이하로 입력해주세요."),
+});
+
+const updateClassSchema = createClassSchema.extend({
+  assignmentPrompt: z.string().trim().max(500, "과제 안내는 500자 이하로 입력해주세요.").default(""),
+  starterCode: z.string().max(MAX_CODE_CHARS, "시작 코드는 3만 자 이하로 입력해주세요.").default(""),
 });
 
 export type CreateClassState = { error?: string; ownerUrl?: string; joinCode?: string };
@@ -52,7 +58,14 @@ export async function createClassroom(_prev: CreateClassState, formData: FormDat
   }
 }
 
-export type ClassLinkResult = { error?: string; ok?: boolean; title?: string; instructorName?: string };
+export type ClassLinkResult = {
+  error?: string;
+  ok?: boolean;
+  title?: string;
+  instructorName?: string;
+  assignmentPrompt?: string;
+  appliedStarter?: boolean;
+};
 
 // 팀장이 반 코드를 넣어 내 프로젝트를 수업에 연결한다 (강사가 기여도 리포트를 볼 수 있게 된다)
 export async function linkProjectToClass(projectId: string, rawCode: string): Promise<ClassLinkResult> {
@@ -68,13 +81,27 @@ export async function linkProjectToClass(projectId: string, rawCode: string): Pr
     const joinCode = normalizeClassCode(String(rawCode ?? ""));
     if (!joinCode) return { error: "반 코드 모양이 달라요. 예) K7P2-XQ9M" };
 
-    const classroom = await Classroom.findOne({ joinCode }).select({ title: 1, instructorName: 1 }).lean();
+    const classroom = await Classroom.findOne({ joinCode })
+      .select({ title: 1, instructorName: 1, assignmentPrompt: 1, starterCode: 1 })
+      .lean();
     if (!classroom) return { error: "이 반 코드로 된 수업을 찾지 못했어요. 강사님께 다시 확인해주세요." };
     const linked = await Project.countDocuments({ classroomId: classroom._id });
     if (linked >= MAX_PROJECTS_PER_CLASS) return { error: `이 수업은 팀이 가득 찼어요. (최대 ${MAX_PROJECTS_PER_CLASS}팀)` };
 
-    await Project.updateOne({ _id: found.project._id }, { $set: { classroomId: classroom._id } });
-    return { ok: true, title: classroom.title, instructorName: classroom.instructorName };
+    // 빈 프로젝트가 처음 수업에 연결될 때만 시작 코드를 채워준다 (이미 작성한 코드는 덮어쓰지 않는다)
+    const starterCode = classroom.starterCode ?? "";
+    const applyStarter = starterCode.length > 0 && !(found.project.mainCode ?? "").trim();
+    await Project.updateOne(
+      { _id: found.project._id },
+      { $set: applyStarter ? { classroomId: classroom._id, mainCode: starterCode } : { classroomId: classroom._id } }
+    );
+    return {
+      ok: true,
+      title: classroom.title,
+      instructorName: classroom.instructorName,
+      assignmentPrompt: classroom.assignmentPrompt ?? "",
+      appliedStarter: applyStarter,
+    };
   } catch (error) {
     console.error("[class] 연결 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
@@ -95,13 +122,15 @@ export async function unlinkProjectFromClass(projectId: string): Promise<ClassLi
   }
 }
 
-// 강사용: 수업 이름·강사 이름 수정
+// 강사용: 수업 이름·강사 이름·과제 안내·시작 코드 수정
 export async function updateClassroom(
   token: string,
   title: string,
-  instructorName: string
-): Promise<{ error?: string; ok?: boolean; title?: string; instructorName?: string }> {
-  const parsed = createClassSchema.safeParse({ title, instructorName });
+  instructorName: string,
+  assignmentPrompt = "",
+  starterCode = ""
+): Promise<{ error?: string; ok?: boolean; title?: string; instructorName?: string; assignmentPrompt?: string; starterCode?: string }> {
+  const parsed = updateClassSchema.safeParse({ title, instructorName, assignmentPrompt, starterCode });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
@@ -110,10 +139,23 @@ export async function updateClassroom(
 
     await Classroom.updateOne(
       { _id: classroom._id },
-      { $set: { title: parsed.data.title, instructorName: parsed.data.instructorName } }
+      {
+        $set: {
+          title: parsed.data.title,
+          instructorName: parsed.data.instructorName,
+          assignmentPrompt: parsed.data.assignmentPrompt,
+          starterCode: parsed.data.starterCode,
+        },
+      }
     );
     revalidatePath(`/class/${token}`);
-    return { ok: true, title: parsed.data.title, instructorName: parsed.data.instructorName };
+    return {
+      ok: true,
+      title: parsed.data.title,
+      instructorName: parsed.data.instructorName,
+      assignmentPrompt: parsed.data.assignmentPrompt,
+      starterCode: parsed.data.starterCode,
+    };
   } catch (error) {
     console.error("[class] 정보 수정 실패", error instanceof Error ? error.name : "unknown");
     return { error: RETRY_MESSAGE };
