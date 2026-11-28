@@ -18,6 +18,7 @@ export default function ClassFeedbackForm({
   initialFeedbackAt: string | null;
 }) {
   const [feedback, setFeedback] = useState(initialFeedback);
+  const [savedFeedback, setSavedFeedback] = useState(initialFeedback);
   const [feedbackAt, setFeedbackAt] = useState(initialFeedbackAt);
   const [status, setStatus] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -30,9 +31,11 @@ export default function ClassFeedbackForm({
         setStatus({ type: "error", text: res.error });
         return;
       }
-      setFeedback(res.feedback ?? "");
+      const next = res.feedback ?? "";
+      setFeedback(next);
+      setSavedFeedback(next);
       setFeedbackAt(res.feedbackAt ?? null);
-      setStatus({ type: "ok", text: res.feedback ? "팀에게 피드백을 남겼어요." : "피드백을 지웠어요." });
+      setStatus({ type: "ok", text: next ? "팀에게 피드백을 남겼어요." : "피드백을 지웠어요." });
     });
   }
 
@@ -66,7 +69,7 @@ export default function ClassFeedbackForm({
           </p>
         )}
         <div className="flex justify-end gap-2">
-          {initialFeedback && (
+          {savedFeedback && (
             <button type="button" disabled={pending} onClick={() => save("")} className={btnGhost}>
               지우기
             </button>

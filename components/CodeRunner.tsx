@@ -41,7 +41,7 @@ export default function CodeRunner({
 
   if (language === "html") {
     return (
-      <div className={isSide ? "flex h-full flex-col border-l border-line bg-surface" : "border-t border-line bg-surface"}>
+      <div className={isSide ? "flex h-full flex-col border-t border-line bg-surface lg:border-t-0 lg:border-l" : "border-t border-line bg-surface"}>
         <div className="flex flex-wrap items-center gap-2 border-b border-line/60 px-3 py-1.5 text-xs text-muted">
           <button
             type="button"
@@ -157,7 +157,7 @@ export default function CodeRunner({
   const showPanel = status !== "idle" || isSide;
   return (
     <div
-      className={isSide ? "flex h-full flex-col border-l border-line bg-surface" : "border-t border-line bg-surface"}
+      className={isSide ? "flex h-full flex-col border-t border-line bg-surface lg:border-t-0 lg:border-l" : "border-t border-line bg-surface"}
       ref={hostRef}
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-line/60 px-3 py-1.5 text-xs text-muted">
