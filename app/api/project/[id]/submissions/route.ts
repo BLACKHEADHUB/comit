@@ -20,5 +20,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // 접속 중 표시: 내 접속 시각을 적고(1분에 한 번), 지금 접속 중인 팀원 닉네임을 돌려준다
   await touchPresence(member.project._id, member.me._id);
   const online = onlineNicknames(member.project.members, new Date(), member.me.nickname);
-  return Response.json({ submissions, mainVersion, memberCount, online }, { headers: { "Cache-Control": "no-store" } });
+  const instructorFeedback = member.project.instructorFeedback ?? "";
+  const instructorFeedbackAt = member.project.instructorFeedbackAt ? member.project.instructorFeedbackAt.toISOString() : null;
+  return Response.json(
+    { submissions, mainVersion, memberCount, online, instructorFeedback, instructorFeedbackAt },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

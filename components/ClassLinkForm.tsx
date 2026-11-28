@@ -1,14 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { linkProjectToClass, unlinkProjectFromClass } from "@/app/actions/classroom";
 import { btnGhost, btnSecondary, card, inputClass, noticeError } from "@/lib/ui";
 
 type Linked = { title: string; instructorName: string } | null;
 
-// 기여도 리포트 아래: 이 프로젝트를 수업(반)에 연결하는 칸. 연결하면 강사가 이 리포트와 최종 병합 코드를 볼 수 있다.
+// 기여도 리포트 아래: 이 프로젝트를 수업(반)에 연결하는 칸. 연결하면 강사가 이 리포트와 최종 병합 코드·과정 타임라인을 볼 수 있다.
 // 팀장만 연결·해제할 수 있고, 팀원에게는 연결 상태만 보인다
 export default function ClassLinkForm({ projectId, isLeader, linked: initial }: { projectId: string; isLeader: boolean; linked: Linked }) {
+  const router = useRouter();
   const [linked, setLinked] = useState<Linked>(initial);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +25,7 @@ export default function ClassLinkForm({ projectId, isLeader, linked: initial }: 
         <>
           <p>
             <strong>{linked.title}</strong>
-            {linked.instructorName && ` (${linked.instructorName})`} 수업에 연결돼 있어요. 강사님이 이 기여도 리포트와 최종 병합된 코드를 볼 수 있어요. 작성 중인 초안과 댓글 내용은 보이지 않아요.
+            {linked.instructorName && ` (${linked.instructorName})`} 수업에 연결돼 있어요. 강사님이 이 기여도 리포트와 최종 병합된 코드·과정 타임라인을 볼 수 있어요. 작성 중인 초안과 댓글 내용은 보이지 않아요.
           </p>
           {isLeader && (
             <button
@@ -34,7 +36,10 @@ export default function ClassLinkForm({ projectId, isLeader, linked: initial }: 
                 startTransition(async () => {
                   const res = await unlinkProjectFromClass(projectId);
                   if (res.error) setError(res.error);
-                  else setLinked(null);
+                  else {
+                    setLinked(null);
+                    router.refresh();
+                  }
                 })
               }
             >
@@ -51,11 +56,15 @@ export default function ClassLinkForm({ projectId, isLeader, linked: initial }: 
             startTransition(async () => {
               const res = await linkProjectToClass(projectId, code);
               if (res.error) setError(res.error);
-              else if (res.ok) setLinked({ title: res.title ?? "", instructorName: res.instructorName ?? "" });
+              else if (res.ok) {
+                setLinked({ title: res.title ?? "", instructorName: res.instructorName ?? "" });
+                setCode("");
+                router.refresh();
+              }
             });
           }}
         >
-          <p className="text-muted">강사님께 받은 반 코드를 넣으면, 강사님이 우리 팀의 기여도 리포트와 최종 병합된 코드를 볼 수 있어요. 작성 중인 초안과 댓글 내용은 보이지 않아요.</p>
+          <p className="text-muted">강사님께 받은 반 코드를 넣으면, 강사님이 우리 팀의 기여도 리포트와 최종 병합된 코드·과정 타임라인을 볼 수 있어요. 작성 중인 초안과 댓글 내용은 보이지 않아요.</p>
           <div className="flex flex-wrap gap-2">
             <input
               value={code}

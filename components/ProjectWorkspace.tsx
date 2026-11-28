@@ -168,6 +168,8 @@ export default function ProjectWorkspace({
   const [memberCount, setMemberCount] = useState(initialMemberCount); // 혼자인지 판단 (폴링으로 갱신)
   const alone = memberCount <= 1;
   const [latestVersion, setLatestVersion] = useState(initialVersion);
+  const [liveFeedback, setLiveFeedback] = useState(instructorFeedback);
+  const [liveFeedbackAt, setLiveFeedbackAt] = useState(instructorFeedbackAt);
   const originalChanged = latestVersion !== baseVersion;
   // [최신 원본 보기]를 눌렀을 때만 받아 오는 최신 원본 (null이면 창이 닫힌 상태)
   const [latestMain, setLatestMain] = useState<string | null>(null);
@@ -221,9 +223,18 @@ export default function ProjectWorkspace({
     return startPolling(async () => {
       const res = await fetch(`/api/project/${projectId}/submissions`, { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { submissions: SubmissionItem[]; mainVersion: string; memberCount: number; online?: string[] };
+      const data = (await res.json()) as {
+        submissions: SubmissionItem[];
+        mainVersion: string;
+        memberCount: number;
+        online?: string[];
+        instructorFeedback?: string;
+        instructorFeedbackAt?: string | null;
+      };
       setMemberCount(data.memberCount);
       if (data.online) setOnline(data.online);
+      if (typeof data.instructorFeedback === "string") setLiveFeedback(data.instructorFeedback);
+      if (data.instructorFeedbackAt !== undefined) setLiveFeedbackAt(data.instructorFeedbackAt ?? null);
       setLatestVersion(data.mainVersion); // 원본이 바뀌었는지 알림용 (에디터의 코드는 건드리지 않는다)
       const fresh = newActivityIds(latestSubmissions.current, data.submissions, myNickname);
       if (fresh.length > 0) setUnseen((prev) => new Set([...prev, ...fresh]));
@@ -600,7 +611,7 @@ export default function ProjectWorkspace({
                 📋 과제 안내
               </button>
             )}
-            {instructorFeedback && (
+            {liveFeedback && (
               <button
                 type="button"
                 onClick={() => setFeedbackOpen((v) => !v)}
@@ -650,17 +661,17 @@ export default function ProjectWorkspace({
             <p className="mt-1 whitespace-pre-wrap text-muted">{assignmentPrompt}</p>
           </div>
         )}
-        {instructorFeedback && feedbackOpen && (
+        {liveFeedback && feedbackOpen && (
           <div className="border-b border-line bg-ok-soft/40 px-4 py-2.5 text-xs leading-relaxed">
             <div className="flex items-center justify-between gap-2">
               <strong className="font-semibold text-foreground">
-                💬 강사님 피드백{instructorFeedbackAt ? ` · ${formatTime(instructorFeedbackAt)}` : ""}
+                💬 강사님 피드백{liveFeedbackAt ? ` · ${formatTime(liveFeedbackAt)}` : ""}
               </strong>
               <button type="button" onClick={() => setFeedbackOpen(false)} className="text-muted hover:text-foreground">
                 닫기
               </button>
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-foreground">{instructorFeedback}</p>
+            <p className="mt-1 whitespace-pre-wrap text-foreground">{liveFeedback}</p>
           </div>
         )}
         <div className={`flex min-h-0 flex-1 flex-col ${runnerSide && (language === "html" || isRunnable(language)) ? "lg:flex-row" : ""}`}>
